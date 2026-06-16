@@ -5,6 +5,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../profanity_filter.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Group group;
@@ -169,6 +170,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               itemBuilder: (_, i) {
                 final m = _messages[i];
                 final isMe = m['from'] == myFipId;
+                final displayText = filterProfanity(m['text'] as String? ?? '');
                 return Align(
                   alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
@@ -182,7 +184,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     ),
                     child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                       if (!isMe) Text(m['fromName'] as String? ?? '', style: const TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-                      Text(m['text'] as String? ?? '', style: const TextStyle(color: KnkColors.text, fontSize: 14)),
+                      Text(displayText, style: const TextStyle(color: KnkColors.text, fontSize: 14)),
                     ]),
                   ),
                 );

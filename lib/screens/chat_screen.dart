@@ -4,6 +4,7 @@ import '../knk_api.dart';
 import '../local_store.dart';
 import '../obfuscate.dart';
 import '../theme.dart';
+import '../profanity_filter.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -42,7 +43,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _poll() async {
     while (_alive) {
-      // Read messages from own server
       final raw = await KnkApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
       final msgs = raw
           .map((m) => ChatMessage(
@@ -98,7 +98,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     final ts = DateTime.now().millisecondsSinceEpoch;
-    // Send to contact's server
     await KnkApi.sendMessage(
       receiverServerUrl: widget.contact.serverUrl,
       chatKey: _chatKey,
@@ -106,7 +105,6 @@ class _ChatScreenState extends State<ChatScreen> {
       text: obfuscate(text),
       ts: ts,
     );
-    // Also store on own server
     await KnkApi.sendMessage(
       receiverServerUrl: widget.myServerUrl,
       chatKey: _chatKey,
@@ -206,6 +204,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (context, i) {
                       final m = _messages[i];
                       final mine = m.from == widget.identity.fipId;
+                      final displayText = filterProfanity(m.text);
                       return Align(
                         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
@@ -226,7 +225,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                m.text,
+                                displayText,
                                 style: TextStyle(
                                   color: mine ? const Color(0xFF06251A) : KnkColors.text,
                                   fontSize: 13.5,
