@@ -65,10 +65,7 @@ class KnkApi {
       final r = await http.post(_u(serverUrl, '/active'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'fipIds': [fipId]}));
-      if (r.statusCode == 200) {
-        final list = jsonDecode(r.body) as List;
-        return list.contains(fipId);
-      }
+      if (r.statusCode == 200) return (jsonDecode(r.body) as List).contains(fipId);
     } catch (_) {}
     return false;
   }
@@ -152,9 +149,7 @@ class KnkApi {
   }
 
   static Future<void> rejectGroupMember(String myServerUrl, String groupId, String fipId) async {
-    try {
-      await http.delete(_u(myServerUrl, '/groups/$groupId/join-requests/$fipId'));
-    } catch (_) {}
+    try { await http.delete(_u(myServerUrl, '/groups/$groupId/join-requests/$fipId')); } catch (_) {}
   }
 
   static Future<Map<String, dynamic>?> getGroupMembers(String ownerServerUrl, String groupId) async {
@@ -186,8 +181,27 @@ class KnkApi {
   }
 
   static Future<void> leaveGroup(String ownerServerUrl, String groupId, String fipId) async {
+    try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId')); } catch (_) {}
+  }
+
+  // --- Pulse AI ---
+
+  /// [messages] format: [{'role':'user','content':'...'}, {'role':'assistant','content':'...'}, ...]
+  static Future<String> chatWithPulseAI(String myServerUrl, List<Map<String, String>> messages) async {
     try {
-      await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId'));
-    } catch (_) {}
+      final r = await http.post(
+        _u(myServerUrl, '/ai/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'messages': messages}),
+      ).timeout(const Duration(seconds: 30));
+      if (r.statusCode == 200) {
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        return body['reply'] as String? ?? 'Yanıt alınamadı.';
+      }
+      final err = jsonDecode(r.body)['error'] as String? ?? 'Bir hata oluştu.';
+      return err;
+    } catch (_) {
+      return 'Pulse AI\'e ulaşılamadı. Sunucu bağlantını kontrol et.';
+    }
   }
 }
