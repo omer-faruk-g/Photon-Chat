@@ -1,148 +1,98 @@
-[README.md](https://github.com/user-attachments/files/28959413/README.md)
 # Photon Chat
 
-**Telefon numarası yok. E-posta yok. Sadece 5 haneli bir kod.**
+**Telefon numarası yok. E-posta yok. Hesap yok. Sadece indir ve kullan.**
 
-Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlayan, FIP (Fingerprint Identity Protocol) tabanlı gizlilik odaklı bir mesajlaşma uygulamasıdır. Flutter ile yazılmıştır; Android, iOS, Windows ve Linux'ta çalışır.
+Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlayan gizlilik odaklı bir mesajlaşma uygulamasıdır.
 
 ---
 
-## Nasıl Çalışır?
+## İndir
 
-1. Uygulamayı açın — otomatik olarak size özel bir **FIP** (kriptografik parmak izi) oluşturulur.
-2. Bu FIP'ten türetilen **5 haneli kod** sizin adresinizdir. Paylaşın.
-3. Karşı tarafın 5 haneli kodunu girerek arkadaş ekleyin.
-4. Sunucu sadece şifrelenmiş/obfüske mesajları RAM'de tutar; kalıcı veritabanı yoktur.
+| Platform | İndir |
+|----------|-------|
+| 📱 Android | [**APK İndir →**](../../releases/latest) |
+| 🌐 Windows | [**Windows İndir →**](../../releases/latest) |
+| 🐧 Linux | [**Linux İndir →**](../../releases/latest) |
+| 🍏 iOS | Yakında *(Apple Developer hesabı gerektirir)* |
+
+> **Android:** APK dosyasını indirip aç. "Bilinmeyen kaynaktan yükle" izni isteyebilir — izin ver ve devam et.
+
+---
+
+## Başlamak İçin
+
+### 1 — Kendi Ücretsiz Sunucunu Kur *(1 kez, 5 dakika)*
+
+Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsiz sunucusunu çalıştırır.
+
+1. [render.com](https://render.com) — ücretsiz hesap aç
+2. **New → Web Service** → bu repoyu bağla
+3. Root Directory: `server` | Plan: **Free** | Deploy bas
+4. Birkaç dakika sonra sana `https://xxxx.onrender.com` adresi verilir — bunu kaydet
+
+### 2 — Uygulamayı Aç
+
+1. Uygulamayı aç — kısa bir rehber görürsün
+2. Render URL'ini gir (`https://xxxx.onrender.com`)
+3. Bir kullanıcı adı seç — kimliğin otomatik oluşturulur
+4. Adresin hazır → `12345@https://xxxx.onrender.com`
+
+Hepsi bu kadar. Artık mesajlaşabilirsin.
 
 ---
 
 ## Özellikler
 
-- Telefon numarası veya e-posta gerektirmez
-- 5 haneli kodla arkadaş eşleştirmesi
-- Sunucu tarafında kalıcı kayıt yok (RAM-only)
-- Hesap silindiğinde tüm veriler anında yok edilir
-- Çıkışta sohbet imha etme seçeneği
-- Deaktif kullanıcı uyarısı (karşı taraf hesabı sildiyse bildirim)
-- Android, iOS, Windows, Linux desteği (tek kod tabanı)
+| Özellik | |
+|---------|--|
+| Telefon / e-posta gerektirmez | ✅ |
+| Gerçek uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
+| Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
+| Ekran görüntüsü engeli (Android) | ✅ |
+| Grup sohbeti — 500–1000 kişi, merkeziyetsiz | ✅ |
+| Yazıyor göstergesi | ✅ |
+| Mesaj teslim durumu (✓ / ✓✓) | ✅ |
+| Kullanıcı engelleme | ✅ |
+| Grup yöneticisi (sustur / at) | ✅ |
+| Küfür filtresi | ✅ |
+| Pulse AI asistanı | ✅ |
 
 ---
 
-## Kurulum
+## Gizlilik
 
-### Gereksinimler
+| Veri | Davranış |
+|------|----------|
+| Kimlik | Cihazda şifreli — sunucuya gönderilmez |
+| Mesajlar | Uçtan uca şifreli, RAM'de, kalıcı kayıt yok |
+| Kişi listesi | Yalnızca cihazda |
+| Hesap silme | Tüm veriler anında imha edilir |
 
-- Flutter 3.16 veya üzeri (`flutter --version` ile kontrol edin)
-- Dart SDK >= 3.2
-- Node.js >= 18 (sunucu için)
+---
 
-### Projeyi Aç
+## Pulse AI *(Opsiyonel)*
 
-```bash
-tar -xzf photon_chat_flutter.tar.gz
-cd knk_flutter
-```
+Uygulamaya entegre yapay zeka asistanı. Aktifleştirmek için Render dashboard → Environment → `ANTHROPIC_API_KEY` ekle. Eklemezsen uygulama normal çalışır.
 
-### Flutter Bağımlılıklarını Yükle
+---
+
+## Geliştiriciler İçin
+
+<details>
+<summary>Kaynağı derleme</summary>
+
+**Gereksinimler:** Flutter 3.16+, Dart ≥ 3.2, Node.js ≥ 18
 
 ```bash
 flutter pub get
+cd server && npm install && npm start
+flutter build apk --release
 ```
 
-### Sunucuyu Başlat
-
-```bash
-cd server
-npm install
-npm start
-```
-
-Sunucu varsayılan olarak `http://localhost:3000` adresinde çalışır.  
-`lib/knk_api.dart` içindeki `baseUrl` değerini kendi sunucu adresinizle güncelleyin.
-
----
-
-## Derleme
-
-### Android
-
-```bash
-flutter build apk --release         # APK (test / yan yükleme)
-flutter build appbundle --release   # AAB (Play Store)
-```
-
-### iOS
-
-```bash
-flutter build ipa --release
-```
-
-> macOS + Xcode gerektirir.
-
-### Windows
-
-```bash
-flutter config --enable-windows-desktop
-flutter create .
-flutter pub get
-flutter build windows --release
-```
-
-Çıktı: `build/windows/x64/runner/Release/`
-
-### Linux
-
-```bash
-flutter config --enable-linux-desktop
-flutter create .
-sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev
-flutter pub get
-flutter build linux --release
-```
-
-Çıktı: `build/linux/x64/release/bundle/`
-
----
-
-## Proje Yapısı
-
-```
-knk_flutter/
-├── assets/icon/           # Uygulama ikonları
-├── lib/
-│   ├── main.dart          # Giriş noktası
-│   ├── root_gate.dart     # Kimlik kontrolü → Onboarding veya Kişiler
-│   ├── fip.dart           # FIP üretimi ve 5 haneli kod türetme
-│   ├── knk_api.dart       # Sunucu iletişim katmanı
-│   ├── local_store.dart   # Cihaz içi depolama
-│   ├── obfuscate.dart     # Mesaj obfüskasyonu
-│   ├── theme.dart         # Renkler ve stiller
-│   ├── onboarding_screen.dart
-│   └── screens/
-│       ├── contacts_screen.dart
-│       ├── add_contact_screen.dart
-│       ├── chat_screen.dart
-│       └── settings_screen.dart
-└── server/
-    ├── index.js           # Express röle sunucusu
-    └── package.json
-```
-
----
-
-## Gizlilik Yaklaşımı
-
-| Veri | Sunucu Davranışı |
-|------|-----------------|
-| Kimlik | FIP hash'i — asıl anahtar cihazda kalır |
-| Mesajlar | RAM'de obfüske blob, kalıcı kayıt yok |
-| Kişi listesi | Cihazda (`shared_preferences`) |
-| Hesap silme | `/deactivate` → ilgili tüm veriler anında silinir |
-
-> **Not:** Mevcut `obfuscate.dart` görsel gizleme sağlar, kriptografik güvenlik sunmaz. Üretim ortamı için X25519 + AES-GCM tabanlı uçtan uca şifreleme önerilir.
+</details>
 
 ---
 
 ## Lisans
 
-[LICENSE](LICENSE) dosyasına bakın.
+[LICENSE](LICENSE)
