@@ -9,5 +9,5 @@ services:
     envVars:
       - key: PORT
         value: 3000
-      - key: ANTHROPIC_API_KEY
-        sync: false   # Render dashboard'dan manuel girilir
+      # Opsiyonel: Pulse AI icin Anthropic API anahtari
+      # Render dashboard > Environment > ANTHROPIC_API_KEY olarak ekle
