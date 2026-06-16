@@ -8,6 +8,7 @@ const requests = new Map();
 const accepted = new Map();
 const chats = new Map();
 const groups = new Map();
+const typingMap = new Map(); // chatKey -> [{fipId, ts}]
 
 function rand(n) {
   return Math.floor(Math.random() * Math.pow(10, n)).toString().padStart(n, '0');
@@ -15,9 +16,9 @@ function rand(n) {
 
 // --- Presence ---
 app.post('/presence', (req, res) => {
-  const { fipId, code, name } = req.body;
+  const { fipId, code, name, publicKey } = req.body;
   if (!fipId) return res.sendStatus(400);
-  users.set(fipId, { code, name, ts: Date.now() });
+  users.set(fipId, { code, name, publicKey, ts: Date.now() });
   res.sendStatus(200);
 });
 
@@ -31,11 +32,11 @@ app.get('/lookup/:code', (req, res) => {
 // --- Friend requests ---
 app.post('/requests/:toFipId', (req, res) => {
   const { toFipId } = req.params;
-  const { fromFipId, fromCode, fromName, fromServerUrl } = req.body;
+  const { fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey } = req.body;
   if (!requests.has(toFipId)) requests.set(toFipId, []);
   const list = requests.get(toFipId);
   if (!list.find(r => r.fromFipId === fromFipId)) {
-    list.push({ fromFipId, fromCode, fromName, fromServerUrl, ts: Date.now() });
+    list.push({ fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey, ts: Date.now() });
   }
   res.sendStatus(200);
 });
@@ -82,6 +83,26 @@ app.delete('/chat/:chatKey', (req, res) => {
   res.sendStatus(200);
 });
 
+// --- Typing indicator ---
+app.post('/typing/:chatKey', (req, res) => {
+  const { fipId, ts } = req.body;
+  if (!fipId) return res.sendStatus(400);
+  const key = req.params.chatKey;
+  if (!typingMap.has(key)) typingMap.set(key, []);
+  const list = typingMap.get(key);
+  const idx = list.findIndex(t => t.fipId === fipId);
+  const entry = { fipId, ts: ts || Date.now() };
+  if (idx === -1) list.push(entry);
+  else list[idx] = entry;
+  res.sendStatus(200);
+});
+
+app.get('/typing/:chatKey', (req, res) => {
+  const now = Date.now();
+  const list = typingMap.get(req.params.chatKey) || [];
+  res.json(list.filter(t => now - t.ts < 4000));
+});
+
 // --- Deactivate ---
 app.post('/deactivate', (req, res) => {
   const { fipId } = req.body;
@@ -90,6 +111,9 @@ app.post('/deactivate', (req, res) => {
   accepted.delete(fipId);
   for (const [key] of chats) {
     if (key.includes(fipId)) chats.delete(key);
+  }
+  for (const [key] of typingMap) {
+    if (key.includes(fipId)) typingMap.delete(key);
   }
   for (const [, g] of groups) {
     g.members = g.members.filter(m => m.fipId !== fipId);
@@ -108,6 +132,8 @@ app.post('/groups', (req, res) => {
     groupId, groupCode, name, ownerFipId, ownerName, ownerServerUrl,
     members: [{ fipId: ownerFipId, name: ownerName, serverUrl: ownerServerUrl }],
     joinRequests: [], messages: [],
+    muted: [],       // susturulan üyeler [fipId, ...]
+    groupKeys: {},   // { memberFipId: encryptedKey }
   });
   res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl });
 });
@@ -161,13 +187,45 @@ app.delete('/groups/:groupId/members/:fipId', (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
   g.members = g.members.filter(m => m.fipId !== req.params.fipId);
+  // Susturma listesinden de çıkar
+  g.muted = (g.muted || []).filter(id => id !== req.params.fipId);
   res.sendStatus(200);
 });
 
+// --- Group mute ---
+app.post('/groups/:groupId/muted', (req, res) => {
+  const g = groups.get(req.params.groupId);
+  if (!g) return res.sendStatus(404);
+  const { fipId } = req.body;
+  if (!fipId) return res.sendStatus(400);
+  if (!g.muted) g.muted = [];
+  if (!g.muted.includes(fipId)) g.muted.push(fipId);
+  res.sendStatus(200);
+});
+
+app.delete('/groups/:groupId/muted/:fipId', (req, res) => {
+  const g = groups.get(req.params.groupId);
+  if (!g) return res.sendStatus(404);
+  if (!g.muted) g.muted = [];
+  g.muted = g.muted.filter(id => id !== req.params.fipId);
+  res.sendStatus(200);
+});
+
+app.get('/groups/:groupId/muted', (req, res) => {
+  const g = groups.get(req.params.groupId);
+  if (!g) return res.sendStatus(404);
+  res.json(g.muted || []);
+});
+
+// --- Group messages (muted kontrolü) ---
 app.post('/groups/:groupId/messages', (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
   const { from, fromName, text, ts } = req.body;
+  // Susturulan kullanıcı mesaj gönderemez
+  if ((g.muted || []).includes(from)) {
+    return res.status(403).json({ error: 'Susturuldunuz.' });
+  }
   const uniqueSenders = [...new Set(g.messages.map(m => m.from))];
   if (!uniqueSenders.includes(from) && uniqueSenders.length >= 10)
     return res.status(429).json({ error: 'Slot limit reached (10 senders max)' });
@@ -180,6 +238,24 @@ app.get('/groups/:groupId/messages', (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
   res.json(g.messages);
+});
+
+// --- Group E2E key distribution ---
+app.post('/groups/:groupId/key/:memberFipId', (req, res) => {
+  const g = groups.get(req.params.groupId);
+  if (!g) return res.sendStatus(404);
+  const { encryptedKey } = req.body;
+  if (!g.groupKeys) g.groupKeys = {};
+  g.groupKeys[req.params.memberFipId] = encryptedKey;
+  res.sendStatus(200);
+});
+
+app.get('/groups/:groupId/key/:memberFipId', (req, res) => {
+  const g = groups.get(req.params.groupId);
+  if (!g) return res.sendStatus(404);
+  const key = (g.groupKeys || {})[req.params.memberFipId];
+  if (!key) return res.sendStatus(404);
+  res.json({ encryptedKey: key });
 });
 
 // --- Pulse AI (proxies to Claude API, key stays on server) ---

@@ -57,6 +57,7 @@ class LocalStore {
   static const _kMyServerUrlKey = 'knk_my_server_url_v1';
   static const _kGroupsKey = 'knk_groups_v1';
   static const _kGuideSeenKey = 'knk_guide_seen_v1';
+  static const _kBlockListKey = 'knk_block_list_v1';
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
@@ -97,6 +98,31 @@ class LocalStore {
   static Future<void> saveGroups(List<Group> groups) async =>
       (await SharedPreferences.getInstance()).setString(_kGroupsKey, jsonEncode(groups.map((g) => g.toJson()).toList()));
 
+  // --- Block list ---
+
+  static Future<List<String>> loadBlockList() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_kBlockListKey);
+    if (raw == null) return [];
+    return List<String>.from(jsonDecode(raw) as List);
+  }
+
+  static Future<void> saveBlockList(List<String> list) async =>
+      (await SharedPreferences.getInstance()).setString(_kBlockListKey, jsonEncode(list));
+
+  static Future<void> blockUser(String fipId) async {
+    final list = await loadBlockList();
+    if (!list.contains(fipId)) {
+      list.add(fipId);
+      await saveBlockList(list);
+    }
+  }
+
+  static Future<void> unblockUser(String fipId) async {
+    final list = await loadBlockList();
+    list.remove(fipId);
+    await saveBlockList(list);
+  }
+
   static Future<void> wipeIdentity() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kIdentityKey);
@@ -105,5 +131,6 @@ class LocalStore {
     await prefs.remove(_kMyServerUrlKey);
     await prefs.remove(_kGroupsKey);
     await prefs.remove(_kGuideSeenKey);
+    await prefs.remove(_kBlockListKey);
   }
 }

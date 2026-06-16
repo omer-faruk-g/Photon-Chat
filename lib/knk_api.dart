@@ -30,10 +30,11 @@ class KnkApi {
   static Future<void> sendFriendRequest({
     required String toServerUrl, required String toFipId,
     required String fromFipId, required String fromCode, required String fromName, required String fromServerUrl,
+    String? fromPublicKey,
   }) async {
     await http.post(_u(toServerUrl, '/requests/$toFipId'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'fromFipId': fromFipId, 'fromCode': fromCode, 'fromName': fromName, 'fromServerUrl': fromServerUrl}));
+        body: jsonEncode({'fromFipId': fromFipId, 'fromCode': fromCode, 'fromName': fromName, 'fromServerUrl': fromServerUrl, if (fromPublicKey != null) 'fromPublicKey': fromPublicKey}));
   }
 
   static Future<List<Map<String, dynamic>>> getIncomingRequests(String myServerUrl, String myFipId) async {
@@ -78,12 +79,15 @@ class KnkApi {
     return [];
   }
 
-  static Future<void> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
+  /// Mesajı karşı tarafın sunucusuna gönderir; true dönerse teslim edildi (✓✓).
+  static Future<bool> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
     try {
-      await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
+      final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'from': from, 'text': text, 'ts': ts}));
+      return r.statusCode == 200;
     } catch (_) {}
+    return false;
   }
 
   static Future<void> deleteChat(String serverUrl, String chatKey) async {
@@ -96,6 +100,24 @@ class KnkApi {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'fipId': fipId}));
     } catch (_) {}
+  }
+
+  // --- Typing indicator ---
+
+  static Future<void> sendTyping(String myServerUrl, String chatKey, String fipId) async {
+    try {
+      await http.post(_u(myServerUrl, '/typing/$chatKey'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'ts': DateTime.now().millisecondsSinceEpoch}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getTyping(String serverUrl, String chatKey) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/typing/$chatKey'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
   }
 
   // --- Group API ---
@@ -182,6 +204,49 @@ class KnkApi {
 
   static Future<void> leaveGroup(String ownerServerUrl, String groupId, String fipId) async {
     try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId')); } catch (_) {}
+  }
+
+  // --- Group mute ---
+
+  static Future<void> muteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/muted'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId}));
+    } catch (_) {}
+  }
+
+  static Future<void> unmuteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+    try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/muted/$fipId')); } catch (_) {}
+  }
+
+  static Future<List<String>> getMutedMembers(String ownerServerUrl, String groupId) async {
+    try {
+      final r = await http.get(_u(ownerServerUrl, '/groups/$groupId/muted'));
+      if (r.statusCode == 200) return List<String>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  // --- Group key (E2E for groups) ---
+
+  static Future<void> sendGroupKey(String ownerServerUrl, String groupId, String memberFipId, String encryptedKey) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/key/$memberFipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'encryptedKey': encryptedKey}));
+    } catch (_) {}
+  }
+
+  static Future<String?> getGroupKey(String ownerServerUrl, String groupId, String myFipId) async {
+    try {
+      final r = await http.get(_u(ownerServerUrl, '/groups/$groupId/key/$myFipId'));
+      if (r.statusCode == 200) {
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        return body['encryptedKey'] as String?;
+      }
+    } catch (_) {}
+    return null;
   }
 
   // --- Pulse AI ---

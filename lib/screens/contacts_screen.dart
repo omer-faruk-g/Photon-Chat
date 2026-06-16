@@ -26,6 +26,7 @@ class ContactsScreen extends StatefulWidget {
 class _ContactsScreenState extends State<ContactsScreen> {
   List<Contact> _contacts = [];
   List<Group> _groups = [];
+  List<String> _blockList = [];
   bool _loading = true;
   String? _toast;
   final Map<String, int> _groupPendingCounts = {};
@@ -36,7 +37,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _init() async {
     final savedContacts = await LocalStore.loadContacts();
     final savedGroups = await LocalStore.loadGroups();
-    setState(() { _contacts = savedContacts; _groups = savedGroups; _loading = false; });
+    final blockList = await LocalStore.loadBlockList();
+    setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
     await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName);
     _sync();
     _groupSync();
@@ -52,6 +54,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
     for (final req in incoming) {
       final fromFipId = req['fromFipId'] as String;
+      // Engellenen kişilerden gelen istekleri filtrele
+      if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
       if (!_contacts.any((c) => c.fipId == fromFipId)) {
         _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? 'Bilinmeyen',
@@ -94,6 +98,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _decline(Contact c) async {
     setState(() => _contacts.removeWhere((x) => x.fipId == c.fipId));
     await LocalStore.saveContacts(_contacts);
+  }
+
+  Future<void> _blockContact(Contact c) async {
+    await LocalStore.blockUser(c.fipId);
+    setState(() {
+      _blockList.add(c.fipId);
+      _contacts.removeWhere((x) => x.fipId == c.fipId);
+    });
+    await LocalStore.saveContacts(_contacts);
+    _showToast('${c.name} engellendi.');
   }
 
   Future<void> _openAddScreen() async {
@@ -209,7 +223,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 ],
                 _SectionTitle('Kişiler · ${active.length}'),
                 if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
-                ...active.map((c) => _ContactRow(contact: c, onTap: () => _openChat(c))),
+                ...active.map((c) => _ContactRow(
+                  contact: c,
+                  onTap: () => _openChat(c),
+                  onBlock: () => _blockContact(c),
+                )),
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
                 const SizedBox(height: 24),
                 Row(
@@ -399,27 +417,56 @@ class _RequestRow extends StatelessWidget {
 class _ContactRow extends StatelessWidget {
   final Contact contact;
   final VoidCallback onTap;
-  const _ContactRow({required this.contact, required this.onTap});
+  final VoidCallback onBlock;
+  const _ContactRow({required this.contact, required this.onTap, required this.onBlock});
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(10),
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-      child: Row(children: [
-        _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-          Row(children: [
-            Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-            const SizedBox(width: 6),
-            const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-          ]),
-        ])),
-        const Icon(Icons.chevron_right, color: KnkColors.textDim),
-      ]),
+  Widget build(BuildContext context) => GestureDetector(
+    onLongPress: () {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: KnkColors.panel,
+        builder: (_) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.block, color: KnkColors.danger),
+                title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
+                onTap: () {
+                  Navigator.pop(context);
+                  onBlock();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
+                title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+        child: Row(children: [
+          _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+            Row(children: [
+              Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+            ]),
+          ])),
+          const Icon(Icons.chevron_right, color: KnkColors.textDim),
+        ]),
+      ),
     ),
   );
 }
