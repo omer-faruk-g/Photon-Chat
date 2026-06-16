@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/28959413/README.md)
 # Photon Chat
 
 **Telefon numarası yok. E-posta yok. Sadece 5 haneli bir kod.**
@@ -133,7 +132,7 @@ knk_flutter/
 ## Gizlilik Yaklaşımı
 
 | Veri | Sunucu Davranışı |
-|------|-----------------|
+|------|------------------|
 | Kimlik | FIP hash'i — asıl anahtar cihazda kalır |
 | Mesajlar | RAM'de obfüske blob, kalıcı kayıt yok |
 | Kişi listesi | Cihazda (`shared_preferences`) |
