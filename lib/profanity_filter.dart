@@ -1,9 +1,54 @@
-// Displays only — filters profanity before rendering, does not alter stored messages.
+// Displays only — filters profanity at render time, stored data is never modified.
+
+const _words = [
+  // Temel kökler
+  'orospu', 'orsp', 'orosb', 'orops',
+  'sik', 's1k', 'sikey', 'sikti', 'siktir', 'sikis', 'sikim', 'sikici',
+  'yarak', 'yarrak', 'yar4k',
+  'am', 'amk', 'amc', 'amcik', 'amık', 'amına', 'amina',
+  'got', 'göt', 'g0t', 'gotveren', 'götveren',
+  'pic', 'piç', 'picc',
+  'bok', 'b0k',
+  'orospuçocuğu', 'oç',
+  // Türevler ve bileşik formlar
+  'hassiktir', 'hassedeyim', 'ibne', 'ibneler',
+  'kahpe', 'kahpeler',
+  'kaltak',
+  'sürtük', 'surtuk',
+  'pezevenk', 'pezeveng',
+  'gavat',
+  'puşt', 'pusht',
+  'yavs', 'yavs ak', 'yavşak',
+  'it oğlu', 'itoğlu',
+  // Cinsel içerikli
+  'seks', 'porn', 'pornn', 'porno',
+  'göğüs', 'meme', 'kalca', 'kalça',
+  // Hakaret
+  'salak', 'aptal', 'gerize', 'gerzek', 'mal', 'moron', 'ahmak', 'budala',
+  'haysiyetsiz', 'namussuz', 'adi',
+  // Dini / etnik hakaret (çift yönlü filtre)
+  'gavur', 'kızılbaş', 'kızılbas', 'zenci', 'z3nci',
+  // Anası / babanı içeren formlar
+  'ananı', 'anani', 'anasını', 'anasini', 'babanı', 'babani',
+  // İngilizce kökenli (sık kullanılan)
+  'fuck', 'fück', 'fck', 'fuk',
+  'shit', 'sh1t',
+  'bitch', 'b1tch',
+  'ass', 'a55',
+  'bastard',
+  'cunt',
+  'dick', 'd1ck',
+  'pussy', 'pu55y',
+  'cock', 'c0ck',
+  'nigga', 'nigger',
+  'whore',
+];
+
 final _profanityPattern = RegExp(
-  r'orospu|orsp|sik|s[iı]k|piç|pic|göt|got|amk|bok|bok|meme|yarrak|yarak|yavşak|yavşak|oç|puşt|ibne|kahpe|kaltak|sürtük|surtuk|pezevenk|gavat|it[\s]oğlu|salak|mal[\s]|aptal|gerize|gerzek|haysiyetsiz|bok\w*|lanet\w*|s[iı]ktir|hassiktir|amına|anasını|ananı|ananın|boku|götü|sikeyim|sikerim|sikiş|sikişme|götveren|orospu\s*çoc|oç\w*',
+  _words.map(RegExp.escape).join('|'),
   caseSensitive: false,
+  unicode: true,
 );
 
-String filterProfanity(String text) {
-  return text.replaceAllMapped(_profanityPattern, (m) => '******');
-}
+String filterProfanity(String text) =>
+    text.replaceAllMapped(_profanityPattern, (m) => '******');
