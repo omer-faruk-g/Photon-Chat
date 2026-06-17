@@ -24,6 +24,8 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Create local.properties for Gradle
+        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
       - name: Generate Gradle wrapper
         run: gradle wrapper --gradle-version=8.3
         working-directory: android
@@ -36,9 +38,10 @@ jobs:
           path: PhotonChat-Android.apk
 
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
