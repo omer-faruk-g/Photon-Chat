@@ -13,17 +13,40 @@ endif()
 
 set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 
-# Temporary files
-set(FLUTTER_TOOL_ENVIRONMENT
-  "FLUTTER_ROOT=${FLUTTER_ROOT}"
-)
+set(CMAKE_CXX_STANDARD 17)
+
+function(apply_standard_settings TARGET)
+  target_compile_features(${TARGET} PUBLIC cxx_std_17)
+  target_compile_options(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:/W3>" "$<$<CONFIG:Debug>:/WX>")
+  target_compile_definitions(${TARGET} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>")
+endfunction()
+
+set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
+add_subdirectory(${FLUTTER_MANAGED_DIR})
+
+add_subdirectory("runner")
 
 include(flutter/generated_plugins.cmake OPTIONAL RESULT_VARIABLE HAS_PLUGINS)
 
-add_subdirectory(runner)
-
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
-
-set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
-include(InstallRequiredSystemLibraries)
+install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+if(PLUGIN_BUNDLED_LIBRARIES)
+  install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
+    DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+endif()
+set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
+install(DIRECTORY "${NATIVE_ASSETS_DIR}"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+set(FLUTTER_ASSET_DIR_NAME "flutter_assets")
+install(CODE "
+  file(REMOVE_RECURSE \"${CMAKE_INSTALL_PREFIX}/${FLUTTER_ASSET_DIR_NAME}\")
+  " COMPONENT Runtime)
+install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
+  DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
+install(FILES "${AOT_LIBRARY}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)

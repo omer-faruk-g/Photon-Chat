@@ -24,6 +24,9 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Generate Gradle wrapper
+        run: gradle wrapper --gradle-version=8.3
+        working-directory: android
       - run: flutter pub get
       - run: flutter build apk --release
       - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
