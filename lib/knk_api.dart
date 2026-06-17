@@ -1,11 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-String chatKeyFor(String a, String b) {
-  final sorted = [a, b]..sort();
-  return '${sorted[0]}_${sorted[1]}';
-}
-
 class KnkApi {
   static Uri _u(String serverUrl, String path) {
     final base = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
