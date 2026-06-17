@@ -29,6 +29,8 @@ jobs:
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
           rm -rf android
           cp -r /tmp/flutter_template/android android
+          # Update Kotlin version to be compatible with current Gradle plugin
+          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
