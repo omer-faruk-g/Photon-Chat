@@ -24,11 +24,29 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-      - name: Create local.properties for Gradle
-        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-      - name: Generate Gradle wrapper
-        run: gradle wrapper --gradle-version=8.3
-        working-directory: android
+      - name: Generate Android platform files via flutter create
+        run: |
+          flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
+          rm -rf android
+          cp -r /tmp/flutter_template/android android
+          mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
+          cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
+          package com.example.knk_flutter
+
+          import android.os.Bundle
+          import android.view.WindowManager
+          import io.flutter.embedding.android.FlutterActivity
+
+          class MainActivity : FlutterActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  window.setFlags(
+                      WindowManager.LayoutParams.FLAG_SECURE,
+                      WindowManager.LayoutParams.FLAG_SECURE
+                  )
+              }
+          }
+          KOTLIN
       - run: flutter pub get
       - run: flutter build apk --release
       - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
@@ -46,6 +64,12 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Generate Windows platform files via flutter create
+        run: |
+          flutter create --org com.example --project-name knk_flutter --platforms windows C:\flutter_template
+          if (Test-Path windows) { Remove-Item -Recurse -Force windows }
+          Copy-Item -Recurse C:\flutter_template\windows windows
+        shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - run: flutter build windows --release
