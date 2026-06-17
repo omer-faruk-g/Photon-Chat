@@ -69,6 +69,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final muted = await KnkApi.getMutedMembers(widget.myServerUrl, widget.group.groupId);
       if (mounted) setState(() => _mutedMembers = muted);
     });
+    // İlk yükleme
     KnkApi.getMutedMembers(widget.myServerUrl, widget.group.groupId).then((muted) {
       if (mounted) setState(() => _mutedMembers = muted);
     });
@@ -77,7 +78,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _send() async {
     final raw = _msgCtrl.text;
     final error = validateMessage(raw);
-    if (error != null) { setState(() => _inputError = error); return; }
+    if (error != null) {
+      setState(() => _inputError = error);
+      return;
+    }
     final text = sanitizeMessage(raw);
     setState(() => _inputError = null);
     _msgCtrl.clear();
@@ -158,13 +162,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             ListTile(
               leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: KnkColors.accent),
-              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur', style: const TextStyle(color: KnkColors.text)),
-              onTap: () { Navigator.pop(context); isMuted ? _unmuteMember(member) : _muteMember(member); },
+              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur',
+                  style: const TextStyle(color: KnkColors.text)),
+              onTap: () {
+                Navigator.pop(context);
+                if (isMuted) {
+                  _unmuteMember(member);
+                } else {
+                  _muteMember(member);
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.person_remove, color: KnkColors.danger),
               title: Text('${member.name} kullanıcısını gruptan at', style: const TextStyle(color: KnkColors.danger)),
-              onTap: () { Navigator.pop(context); _kickMember(member); },
+              onTap: () {
+                Navigator.pop(context);
+                _kickMember(member);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
@@ -201,13 +216,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             contentPadding: EdgeInsets.zero,
             title: Row(children: [
               Text(m.name, style: const TextStyle(color: KnkColors.text, fontSize: 13)),
-              if (isOwner) ...[const SizedBox(width: 6), const Text('(sahip)', style: TextStyle(color: KnkColors.textDim, fontSize: 10))],
-              if (isMuted) ...[const SizedBox(width: 6), const Icon(Icons.volume_off, color: KnkColors.textDim, size: 13)],
+              if (isOwner) const SizedBox(width: 6),
+              if (isOwner) const Text('(sahip)', style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
+              if (isMuted) const SizedBox(width: 6),
+              if (isMuted) const Icon(Icons.volume_off, color: KnkColors.textDim, size: 13),
             ]),
             trailing: widget.group.isOwner && !isOwner
                 ? IconButton(
                     icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 18),
-                    onPressed: () { Navigator.pop(context); _showMemberMenu(m); },
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showMemberMenu(m);
+                    },
                   )
                 : null,
           );

@@ -1,6 +1,7 @@
 // Displays only — filters profanity at render time, stored data is never modified.
 
 const _words = [
+  // Temel kökler
   'orospu', 'orsp', 'orosb', 'orops',
   'sik', 's1k', 'sikey', 'sikti', 'siktir', 'sikis', 'sikim', 'sikici',
   'yarak', 'yarrak', 'yar4k',
@@ -9,6 +10,7 @@ const _words = [
   'pic', 'piç', 'picc',
   'bok', 'b0k',
   'orospuçocuğu', 'oç',
+  // Türevler ve bileşik formlar
   'hassiktir', 'hassedeyim', 'ibne', 'ibneler',
   'kahpe', 'kahpeler',
   'kaltak',
@@ -18,12 +20,17 @@ const _words = [
   'puşt', 'pusht',
   'yavs', 'yavs ak', 'yavşak',
   'it oğlu', 'itoğlu',
+  // Cinsel içerikli
   'seks', 'porn', 'pornn', 'porno',
   'göğüs', 'meme', 'kalca', 'kalça',
+  // Hakaret
   'salak', 'aptal', 'gerize', 'gerzek', 'mal', 'moron', 'ahmak', 'budala',
   'haysiyetsiz', 'namussuz', 'adi',
+  // Dini / etnik hakaret (çift yönlü filtre)
   'gavur', 'kızılbaş', 'kızılbas', 'zenci', 'z3nci',
+  // Anası / babanı içeren formlar
   'ananı', 'anani', 'anasını', 'anasini', 'babanı', 'babani',
+  // İngilizce kökenli (sık kullanılan)
   'fuck', 'fück', 'fck', 'fuk',
   'shit', 'sh1t',
   'bitch', 'b1tch',

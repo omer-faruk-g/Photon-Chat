@@ -25,6 +25,8 @@ flutter:
   assets:
     - assets/icon/icon.png
 
+# Tek kaynaktan Android/iOS/Windows/Linux/macOS/Web icon üretimi.
+# Çalıştırmak için: flutter pub get && flutter pub run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true

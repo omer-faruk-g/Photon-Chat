@@ -15,7 +15,7 @@ Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlay
 | 🐧 Linux | [**Linux İndir →**](../../releases/latest) |
 | 🍏 iOS | Yakında *(Apple Developer hesabı gerektirir)* |
 
-> **Android:** APK dosyasını indirip aç. "Bilinmeyen kaynaktan yükle" izni isteyebilir — izin ver ve devam et.
+> **Android:** APK dosyasını indirip aç. “Bilinmeyen kaynaktan yükle” izni isteyebilir — izin ver ve devam et.
 
 ---
 
@@ -23,7 +23,7 @@ Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlay
 
 ### 1 — Kendi Ücretsiz Sunucunu Kur *(1 kez, 5 dakika)*
 
-Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsiz sunucusunu çalıştırır.
+Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsi̇z sunucusunu çalıştırır.
 
 1. [render.com](https://render.com) — ücretsiz hesap aç
 2. **New → Web Service** → bu repoyu bağla
@@ -33,7 +33,7 @@ Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsiz sunucu
 ### 2 — Uygulamayı Aç
 
 1. Uygulamayı aç — kısa bir rehber görürsün
-2. Render URL'ini gir (`https://xxxx.onrender.com`)
+2. Render URL’ini gir (`https://xxxx.onrender.com`)
 3. Bir kullanıcı adı seç — kimliğin otomatik oluşturulur
 4. Adresin hazır → `12345@https://xxxx.onrender.com`
 
@@ -51,7 +51,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Ekran görüntüsü engeli (Android) | ✅ |
 | Grup sohbeti — 500–1000 kişi, merkeziyetsiz | ✅ |
 | Yazıyor göstergesi | ✅ |
-| Mesaj teslim durumu (✓ / ✓✓) | ✅ |
+| Mesaj teslim durumu (✓ / ✓✓) | ✅ |
 | Kullanıcı engelleme | ✅ |
 | Grup yöneticisi (sustur / at) | ✅ |
 | Küfür filtresi | ✅ |
@@ -64,7 +64,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Veri | Davranış |
 |------|----------|
 | Kimlik | Cihazda şifreli — sunucuya gönderilmez |
-| Mesajlar | Uçtan uca şifreli, RAM'de, kalıcı kayıt yok |
+| Mesajlar | Uçtan uca şifreli, RAM’de, kalıcı kayıt yok |
 | Kişi listesi | Yalnızca cihazda |
 | Hesap silme | Tüm veriler anında imha edilir |
 
@@ -84,9 +84,23 @@ Uygulamaya entegre yapay zeka asistanı. Aktifleştirmek için Render dashboard 
 **Gereksinimler:** Flutter 3.16+, Dart ≥ 3.2, Node.js ≥ 18
 
 ```bash
+# Flutter bağımlılıkları
 flutter pub get
+
+# Sunucuyu lokalde çalıştır
 cd server && npm install && npm start
+
+# Android APK
 flutter build apk --release
+
+# Windows
+flutter config --enable-windows-desktop
+flutter build windows --release
+
+# Linux
+flutter config --enable-linux-desktop
+sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev
+flutter build linux --release
 ```
 
 </details>

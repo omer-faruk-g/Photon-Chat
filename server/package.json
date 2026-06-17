@@ -1,7 +1,7 @@
 {
   "name": "knk-server",
   "version": "1.0.0",
-  "description": "KNK FIP eslestirme ve mesaj role sunucusu",
+  "description": "KNK FIP eslestirme ve mesaj role sunucusu - telefon numarasi/e-posta gerektirmez",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {

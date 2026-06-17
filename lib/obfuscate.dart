@@ -1,5 +1,7 @@
 /// Mesajların ham depoda düz metin olarak görünmemesi için basit hex
-/// obfuskasyonu. Bu gerçek bir kriptografi katmanı DEĞİLDİR.
+/// obfuskasyonu. Bu gerçek bir kriptografi katmanı DEĞİLDİR; uçtan uca
+/// şifreleme için sunucu tarafında TLS + istemci tarafında AES gibi bir
+/// algoritma eklenmesi önerilir (bkz. proje notları).
 String obfuscate(String text) {
   final bytes = text.codeUnits;
   return bytes.map((b) => b.toRadixString(16).padLeft(4, '0')).join();

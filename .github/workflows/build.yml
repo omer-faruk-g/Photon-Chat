@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release etiketi (örn. v1.0.0)'
+        description: 'Release tag (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
 
@@ -16,26 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build Android APK
-        run: flutter build apk --release
-
-      - name: Rename APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
-
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
       - uses: actions/upload-artifact@v4
         with:
           name: PhotonChat-Android
@@ -45,21 +36,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Build Windows
-        run: flutter build windows --release
-
-      - name: Zip Windows build
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PhotonChat-Windows.zip
-
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PhotonChat-Windows.zip
       - uses: actions/upload-artifact@v4
         with:
           name: PhotonChat-Windows
@@ -75,31 +59,22 @@ jobs:
         with:
           name: PhotonChat-Android
           path: ./dist
-
       - uses: actions/download-artifact@v4
         with:
           name: PhotonChat-Windows
           path: ./dist
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           name: "Photon Chat ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}"
-          draft: false
-          prerelease: false
-          generate_release_notes: false
           body: |
-            ## Photon Chat — İndir
+            ## Photon Chat
 
-            | Platform | Dosya |
-            |----------|-------|
-            | 🤖 Android | `PhotonChat-Android.apk` |
-            | 🪟 Windows | `PhotonChat-Windows.zip` |
+            Güvenli, sunucusuz P2P mesajlaşma uygulaması.
 
-            ### Kurulum
-            - **Android:** APK dosyasını telefonuna indir, "Bilinmeyen kaynaklara izin ver" seçeneğini aç, kur.
-            - **Windows:** ZIP dosyasını aç, `photon_chat.exe` dosyasını çalıştır.
+            ### İndir
+            - **Android**: `PhotonChat-Android.apk` — telefona yükle
+            - **Windows**: `PhotonChat-Windows.zip` — zip'i aç, `photon_chat.exe` çalıştır
           files: |
             ./dist/PhotonChat-Android.apk
             ./dist/PhotonChat-Windows.zip

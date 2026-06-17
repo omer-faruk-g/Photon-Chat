@@ -79,6 +79,7 @@ class KnkApi {
     return [];
   }
 
+  /// Mesajı karşı tarafın sunucusuna gönderir; true dönerse teslim edildi (✓✓).
   static Future<bool> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
     try {
       final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
@@ -101,6 +102,8 @@ class KnkApi {
     } catch (_) {}
   }
 
+  // --- Typing indicator ---
+
   static Future<void> sendTyping(String myServerUrl, String chatKey, String fipId) async {
     try {
       await http.post(_u(myServerUrl, '/typing/$chatKey'),
@@ -116,6 +119,8 @@ class KnkApi {
     } catch (_) {}
     return [];
   }
+
+  // --- Group API ---
 
   static Future<Map<String, dynamic>?> createGroup(String myServerUrl, {
     required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl,
@@ -201,6 +206,8 @@ class KnkApi {
     try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId')); } catch (_) {}
   }
 
+  // --- Group mute ---
+
   static Future<void> muteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
     try {
       await http.post(_u(ownerServerUrl, '/groups/$groupId/muted'),
@@ -221,6 +228,8 @@ class KnkApi {
     return [];
   }
 
+  // --- Group key (E2E for groups) ---
+
   static Future<void> sendGroupKey(String ownerServerUrl, String groupId, String memberFipId, String encryptedKey) async {
     try {
       await http.post(_u(ownerServerUrl, '/groups/$groupId/key/$memberFipId'),
@@ -240,6 +249,9 @@ class KnkApi {
     return null;
   }
 
+  // --- Pulse AI ---
+
+  /// [messages] format: [{'role':'user','content':'...'}, {'role':'assistant','content':'...'}, ...]
   static Future<String> chatWithPulseAI(String myServerUrl, List<Map<String, String>> messages) async {
     try {
       final r = await http.post(

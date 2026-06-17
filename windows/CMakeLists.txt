@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 3.14)
+project(photon_chat LANGUAGES CXX)
+
+set(BINARY_NAME "photon_chat")
+
+cmake_policy(SET CMP0063 NEW)
+
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/run" CACHE PATH "..." FORCE)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/run" CACHE PATH "..." FORCE)
+endif()
+
+set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
+
+# Temporary files
+set(FLUTTER_TOOL_ENVIRONMENT
+  "FLUTTER_ROOT=${FLUTTER_ROOT}"
+)
+
+include(flutter/generated_plugins.cmake OPTIONAL RESULT_VARIABLE HAS_PLUGINS)
+
+add_subdirectory(runner)
+
+install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+include(InstallRequiredSystemLibraries)

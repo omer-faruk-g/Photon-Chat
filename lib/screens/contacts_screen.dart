@@ -54,6 +54,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
     for (final req in incoming) {
       final fromFipId = req['fromFipId'] as String;
+      // Engellenen kişilerden gelen istekleri filtrele
       if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
       if (!_contacts.any((c) => c.fipId == fromFipId)) {
@@ -101,7 +102,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _blockContact(Contact c) async {
     await LocalStore.blockUser(c.fipId);
-    setState(() { _blockList.add(c.fipId); _contacts.removeWhere((x) => x.fipId == c.fipId); });
+    setState(() {
+      _blockList.add(c.fipId);
+      _contacts.removeWhere((x) => x.fipId == c.fipId);
+    });
     await LocalStore.saveContacts(_contacts);
     _showToast('${c.name} engellendi.');
   }
@@ -209,6 +213,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
+                // Pulse AI sabitlenmiş kart
                 _PulseAiCard(onTap: _openPulseAI),
                 const SizedBox(height: 20),
                 if (incoming.isNotEmpty) ...[
@@ -218,7 +223,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 ],
                 _SectionTitle('Kişiler · ${active.length}'),
                 if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
-                ...active.map((c) => _ContactRow(contact: c, onTap: () => _openChat(c), onBlock: () => _blockContact(c))),
+                ...active.map((c) => _ContactRow(
+                  contact: c,
+                  onTap: () => _openChat(c),
+                  onBlock: () => _blockContact(c),
+                )),
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
                 const SizedBox(height: 24),
                 Row(
@@ -423,7 +432,10 @@ class _ContactRow extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.block, color: KnkColors.danger),
                 title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
-                onTap: () { Navigator.pop(context); onBlock(); },
+                onTap: () {
+                  Navigator.pop(context);
+                  onBlock();
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),

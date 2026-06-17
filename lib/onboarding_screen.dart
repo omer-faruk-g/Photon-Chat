@@ -4,6 +4,7 @@ import 'fip.dart';
 import 'local_store.dart';
 import 'theme.dart';
 
+/// İlk açılışta cihazda yeni bir FIP kimliği oluşturma ekranı.
 class OnboardingScreen extends StatefulWidget {
   final String myServerUrl;
   final void Function(FipBlock fip, String name) onCreated;
@@ -157,6 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
+/// FIP bloğunu 20 satır halinde gösteren kart (önizleme ve ayarlarda kullanılır).
 class FipCard extends StatelessWidget {
   final String title;
   final FipBlock fip;

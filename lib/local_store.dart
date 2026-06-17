@@ -98,6 +98,8 @@ class LocalStore {
   static Future<void> saveGroups(List<Group> groups) async =>
       (await SharedPreferences.getInstance()).setString(_kGroupsKey, jsonEncode(groups.map((g) => g.toJson()).toList()));
 
+  // --- Block list ---
+
   static Future<List<String>> loadBlockList() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kBlockListKey);
     if (raw == null) return [];

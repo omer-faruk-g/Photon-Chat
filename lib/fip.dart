@@ -41,9 +41,11 @@ class FipBlock {
   }
 
   /// 20 satırlık bloktan 5 haneli kod türetir.
+  /// Tüm satırların birleşik SHA-256'sından sayısal bir değer çıkarılır.
   static String _deriveCode(List<String> lines) {
     final joined = lines.join();
     final digest = sha256.convert(utf8.encode(joined));
+    // hash'in ilk 4 byte'ından bir tam sayı oluştur, 100000'e mod al
     final bytes = digest.bytes;
     final value = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
     final code = (value.abs() % 100000).toString().padLeft(5, '0');

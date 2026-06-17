@@ -32,6 +32,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isBlocked = false;
   SecretKey? _sharedKey;
 
+  // Debounce timer for typing indicator
   Timer? _typingDebounce;
   Timer? _typingPollTimer;
 
@@ -47,7 +48,10 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _initE2E() async {
+    // contact.serverUrl'den public key alınamıyorsa obfuscate fallback kalır
+    // Public key contact'a eklenmemişse şifrelemeyi atla
     try {
+      // Kişinin public key'ini knk_api üzerinden sunucudan çek
       final info = await KnkApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
       final pubKey = info?['publicKey'] as String?;
       if (pubKey != null && pubKey.isNotEmpty) {
@@ -79,9 +83,18 @@ class _ChatScreenState extends State<ChatScreen> {
       for (final m in raw) {
         String text = m['text'] as String? ?? '';
         if (_sharedKey != null) {
-          try { text = await e2eDecrypt(text, _sharedKey!); } catch (_) {}
+          try {
+            text = await e2eDecrypt(text, _sharedKey!);
+          } catch (_) {
+            // E2E çözme başarısız, ham metni göster
+          }
         }
-        msgs.add(_DisplayMessage(from: m['from'] as String, text: text, ts: m['ts'] as int, delivered: true));
+        msgs.add(_DisplayMessage(
+          from: m['from'] as String,
+          text: text,
+          ts: m['ts'] as int,
+          delivered: true, // sunucudan gelen mesaj zaten teslim edilmiş
+        ));
       }
       if (_alive && mounted) {
         setState(() => _messages = msgs);
@@ -94,7 +107,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pollContactStatus() async {
     while (_alive) {
       final active = await KnkApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
-      if (_alive && mounted && active != _contactActive) setState(() => _contactActive = active);
+      if (_alive && mounted && active != _contactActive) {
+        setState(() => _contactActive = active);
+      }
       await Future.delayed(const Duration(seconds: 5));
     }
   }
@@ -103,7 +118,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _typingPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final typingList = await KnkApi.getTyping(widget.myServerUrl, _chatKey);
       final contactTyping = typingList.any((t) => t['fipId'] == widget.contact.fipId);
-      if (mounted && contactTyping != _contactTyping) setState(() => _contactTyping = contactTyping);
+      if (mounted && contactTyping != _contactTyping) {
+        setState(() => _contactTyping = contactTyping);
+      }
     });
   }
 
@@ -111,14 +128,20 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_inputError != null) setState(() => _inputError = null);
     _typingDebounce?.cancel();
     _typingDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (value.isNotEmpty) KnkApi.sendTyping(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      if (value.isNotEmpty) {
+        KnkApi.sendTyping(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      }
     });
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
-        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -127,7 +150,10 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_isBlocked) return;
     final raw = _draftCtrl.text;
     final error = validateMessage(raw);
-    if (error != null) { setState(() => _inputError = error); return; }
+    if (error != null) {
+      setState(() => _inputError = error);
+      return;
+    }
     final text = sanitizeMessage(raw);
     setState(() => _inputError = null);
 
@@ -143,21 +169,52 @@ class _ChatScreenState extends State<ChatScreen> {
     final ts = DateTime.now().millisecondsSinceEpoch;
     String encryptedText = text;
     if (_sharedKey != null) {
-      try { encryptedText = await e2eEncrypt(text, _sharedKey!); } catch (_) {}
+      try {
+        encryptedText = await e2eEncrypt(text, _sharedKey!);
+      } catch (_) {}
     }
 
-    await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encryptedText, ts: ts);
+    // Önce kendi sunucumuza yaz (✓)
+    await KnkApi.sendMessage(
+      receiverServerUrl: widget.myServerUrl,
+      chatKey: _chatKey,
+      from: widget.identity.fipId,
+      text: encryptedText,
+      ts: ts,
+    );
 
-    final newMsg = _DisplayMessage(from: widget.identity.fipId, text: text, ts: ts, delivered: false);
-    setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
+    final newMsg = _DisplayMessage(
+      from: widget.identity.fipId,
+      text: text,
+      ts: ts,
+      delivered: false,
+    );
+    setState(() {
+      _messages.add(newMsg);
+      _draftCtrl.clear();
+    });
     _scrollToBottom();
 
-    final deliveredToContact = await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encryptedText, ts: ts);
+    // Sonra karşı tarafın sunucusuna yaz (✓✓)
+    final deliveredToContact = await KnkApi.sendMessage(
+      receiverServerUrl: widget.contact.serverUrl,
+      chatKey: _chatKey,
+      from: widget.identity.fipId,
+      text: encryptedText,
+      ts: ts,
+    );
 
     if (mounted) {
       setState(() {
         final idx = _messages.indexWhere((m) => m.ts == ts && m.from == widget.identity.fipId);
-        if (idx != -1) _messages[idx] = _DisplayMessage(from: _messages[idx].from, text: _messages[idx].text, ts: _messages[idx].ts, delivered: deliveredToContact);
+        if (idx != -1) {
+          _messages[idx] = _DisplayMessage(
+            from: _messages[idx].from,
+            text: _messages[idx].text,
+            ts: _messages[idx].ts,
+            delivered: deliveredToContact,
+          );
+        }
       });
     }
   }
@@ -226,7 +283,16 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           Expanded(
             child: _isBlocked
-                ? const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6))))
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text(
+                        'Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6),
+                      ),
+                    ),
+                  )
                 : _messages.isEmpty
                     ? const Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
                     : ListView.builder(
