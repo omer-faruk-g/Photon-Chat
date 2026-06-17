@@ -21,7 +21,10 @@ Future<void> ensureE2EKeypair() async {
 Future<String> getMyPublicKeyBase64() async {
   final prefs = await SharedPreferences.getInstance();
   final s = prefs.getString(_kPubKeyPref);
-  if (s == null) { await ensureE2EKeypair(); return prefs.getString(_kPubKeyPref)!; }
+  if (s == null) {
+    await ensureE2EKeypair();
+    return prefs.getString(_kPubKeyPref)!;
+  }
   return s;
 }
 
@@ -29,19 +32,30 @@ Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64) async {
   final prefs = await SharedPreferences.getInstance();
   final privBytes = base64.decode(prefs.getString(_kPrivKeyPref)!);
   final theirPubBytes = base64.decode(theirPublicKeyBase64);
+
   final algo = X25519();
   final myKp = await algo.newKeyPairFromSeed(privBytes);
   final theirPub = SimplePublicKey(theirPubBytes, type: KeyPairType.x25519);
   final shared = await algo.sharedSecretKey(keyPair: myKp, remotePublicKey: theirPub);
   final sharedBytes = await shared.extractBytes();
+
   final hkdf = Hkdf(hmac: Hmac(Sha256()), outputLength: 32);
-  return hkdf.deriveKey(secretKey: SecretKey(sharedBytes), info: utf8.encode('photon-chat-e2e-v1'), nonce: []);
+  final aesKey = await hkdf.deriveKey(
+    secretKey: SecretKey(sharedBytes),
+    info: utf8.encode('photon-chat-e2e-v1'),
+    nonce: [],
+  );
+  return aesKey;
 }
 
 Future<String> e2eEncrypt(String plaintext, SecretKey key) async {
   final algo = AesGcm.with256bits();
   final nonce = algo.newNonce();
-  final box = await algo.encrypt(utf8.encode(plaintext), secretKey: key, nonce: nonce);
+  final box = await algo.encrypt(
+    utf8.encode(plaintext),
+    secretKey: key,
+    nonce: nonce,
+  );
   final combined = Uint8List.fromList(nonce + box.cipherText + box.mac.bytes);
   return base64.encode(combined);
 }
@@ -63,15 +77,19 @@ List<int> generateGroupKey() {
   return List<int>.generate(32, (_) => rng.nextInt(256));
 }
 
-Future<String> encryptGroupKeyForMember(List<int> groupKey, String memberPublicKeyBase64) async {
+Future<String> encryptGroupKeyForMember(
+    List<int> groupKey, String memberPublicKeyBase64) async {
   final memberKey = await deriveSharedKey(memberPublicKeyBase64);
   final algo = AesGcm.with256bits();
   final nonce = algo.newNonce();
-  final box = await algo.encrypt(Uint8List.fromList(groupKey), secretKey: memberKey, nonce: nonce);
-  return base64.encode(Uint8List.fromList(nonce + box.cipherText + box.mac.bytes));
+  final box = await algo.encrypt(Uint8List.fromList(groupKey),
+      secretKey: memberKey, nonce: nonce);
+  final combined = Uint8List.fromList(nonce + box.cipherText + box.mac.bytes);
+  return base64.encode(combined);
 }
 
-Future<SecretKey> decryptGroupKey(String encryptedGroupKeyBase64, String ownerPublicKeyBase64) async {
+Future<SecretKey> decryptGroupKey(
+    String encryptedGroupKeyBase64, String ownerPublicKeyBase64) async {
   final sharedKey = await deriveSharedKey(ownerPublicKeyBase64);
   final algo = AesGcm.with256bits();
   final bytes = base64.decode(encryptedGroupKeyBase64);
@@ -83,5 +101,10 @@ Future<SecretKey> decryptGroupKey(String encryptedGroupKeyBase64, String ownerPu
   return SecretKey(rawKey);
 }
 
-Future<String> e2eGroupEncrypt(String plaintext, SecretKey groupKey) => e2eEncrypt(plaintext, groupKey);
-Future<String> e2eGroupDecrypt(String cipherBase64, SecretKey groupKey) => e2eDecrypt(cipherBase64, groupKey);
+Future<String> e2eGroupEncrypt(String plaintext, SecretKey groupKey) async {
+  return e2eEncrypt(plaintext, groupKey);
+}
+
+Future<String> e2eGroupDecrypt(String cipherBase64, SecretKey groupKey) async {
+  return e2eDecrypt(cipherBase64, groupKey);
+}

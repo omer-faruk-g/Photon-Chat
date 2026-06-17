@@ -1,5 +1,12 @@
-final _urlPattern = RegExp(r'https?://|www\.|ftp://|data:image|base64', caseSensitive: false);
+// Guards outgoing messages: only text + emojis allowed, no URLs or media.
+
+final _urlPattern = RegExp(
+  r'https?://|www\.|ftp://|data:image|base64',
+  caseSensitive: false,
+);
+
 final _forbiddenChars = RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]');
+
 const _maxLength = 1000;
 
 String? validateMessage(String text) {
@@ -9,4 +16,5 @@ String? validateMessage(String text) {
   return null;
 }
 
-String sanitizeMessage(String text) => text.replaceAll(_forbiddenChars, '').trim();
+String sanitizeMessage(String text) =>
+    text.replaceAll(_forbiddenChars, '').trim();

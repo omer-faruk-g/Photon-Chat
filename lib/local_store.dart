@@ -3,7 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fip.dart';
 
 class Contact {
-  final String fipId, name, code, serverUrl;
+  final String fipId;
+  final String name;
+  final String code;
+  final String serverUrl;
   String status;
   Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status});
   Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status};
@@ -11,7 +14,8 @@ class Contact {
 }
 
 class ChatMessage {
-  final String from, text;
+  final String from;
+  final String text;
   final int ts;
   ChatMessage({required this.from, required this.text, required this.ts});
   Map<String, dynamic> toJson() => {'from': from, 'text': text, 'ts': ts};
@@ -19,19 +23,30 @@ class ChatMessage {
 }
 
 class GroupMember {
-  final String fipId, name, serverUrl;
+  final String fipId;
+  final String name;
+  final String serverUrl;
   GroupMember({required this.fipId, required this.name, required this.serverUrl});
   Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl};
   factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'], name: j['name'], serverUrl: (j['serverUrl'] as String?) ?? '');
 }
 
 class Group {
-  final String groupId, groupCode, name, ownerFipId, ownerServerUrl;
+  final String groupId;
+  final String groupCode;
+  final String name;
+  final String ownerFipId;
+  final String ownerServerUrl;
   final bool isOwner;
   List<GroupMember> members;
   Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
   Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
-  factory Group.fromJson(Map<String, dynamic> j) => Group(groupId: j['groupId'], groupCode: j['groupCode'], name: j['name'], ownerFipId: j['ownerFipId'], ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '', isOwner: j['isOwner'] ?? false, members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList());
+  factory Group.fromJson(Map<String, dynamic> j) => Group(
+    groupId: j['groupId'], groupCode: j['groupCode'], name: j['name'],
+    ownerFipId: j['ownerFipId'], ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
+    isOwner: j['isOwner'] ?? false,
+    members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),
+  );
   String get address => '$groupCode@$ownerServerUrl';
 }
 
@@ -46,6 +61,7 @@ class LocalStore {
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
+
   static Future<bool> isGuideSeen() async => (await SharedPreferences.getInstance()).getBool(_kGuideSeenKey) ?? false;
   static Future<void> markGuideSeen() async => (await SharedPreferences.getInstance()).setBool(_kGuideSeenKey, true);
 
@@ -88,19 +104,31 @@ class LocalStore {
     return List<String>.from(jsonDecode(raw) as List);
   }
 
+  static Future<void> saveBlockList(List<String> list) async =>
+      (await SharedPreferences.getInstance()).setString(_kBlockListKey, jsonEncode(list));
+
   static Future<void> blockUser(String fipId) async {
     final list = await loadBlockList();
-    if (!list.contains(fipId)) { list.add(fipId); await (await SharedPreferences.getInstance()).setString(_kBlockListKey, jsonEncode(list)); }
+    if (!list.contains(fipId)) {
+      list.add(fipId);
+      await saveBlockList(list);
+    }
   }
 
   static Future<void> unblockUser(String fipId) async {
     final list = await loadBlockList();
     list.remove(fipId);
-    await (await SharedPreferences.getInstance()).setString(_kBlockListKey, jsonEncode(list));
+    await saveBlockList(list);
   }
 
   static Future<void> wipeIdentity() async {
     final prefs = await SharedPreferences.getInstance();
-    for (final k in [_kIdentityKey, _kContactsKey, _kDisplayNameKey, _kMyServerUrlKey, _kGroupsKey, _kGuideSeenKey, _kBlockListKey]) await prefs.remove(k);
+    await prefs.remove(_kIdentityKey);
+    await prefs.remove(_kContactsKey);
+    await prefs.remove(_kDisplayNameKey);
+    await prefs.remove(_kMyServerUrlKey);
+    await prefs.remove(_kGroupsKey);
+    await prefs.remove(_kGuideSeenKey);
+    await prefs.remove(_kBlockListKey);
   }
 }
