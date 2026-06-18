@@ -171,7 +171,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
             ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: KnkColors.panel,
               border: Border(top: BorderSide(color: KnkColors.line)),
             ),
