@@ -7,6 +7,7 @@ import 'server_setup_screen.dart';
 import 'onboarding_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'app_keys.dart';
+import 'update_checker.dart';
 
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
@@ -35,6 +36,9 @@ class RootGateState extends State<RootGate> {
       _displayName = name ?? '';
       _guideSeen = guideSeen;
       _loading = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateChecker.check(context);
     });
   }
 

@@ -31,7 +31,7 @@ jobs:
           cp -r /tmp/flutter_template/android android
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
-          sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <application|' android/app/src/main/AndroidManifest.xml
+          sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
@@ -146,7 +146,8 @@ jobs:
 
             Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
 
-            ### ✨ v1.0.4 Yenilikleri
+            ### ✨ v1.0.5 Yenilikleri
+            - 🔄 Otomatik güncelleme (kullanıcı izniyle, veriler korunur)
             - ✓✓ Yeşil okundu bilgisi
             - Mesaj silme ve düzenleme
             - Profil fotoğrafı desteği
