@@ -96,8 +96,8 @@ jobs:
           channel: 'stable'
       - name: Install Linux build dependencies
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+          sudo apt-get update -y -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
       - name: Generate Linux platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms linux /tmp/flutter_template
