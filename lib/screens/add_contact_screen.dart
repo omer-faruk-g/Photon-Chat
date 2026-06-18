@@ -83,7 +83,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kişi Ekle'),
+        title: Text('Kişi Ekle'),
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
@@ -112,12 +112,12 @@ class _AddContactScreenState extends State<AddContactScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'KARŞI TARAFIN ADRESİ',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Format:  KOD@https://sunucu.onrender.com',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5),
               ),
@@ -125,14 +125,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
               TextField(
                 controller: _addrCtrl,
                 autofocus: true,
-                style: const TextStyle(
+                style: TextStyle(
                   color: KnkColors.accent,
                   fontSize: 13,
                   fontFamily: 'monospace',
                 ),
                 decoration: InputDecoration(
                   hintText: '12345@https://sunucu.onrender.com',
-                  hintStyle: const TextStyle(color: Color(0xFF5C6E6B), fontSize: 12),
+                  hintStyle: TextStyle(color: Color(0xFF5C6E6B), fontSize: 12),
                   filled: true,
                   fillColor: KnkColors.bg,
                   border: OutlineInputBorder(
@@ -144,7 +144,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Arkadaşının adresini sana bildirmesi gerekir. '
                 'Mesaj isteği onun sunucusuna gönderilir.',
                 textAlign: TextAlign.center,
@@ -161,7 +161,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                     child: OutlinedButton(
                       style: knkGhostButtonStyle(),
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Vazgeç'),
+                      child: Text('Vazgeç'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -175,7 +175,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)),
                             )
-                          : const Text('Davet gönder'),
+                          : Text('Davet gönder'),
                     ),
                   ),
                 ],

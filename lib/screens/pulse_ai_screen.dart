@@ -68,10 +68,10 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
             ),
-            child: const Text('⚡', style: TextStyle(fontSize: 14)),
+            child: Text('⚡', style: TextStyle(fontSize: 14)),
           ),
           const SizedBox(width: 10),
-          const Text('Pulse AI'),
+          Text('Pulse AI'),
         ]),
       ),
       backgroundColor: KnkColors.bg,
@@ -93,12 +93,12 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(color: KnkColors.accent.withOpacity(0.3)),
                             ),
-                            child: const Text('⚡', style: TextStyle(fontSize: 30)),
+                            child: Text('⚡', style: TextStyle(fontSize: 30)),
                           ),
                           const SizedBox(height: 16),
                           Text('Pulse AI', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Kelime anlamı mı merak ediyorsun? Bir şey mi sormak istiyorsun? Sohbet etmek mi istiyorsun? Buradayım.',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7),
@@ -134,7 +134,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               if (!isUser)
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.only(bottom: 4),
                                   child: Text('⚡ Pulse AI', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                                 ),
@@ -154,7 +154,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                   ),
           ),
           if (_loading)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.accent)),

@@ -337,7 +337,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Container(width: 7, height: 7, decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
               const SizedBox(width: 6),
               Text('FIP · ${widget.contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
-              if (_sharedKey != null) ...[const SizedBox(width: 8), Icon(Icons.lock, color: KnkColors.accent, size: 11)],
+              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: KnkColors.accent, size: 11)],
             ]),
           ),
           if (_isBlocked)

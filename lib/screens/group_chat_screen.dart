@@ -414,8 +414,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (v == 'poll') _showPollDialog();
               },
               itemBuilder: (_) => [
-                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: KnkColors.accent2, size: 16), const SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: KnkColors.text))])),
-                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: KnkColors.accent, size: 16), const SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: KnkColors.text))])),
+                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: KnkColors.accent2, size: 16), SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: KnkColors.text))])),
+                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: KnkColors.accent, size: 16), SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: KnkColors.text))])),
               ],
             ),
           if (widget.group.isOwner && _pendingJoins.isNotEmpty)
