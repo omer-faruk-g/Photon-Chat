@@ -16,9 +16,9 @@ function rand(n) {
 
 // --- Presence ---
 app.post('/presence', (req, res) => {
-  const { fipId, code, name, publicKey } = req.body;
+  const { fipId, code, name, publicKey, serverUrl } = req.body;
   if (!fipId) return res.sendStatus(400);
-  users.set(fipId, { code, name, publicKey, ts: Date.now() });
+  users.set(fipId, { code, name, publicKey, serverUrl, ts: Date.now() });
   res.sendStatus(200);
 });
 

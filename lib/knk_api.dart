@@ -10,7 +10,7 @@ class KnkApi {
   static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name) async {
     try {
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name}));
+          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl}));
     } catch (_) {}
   }
 
