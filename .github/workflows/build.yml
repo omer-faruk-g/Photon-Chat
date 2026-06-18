@@ -32,6 +32,9 @@ jobs:
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
           sed -i 's/id "com.android.application" version "[^"]*"/id "com.android.application" version "8.3.2"/' android/settings.gradle
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/ndkVersion flutter.ndkVersion/ndkVersion "25.1.8937393"/' android/app/build.gradle
+          sed -i 's/sourceCompatibility JavaVersion.VERSION_1_8/coreLibraryDesugaringEnabled true\n        sourceCompatibility JavaVersion.VERSION_1_8/' android/app/build.gradle
+          sed -i "s|dependencies {}|dependencies {\n    coreLibraryDesugaring 'com.android.tools.desugar_jdk_libs:2.1.4'\n}|" android/app/build.gradle
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
