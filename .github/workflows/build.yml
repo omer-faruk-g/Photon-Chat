@@ -31,6 +31,8 @@ jobs:
           cp -r /tmp/flutter_template/android android
           # Update Kotlin version to be compatible with current Gradle plugin
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
+          # Fix app name
+          sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
@@ -50,6 +52,8 @@ jobs:
           }
           KOTLIN
       - run: flutter pub get
+      - name: Generate launcher icons
+        run: flutter pub run flutter_launcher_icons
       - run: flutter build apk --release
       - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
       - uses: actions/upload-artifact@v4
@@ -71,9 +75,13 @@ jobs:
           flutter create --org com.example --project-name knk_flutter --platforms windows C:\flutter_template
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
+          # Fix window title to "Photon Chat"
+          (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
         shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
+      - name: Generate launcher icons
+        run: flutter pub run flutter_launcher_icons
       - run: flutter build windows --release
       - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PhotonChat-Windows.zip
       - uses: actions/upload-artifact@v4
