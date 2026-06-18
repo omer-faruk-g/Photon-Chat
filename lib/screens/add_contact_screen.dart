@@ -137,7 +137,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                   fillColor: KnkColors.bg,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: KnkColors.line),
+                    borderSide: BorderSide(color: KnkColors.line),
                   ),
                 ),
                 autocorrect: false,
@@ -152,7 +152,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
+                Text(_error!, style: TextStyle(color: KnkColors.danger, fontSize: 12)),
               ],
               const SizedBox(height: 18),
               Row(

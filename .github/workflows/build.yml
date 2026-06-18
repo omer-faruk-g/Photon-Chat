@@ -146,14 +146,18 @@ jobs:
 
             Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
 
-            ### ✨ v1.0.5 Yenilikleri
+            ### ✨ v2.0.0 Yenilikleri
+            - 😀 Emoji reaksiyonlar (👍❤️😂😮😢😡)
+            - 💬 Mesaj yanıtlama / alıntı
+            - 📳 Yeni mesajda titreşim bildirimi
+            - 🌓 Karanlık / Aydınlık tema değiştirici
+            - 📢 Grup duyuruları (sadece yönetici)
+            - 📊 Grup anketleri (yönetici oluşturur, üyeler oy kullanır)
+            - 📳 Bildirim titreşimi (uygulama açıkken yeni mesajda)
+            - 🌗 Karanlık / Aydınlık tema geçişi
+            - 📢 Grup duyuruları (admin yayın banner'ı)
+            - 📊 Grup anketleri (admin oluşturur, üyeler oy verir)
             - 🔄 Otomatik güncelleme (kullanıcı izniyle, veriler korunur)
-            - ✓✓ Yeşil okundu bilgisi
-            - Mesaj silme ve düzenleme
-            - Profil fotoğrafı desteği
-            - Son görülme zamanı
-            - Durum mesajı (Müsait, Meşgul…)
-            - QR kod ile arkadaş ekleme
 
             ---
 

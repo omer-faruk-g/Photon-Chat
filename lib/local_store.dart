@@ -63,6 +63,7 @@ class LocalStore {
   static const _kBlockListKey = 'knk_block_list_v1';
   static const _kStatusMsgKey = 'knk_status_msg_v1';
   static const _kAvatarKey = 'knk_avatar_v1';
+  static const _kThemeDarkKey = 'knk_theme_dark_v1';
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
@@ -118,6 +119,9 @@ class LocalStore {
   static Future<void> saveStatusMsg(String msg) async => (await SharedPreferences.getInstance()).setString(_kStatusMsgKey, msg);
   static Future<String> loadAvatar() async => (await SharedPreferences.getInstance()).getString(_kAvatarKey) ?? '';
   static Future<void> saveAvatar(String b64) async => (await SharedPreferences.getInstance()).setString(_kAvatarKey, b64);
+
+  static Future<bool> loadThemeDark() async => (await SharedPreferences.getInstance()).getBool(_kThemeDarkKey) ?? true;
+  static Future<void> saveThemeDark(bool isDark) async => (await SharedPreferences.getInstance()).setBool(_kThemeDarkKey, isDark);
 
   static Future<void> blockUser(String fipId) async {
     final list = await loadBlockList();

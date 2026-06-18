@@ -99,7 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               TextField(
                 controller: _nameCtrl,
                 maxLength: 20,
-                style: const TextStyle(color: KnkColors.text, fontSize: 15),
+                style: TextStyle(color: KnkColors.text, fontSize: 15),
                 decoration: knkInputDecoration('örn. Photon'),
                 onChanged: (_) => setState(() {}),
               ),
@@ -126,11 +126,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                    Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                     const SizedBox(height: 8),
                     Text(
                       '${_created!.code}@${widget.myServerUrl}',
-                      style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace'),
+                      style: TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace'),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -138,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: KnkColors.text,
-                          side: const BorderSide(color: KnkColors.line),
+                          side: BorderSide(color: KnkColors.line),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
@@ -182,7 +182,7 @@ class FipCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title,
-                  style: const TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+                  style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
               if (onRegen != null)
                 GestureDetector(
                   onTap: onRegen,

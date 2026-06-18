@@ -44,7 +44,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
-              const Text('Sunucu Kurulumu', style: TextStyle(color: KnkColors.text, fontSize: 24, fontWeight: FontWeight.w800)),
+              Text('Sunucu Kurulumu', style: TextStyle(color: KnkColors.text, fontSize: 24, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
               const Text(
                 'Photon Chat kendi sunucunu kullanır.\n\nrender.com üzerinde ücretsiz bir Node.js servisi aç ve adresini buraya gir.',
@@ -62,16 +62,16 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
               const SizedBox(height: 28),
               TextField(
                 controller: _ctrl,
-                style: const TextStyle(color: KnkColors.text),
+                style: TextStyle(color: KnkColors.text),
                 decoration: InputDecoration(
                   labelText: 'Render URL',
                   hintText: 'https://photon-chat-xxxx.onrender.com',
-                  hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
-                  labelStyle: const TextStyle(color: KnkColors.textDim),
+                  hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 13),
+                  labelStyle: TextStyle(color: KnkColors.textDim),
                   enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
                   focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
                   errorText: _error,
-                  errorStyle: const TextStyle(color: KnkColors.danger),
+                  errorStyle: TextStyle(color: KnkColors.danger),
                 ),
                 keyboardType: TextInputType.url,
                 autocorrect: false,

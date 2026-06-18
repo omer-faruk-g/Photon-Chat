@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../knk_api.dart';
 import '../local_store.dart';
@@ -34,6 +35,8 @@ class _ChatScreenState extends State<ChatScreen> {
   SecretKey? _sharedKey;
   String? _editingMsgId;
   Map<String, dynamic> _readStatus = {};
+  Map<String, dynamic>? _replyToMsg;
+  int _prevMsgCount = 0;
 
   Timer? _typingDebounce;
   Timer? _typingPollTimer;
@@ -92,6 +95,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _poll() async {
     while (_alive) {
       final raw = await KnkApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
+      final reactions = await KnkApi.getChatReactions(widget.myServerUrl, _chatKey);
       final msgs = <_DisplayMessage>[];
       for (final m in raw) {
         String text = m['text'] as String? ?? '';
@@ -100,17 +104,28 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!deleted && _sharedKey != null) {
           try { text = await e2eDecrypt(text, _sharedKey!); } catch (_) {}
         }
+        final msgIdVal = m['msgId'] as String? ?? '';
+        final msgReactions = reactions[msgIdVal] as Map<String, dynamic>? ?? {};
+        final parsedReactions = msgReactions.map((k, v) => MapEntry(k, List<String>.from(v as List)));
+        final replyTo = m['replyTo'] as Map<String, dynamic>?;
         msgs.add(_DisplayMessage(
-          msgId: m['msgId'] as String? ?? '',
+          msgId: msgIdVal,
           from: m['from'] as String,
           text: text,
           ts: m['ts'] as int,
           delivered: true,
           deleted: deleted,
           edited: edited,
+          reactions: parsedReactions,
+          replyTo: replyTo,
         ));
       }
       if (_alive && mounted) {
+        final newCount = msgs.length;
+        if (newCount > _prevMsgCount && _prevMsgCount > 0) {
+          HapticFeedback.mediumImpact();
+        }
+        _prevMsgCount = newCount;
         setState(() => _messages = msgs);
         _scrollToBottom();
       }
@@ -181,13 +196,24 @@ class _ChatScreenState extends State<ChatScreen> {
       try { encryptedText = await e2eEncrypt(text, _sharedKey!); } catch (_) {}
     }
 
-    final (_, myMsgId) = await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encryptedText, ts: ts);
+    final replyData = _replyToMsg != null
+        ? {'msgId': _replyToMsg!['msgId'], 'from': _replyToMsg!['from'], 'text': _replyToMsg!['text']}
+        : null;
+    setState(() { _replyToMsg = null; });
 
-    final newMsg = _DisplayMessage(msgId: myMsgId ?? '', from: widget.identity.fipId, text: text, ts: ts, delivered: false, deleted: false, edited: false);
+    final (_, myMsgId) = await KnkApi.sendMessage(
+        receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
+        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
+
+    final newMsg = _DisplayMessage(
+        msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
+        ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
     setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
     _scrollToBottom();
 
-    final (deliveredToContact, _) = await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encryptedText, ts: ts);
+    final (deliveredToContact, _) = await KnkApi.sendMessage(
+        receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
+        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
 
     if (mounted) {
       setState(() {
@@ -196,6 +222,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages[idx] = _DisplayMessage(
             msgId: _messages[idx].msgId, from: _messages[idx].from, text: _messages[idx].text,
             ts: _messages[idx].ts, delivered: deliveredToContact, deleted: false, edited: false,
+            replyTo: _messages[idx].replyTo,
           );
         }
       });
@@ -203,32 +230,50 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onLongPressMessage(_DisplayMessage m) {
-    if (m.from != widget.identity.fipId || m.deleted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: KnkColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+      builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Emoji reaction row
+        Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: ['👍','❤️','😂','😮','😢','😡'].map((emoji) => GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+              },
+              child: Text(emoji, style: const TextStyle(fontSize: 30)),
+            )).toList(),
+          ),
+        ),
+        Divider(color: KnkColors.line, height: 1),
+        ListTile(
+          leading: Icon(Icons.reply, color: KnkColors.accent),
+          title: Text('Yanıtla', style: TextStyle(color: KnkColors.text)),
+          onTap: () {
+            Navigator.pop(context);
+            setState(() => _replyToMsg = {'msgId': m.msgId, 'from': m.from, 'text': m.text});
+          },
+        ),
+        if (m.from == widget.identity.fipId && !m.deleted) ...[
           ListTile(
-            leading: const Icon(Icons.edit, color: KnkColors.accent),
-            title: const Text('Düzenle', style: TextStyle(color: KnkColors.text)),
-            onTap: () {
-              Navigator.pop(context);
-              setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; });
-            },
+            leading: Icon(Icons.edit, color: KnkColors.accent),
+            title: Text('Düzenle', style: TextStyle(color: KnkColors.text)),
+            onTap: () { Navigator.pop(context); setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; }); },
           ),
           ListTile(
-            leading: const Icon(Icons.delete_outline, color: KnkColors.danger),
-            title: const Text('Sil', style: TextStyle(color: KnkColors.danger)),
+            leading: Icon(Icons.delete_outline, color: KnkColors.danger),
+            title: Text('Sil', style: TextStyle(color: KnkColors.danger)),
             onTap: () async {
               Navigator.pop(context);
               await KnkApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
               await KnkApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
             },
           ),
-        ]),
-      ),
+        ],
+      ])),
     );
   }
 
@@ -239,9 +284,9 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: KnkColors.panel,
-        title: const Text('Kişi artık aktif değil', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: const Text('Bu kişi hesabını bu cihazdan kaldırdı.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam', style: TextStyle(color: KnkColors.accent)))],
+        title: Text('Kişi artık aktif değil', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        content: Text('Bu kişi hesabını bu cihazdan kaldırdı.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Tamam', style: TextStyle(color: KnkColors.accent)))],
       ),
     );
   }
@@ -275,7 +320,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.contact.name, style: const TextStyle(fontSize: 15)),
             if (widget.contact.statusMsg.isNotEmpty)
-              Text(widget.contact.statusMsg, style: const TextStyle(color: KnkColors.textDim, fontSize: 10)),
+              Text(widget.contact.statusMsg, style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
           ]),
         ]),
       ),
@@ -284,12 +329,12 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
             child: Row(children: [
-              Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
               const SizedBox(width: 6),
-              Text('FIP · ${widget.contact.code}', style: const TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
-              if (_sharedKey != null) ...[const SizedBox(width: 8), const Icon(Icons.lock, color: KnkColors.accent, size: 11)],
+              Text('FIP · ${widget.contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
+              if (_sharedKey != null) ...[const SizedBox(width: 8), Icon(Icons.lock, color: KnkColors.accent, size: 11)],
             ]),
           ),
           if (_isBlocked)
@@ -300,7 +345,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text('${widget.contact.name} yazıyor…', style: const TextStyle(color: KnkColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
+              child: Text('${widget.contact.name} yazıyor…', style: TextStyle(color: KnkColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
             ),
           if (_editingMsgId != null)
             Container(
@@ -308,21 +353,21 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: KnkColors.accent.withOpacity(0.1),
               child: Row(children: [
-                const Icon(Icons.edit, color: KnkColors.accent, size: 14),
+                Icon(Icons.edit, color: KnkColors.accent, size: 14),
                 const SizedBox(width: 8),
-                const Text('Düzenleme modu', style: TextStyle(color: KnkColors.accent, fontSize: 12)),
+                Text('Düzenleme modu', style: TextStyle(color: KnkColors.accent, fontSize: 12)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => setState(() { _editingMsgId = null; _draftCtrl.clear(); }),
-                  child: const Icon(Icons.close, color: KnkColors.textDim, size: 16),
+                  child: Icon(Icons.close, color: KnkColors.textDim, size: 16),
                 ),
               ]),
             ),
           Expanded(
             child: _isBlocked
-                ? const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6))))
+                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6))))
                 : _messages.isEmpty
-                    ? const Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
+                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
                     : ListView.builder(
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.all(14),
@@ -336,42 +381,78 @@ class _ChatScreenState extends State<ChatScreen> {
                             onLongPress: () => _onLongPressMessage(m),
                             child: Align(
                               alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-                                decoration: BoxDecoration(
-                                  color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
-                                  border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
-                                    bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
-                                  ),
-                                ),
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                  Text(displayText,
-                                    style: TextStyle(
-                                      color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
-                                      fontSize: 13.5, height: 1.45,
-                                      fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
-                                    )),
-                                  Row(mainAxisSize: MainAxisSize.min, children: [
-                                    if (m.edited && !m.deleted)
-                                      Text('düzenlendi · ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
-                                    Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.6), fontSize: 9.5)),
-                                    if (mine && !m.deleted) ...[
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isLastMine && _contactRead ? '✓✓' : (m.delivered ? '✓✓' : '✓'),
-                                        style: TextStyle(
-                                          color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
-                                          fontSize: 9.5,
-                                          fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
-                                        ),
+                              child: Column(
+                                crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                                    decoration: BoxDecoration(
+                                      color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
+                                      border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
+                                        bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
                                       ),
-                                    ],
-                                  ]),
-                                ]),
+                                    ),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                      // Reply quote
+                                      if (m.replyTo != null)
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          margin: const EdgeInsets.only(bottom: 6),
+                                          decoration: BoxDecoration(
+                                            color: mine ? const Color(0xFF06251A).withOpacity(0.3) : KnkColors.panelAlt,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border(left: BorderSide(color: KnkColors.accent, width: 3)),
+                                          ),
+                                          child: Text(m.replyTo!['text'] as String? ?? '',
+                                            style: TextStyle(color: mine ? const Color(0xFF06251A) : KnkColors.textDim, fontSize: 11),
+                                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        ),
+                                      Text(displayText,
+                                        style: TextStyle(
+                                          color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
+                                          fontSize: 13.5, height: 1.45,
+                                          fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
+                                        )),
+                                      Row(mainAxisSize: MainAxisSize.min, children: [
+                                        if (m.edited && !m.deleted)
+                                          Text('düzenlendi · ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
+                                        Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.6), fontSize: 9.5)),
+                                        if (mine && !m.deleted) ...[
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            isLastMine && _contactRead ? '✓✓' : (m.delivered ? '✓✓' : '✓'),
+                                            style: TextStyle(
+                                              color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
+                                              fontSize: 9.5,
+                                              fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ],
+                                      ]),
+                                    ]),
+                                  ),
+                                  // Reactions
+                                  if (m.reactions.isNotEmpty)
+                                    Padding(padding: const EdgeInsets.only(top: 2, bottom: 4),
+                                      child: Wrap(spacing: 4, runSpacing: 4,
+                                        children: m.reactions.entries.map((e) => GestureDetector(
+                                          onTap: () {
+                                            KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                                            KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(color: KnkColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: KnkColors.line)),
+                                            child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
+                                          ),
+                                        )).toList(),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           );
@@ -379,22 +460,38 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
           ),
           if (_inputError != null)
-            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: KnkColors.danger.withOpacity(0.1), child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12))),
+            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: KnkColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12))),
+          // Reply banner
+          if (_replyToMsg != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: KnkColors.accent.withOpacity(0.1),
+              child: Row(children: [
+                Container(width: 3, height: 36, decoration: BoxDecoration(color: KnkColors.accent, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(_replyToMsg!['from'] == widget.identity.fipId ? 'Sen' : widget.contact.name,
+                    style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(_replyToMsg!['text'] as String, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ])),
+                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: KnkColors.textDim, size: 16)),
+              ]),
+            ),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(color: KnkColors.panel, border: Border(top: BorderSide(color: KnkColors.line))),
+            decoration: BoxDecoration(color: KnkColors.panel, border: Border(top: BorderSide(color: KnkColors.line))),
             child: Row(children: [
               Expanded(
                 child: TextField(
                   controller: _draftCtrl,
-                  style: const TextStyle(color: KnkColors.text, fontSize: 14),
+                  style: TextStyle(color: KnkColors.text, fontSize: 14),
                   enabled: !_isBlocked,
                   decoration: InputDecoration(
                     hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_editingMsgId != null ? 'Mesajı düzenle…' : (_contactActive ? 'Mesaj yaz…' : 'Kişi artık aktif değil…')),
-                    hintStyle: const TextStyle(color: Color(0xFF5C6E6B)),
+                    hintStyle: TextStyle(color: KnkColors.textDim),
                     filled: true, fillColor: KnkColors.bg,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: const BorderSide(color: KnkColors.line)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: KnkColors.line)),
                   ),
                   onChanged: _onTextChanged,
                   onSubmitted: (_) => _send(),
@@ -439,5 +536,7 @@ class _DisplayMessage {
   final bool delivered;
   final bool deleted;
   final bool edited;
-  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited});
+  final Map<String, List<String>> reactions;
+  final Map<String, dynamic>? replyTo;
+  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo});
 }

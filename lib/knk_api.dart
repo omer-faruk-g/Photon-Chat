@@ -139,14 +139,16 @@ class KnkApi {
   }
 
   /// Mesajı gönderir; (delivered, msgId) döner.
-  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
+  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts, Map<String, dynamic>? replyTo}) async {
     try {
+      final body = <String, dynamic>{'from': from, 'text': text, 'ts': ts};
+      if (replyTo != null) body['replyTo'] = replyTo;
       final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'from': from, 'text': text, 'ts': ts}));
+          body: jsonEncode(body));
       if (r.statusCode == 200) {
-        final body = jsonDecode(r.body) as Map<String, dynamic>;
-        return (true, body['msgId'] as String?);
+        final respBody = jsonDecode(r.body) as Map<String, dynamic>;
+        return (true, respBody['msgId'] as String?);
       }
     } catch (_) {}
     return (false, null);
@@ -311,6 +313,66 @@ class KnkApi {
     return null;
   }
 
+  // --- Reactions ---
+
+  static Future<void> reactMessage(String serverUrl, String chatKey, String msgId, String fipId, String emoji) async {
+    try {
+      await http.post(_u(serverUrl, '/chat/$chatKey/msg/$msgId/react'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'emoji': emoji}));
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>> getChatReactions(String serverUrl, String chatKey) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/chat/$chatKey/reactions'));
+      if (r.statusCode == 200) return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+    } catch (_) {}
+    return {};
+  }
+
+  // --- Group announcements ---
+
+  static Future<void> sendGroupAnnouncement(String ownerServerUrl, String groupId, {
+    required String from, required String fromName, required String text,
+  }) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/announce'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'from': from, 'fromName': fromName, 'text': text}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getGroupAnnouncements(String myServerUrl, String groupId) async {
+    try {
+      final r = await http.get(_u(myServerUrl, '/groups/$groupId/announcements'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  // --- Group polls ---
+
+  static Future<void> voteOnPoll(String ownerServerUrl, String groupId, String pollMsgId, String fipId, int optionIndex) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/messages/$pollMsgId/vote'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'optionIndex': optionIndex}));
+    } catch (_) {}
+  }
+
+  static Future<void> sendGroupPoll(List<String> memberServerUrls, String groupId, {
+    required String from, required String fromName, required String question, required List<String> options, required int ts,
+  }) async {
+    for (final url in memberServerUrls) {
+      try {
+        await http.post(_u(url, '/groups/$groupId/messages'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'from': from, 'fromName': fromName, 'type': 'poll', 'question': question, 'options': options, 'votes': {}, 'ts': ts}));
+      } catch (_) {}
+    }
+  }
+
   // --- Pulse AI ---
 
   /// [messages] format: [{'role':'user','content':'...'}, {'role':'assistant','content':'...'}, ...]
@@ -331,4 +393,65 @@ class KnkApi {
       return 'Pulse AI\'e ulaşılamadı. Sunucu bağlantını kontrol et.';
     }
   }
+
+  // --- Emoji reactions ---
+
+  static Future<void> reactMessage(String serverUrl, String chatKey, String msgId, String fipId, String emoji) async {
+    try {
+      await http.post(_u(serverUrl, '/chat/$chatKey/msg/$msgId/react'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'emoji': emoji}));
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>> getChatReactions(String serverUrl, String chatKey) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/chat/$chatKey/reactions'));
+      if (r.statusCode == 200) return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+    } catch (_) {}
+    return {};
+  }
+
+  // --- Group announcements ---
+
+  static Future<void> sendGroupAnnouncement(String ownerServerUrl, String groupId, {
+    required String from, required String fromName, required String text,
+  }) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/announce'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'from': from, 'fromName': fromName, 'text': text}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getGroupAnnouncements(String myServerUrl, String groupId) async {
+    try {
+      final r = await http.get(_u(myServerUrl, '/groups/$groupId/announcements'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  // --- Group polls ---
+
+  static Future<void> voteOnPoll(String ownerServerUrl, String groupId, String pollMsgId, String fipId, int optionIndex) async {
+    try {
+      await http.post(_u(ownerServerUrl, '/groups/$groupId/messages/$pollMsgId/vote'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'optionIndex': optionIndex}));
+    } catch (_) {}
+  }
+
+  static Future<void> sendGroupPoll(List<String> memberServerUrls, String groupId, {
+    required String from, required String fromName, required String question, required List<String> options, required int ts,
+  }) async {
+    for (final url in memberServerUrls) {
+      try {
+        await http.post(_u(url, '/groups/$groupId/messages'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'from': from, 'fromName': fromName, 'type': 'poll', 'question': question, 'options': options, 'votes': {}, 'ts': ts}));
+      } catch (_) {}
+    }
+  }
+
 }

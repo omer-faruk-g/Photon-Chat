@@ -96,7 +96,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                             child: const Text('⚡', style: TextStyle(fontSize: 30)),
                           ),
                           const SizedBox(height: 16),
-                          const Text('Pulse AI', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
+                          Text('Pulse AI', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
                           const SizedBox(height: 8),
                           const Text(
                             'Kelime anlamı mı merak ediyorsun? Bir şey mi sormak istiyorsun? Sohbet etmek mi istiyorsun? Buradayım.',
@@ -167,7 +167,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: KnkColors.danger.withOpacity(0.1),
-              child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
+              child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12)),
             ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
@@ -180,14 +180,14 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                 child: TextField(
                   controller: _ctrl,
                   enabled: !_loading,
-                  style: const TextStyle(color: KnkColors.text, fontSize: 14),
+                  style: TextStyle(color: KnkColors.text, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Pulse AI\'e bir şey sor…',
-                    hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
+                    hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 13),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
-                    focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(999)),
-                    disabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(999)),
+                    disabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
                   ),
                   maxLines: 4, minLines: 1,
                   onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },

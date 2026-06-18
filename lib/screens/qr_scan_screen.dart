@@ -33,7 +33,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: KnkColors.panel.withOpacity(0.9), borderRadius: BorderRadius.circular(12), border: Border.all(color: KnkColors.line)),
-            child: const Text('Arkadaşının QR kodunu kameraya tut', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.text, fontSize: 13)),
+            child: Text('Arkadaşının QR kodunu kameraya tut', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.text, fontSize: 13)),
           ),
         ),
       ]),

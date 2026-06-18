@@ -47,7 +47,7 @@ class RootGateState extends State<RootGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: KnkColors.bg,
         body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: KnkColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
       );

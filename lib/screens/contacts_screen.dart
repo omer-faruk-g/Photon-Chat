@@ -181,11 +181,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       context: context, barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: KnkColors.panel,
-        title: const Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: const Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        title: Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        content: Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hayır, imha et', style: TextStyle(color: KnkColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Evet, sakla', style: TextStyle(color: KnkColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Hayır, imha et', style: TextStyle(color: KnkColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Evet, sakla', style: TextStyle(color: KnkColors.accent))),
         ],
       ),
     );
@@ -197,7 +197,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: KnkColors.accent)));
+    if (_loading) return Scaffold(body: Center(child: CircularProgressIndicator(color: KnkColors.accent)));
     final incoming = _contacts.where((c) => c.status == 'pending_in').toList();
     final outgoing = _contacts.where((c) => c.status == 'pending_out').toList();
     final active = _contacts.where((c) => c.status == 'on').toList();
@@ -213,10 +213,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
             child: Container(
               alignment: Alignment.center,
               decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(6)),
-              child: Text(widget.identity.code, style: const TextStyle(color: KnkColors.accent, fontSize: 10, letterSpacing: 1.5)),
+              child: Text(widget.identity.code, style: TextStyle(color: KnkColors.accent, fontSize: 10, letterSpacing: 1.5)),
             ),
           ),
-          actions: [IconButton(icon: const Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
+          actions: [IconButton(icon: Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
         ),
         body: Stack(
           children: [
@@ -252,7 +252,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
                     decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: const Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+                    child: Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
                   ),
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
               ],
@@ -267,7 +267,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_toast!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: KnkColors.text)),
+                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: KnkColors.text)),
                 ),
               ),
           ],
@@ -308,7 +308,7 @@ class _PulseAiCard extends StatelessWidget {
             Text('Pulse AI', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
             Text('Yapay zeka asistanın · Sor, sohbet et', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
           ])),
-          const Icon(Icons.chevron_right, color: KnkColors.accent, size: 20),
+          Icon(Icons.chevron_right, color: KnkColors.accent, size: 20),
         ],
       ),
     ),
@@ -325,7 +325,7 @@ class _GroupActionButton extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.5)), borderRadius: BorderRadius.circular(6)),
-      child: Text(label, style: const TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Text(label, style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
     ),
   );
 }
@@ -346,11 +346,11 @@ class _GroupRow extends StatelessWidget {
       child: Row(children: [
         Container(width: 38, height: 38, alignment: Alignment.center,
             decoration: BoxDecoration(color: KnkColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.group, color: KnkColors.accent, size: 20)),
+            child: Icon(Icons.group, color: KnkColors.accent, size: 20)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-          Text(group.isOwner ? 'Sahip · ${group.groupCode}' : 'Üye · ${group.groupCode}', style: const TextStyle(color: KnkColors.textDim, fontSize: 11)),
+          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+          Text(group.isOwner ? 'Sahip · ${group.groupCode}' : 'Üye · ${group.groupCode}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
         ])),
         if (pendingCount > 0)
           Container(
@@ -359,7 +359,7 @@ class _GroupRow extends StatelessWidget {
             child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
         const SizedBox(width: 6),
-        const Icon(Icons.chevron_right, color: KnkColors.textDim),
+        Icon(Icons.chevron_right, color: KnkColors.textDim),
       ]),
     ),
   );
@@ -371,7 +371,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8, top: 4),
-    child: Text(text.toUpperCase(), style: const TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+    child: Text(text.toUpperCase(), style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
   );
 }
 
@@ -383,11 +383,11 @@ class _EmptyState extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
     decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
     child: Column(children: [
-      const Text('＋', style: TextStyle(color: KnkColors.accent2, fontSize: 28)),
+      Text('＋', style: TextStyle(color: KnkColors.accent2, fontSize: 28)),
       const SizedBox(height: 8),
-      const Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
+      Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
       const SizedBox(height: 6),
-      const Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+      Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
       ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
     ]),
@@ -406,8 +406,8 @@ class _RequestRow extends StatelessWidget {
     child: Row(children: [
       _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        Text('kod ${contact.code}', style: const TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+        Text('kod ${contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
       ])),
       Column(children: [
         SizedBox(height: 30, child: ElevatedButton(
@@ -416,7 +416,7 @@ class _RequestRow extends StatelessWidget {
         )),
         const SizedBox(height: 4),
         SizedBox(height: 26, child: OutlinedButton(
-          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: const BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           onPressed: onDecline, child: const Text('Sil'),
         )),
       ]),
@@ -440,16 +440,16 @@ class _ContactRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.block, color: KnkColors.danger),
-                title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
+                leading: Icon(Icons.block, color: KnkColors.danger),
+                title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: KnkColors.danger)),
                 onTap: () {
                   Navigator.pop(context);
                   onBlock();
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-                title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+                leading: Icon(Icons.cancel_outlined, color: KnkColors.textDim),
+                title: Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
                 onTap: () => Navigator.pop(context),
               ),
             ],
@@ -467,17 +467,17 @@ class _ContactRow extends StatelessWidget {
         child: Row(children: [
           _Avatar(name: contact.name, on: true, avatar: contact.avatar), const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
             if (contact.statusMsg.isNotEmpty)
-              Text(contact.statusMsg, style: const TextStyle(color: KnkColors.accent, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)
+              Text(contact.statusMsg, style: TextStyle(color: KnkColors.accent, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)
             else
               Row(children: [
-                Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+                Container(width: 7, height: 7, decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
                 const SizedBox(width: 6),
-                const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+                Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
               ]),
           ])),
-          const Icon(Icons.chevron_right, color: KnkColors.textDim),
+          Icon(Icons.chevron_right, color: KnkColors.textDim),
         ]),
       ),
     ),
@@ -495,8 +495,8 @@ class _PendingOutRow extends StatelessWidget {
     child: Row(children: [
       _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        const Text('davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+        Text('davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
       ])),
     ]),
   );

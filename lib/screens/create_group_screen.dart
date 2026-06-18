@@ -63,18 +63,18 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildForm() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+      Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
       const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
-        style: const TextStyle(color: KnkColors.text),
+        style: TextStyle(color: KnkColors.text),
         decoration: InputDecoration(
           labelText: 'Grup Adı',
-          labelStyle: const TextStyle(color: KnkColors.textDim),
-          enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-          focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+          labelStyle: TextStyle(color: KnkColors.textDim),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
           errorText: _error,
-          errorStyle: const TextStyle(color: KnkColors.danger),
+          errorStyle: TextStyle(color: KnkColors.danger),
         ),
       ),
       const SizedBox(height: 20),
@@ -96,23 +96,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
         const SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+            Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
             const SizedBox(height: 8),
-            Text(g.address, style: const TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
+            Text(g.address, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
           ]),
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: const BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.copy, size: 16),
             label: const Text('Adresi Kopyala'),
             onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),

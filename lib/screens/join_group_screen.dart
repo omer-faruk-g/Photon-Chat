@@ -61,20 +61,20 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Grup sahibinden aldığın adresi gir.\n\nFormat:  GRUPKODU@https://sunucu.onrender.com', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7)),
+            Text('Grup sahibinden aldığın adresi gir.\n\nFormat:  GRUPKODU@https://sunucu.onrender.com', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7)),
             const SizedBox(height: 24),
             TextField(
               controller: _ctrl,
-              style: const TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
+              style: TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
               decoration: InputDecoration(
                 labelText: 'Grup Adresi',
                 hintText: '1234567@https://sunucu.onrender.com',
-                hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 12),
-                labelStyle: const TextStyle(color: KnkColors.textDim),
-                enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+                hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
+                labelStyle: TextStyle(color: KnkColors.textDim),
+                enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
+                focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
                 errorText: _error,
-                errorStyle: const TextStyle(color: KnkColors.danger),
+                errorStyle: TextStyle(color: KnkColors.danger),
               ),
               autocorrect: false,
             ),

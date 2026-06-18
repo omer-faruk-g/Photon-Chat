@@ -135,16 +135,16 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       title: Row(children: [
         const Text('🚀 ', style: TextStyle(fontSize: 18)),
-        const Expanded(child: Text('Güncelleme Mevcut', style: TextStyle(color: KnkColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
+        Expanded(child: Text('Güncelleme Mevcut', style: TextStyle(color: KnkColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
       ]),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(widget.currentVersion, style: const TextStyle(color: KnkColors.textDim, fontSize: 12)),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 14, color: KnkColors.accent)),
-            Text(widget.newVersion, style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(widget.currentVersion, style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 14, color: KnkColors.accent)),
+            Text(widget.newVersion, style: TextStyle(color: KnkColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
           ]),
           if (widget.releaseNotes.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -153,7 +153,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               decoration: BoxDecoration(color: KnkColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: KnkColors.line)),
               child: Text(
                 widget.releaseNotes.length > 300 ? '${widget.releaseNotes.substring(0, 300)}…' : widget.releaseNotes,
-                style: const TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5),
+                style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5),
               ),
             ),
           ],
@@ -163,12 +163,12 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             const SizedBox(height: 6),
             Text(
               _progress != null ? '%${(_progress! * 100).toStringAsFixed(0)} indiriliyor…' : 'Hazırlanıyor…',
-              style: const TextStyle(color: KnkColors.textDim, fontSize: 11),
+              style: TextStyle(color: KnkColors.textDim, fontSize: 11),
             ),
           ],
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!, style: const TextStyle(color: KnkColors.danger, fontSize: 11)),
+            Text(_error!, style: TextStyle(color: KnkColors.danger, fontSize: 11)),
           ],
         ],
       ),
@@ -177,7 +177,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           : [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Sonra', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+                child: Text('Sonra', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
               ),
               if (isAndroid && hasApk)
                 ElevatedButton(

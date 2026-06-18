@@ -101,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return CircleAvatar(
       radius: 36,
       backgroundColor: KnkColors.accent.withOpacity(0.2),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: const TextStyle(color: KnkColors.accent, fontSize: 28, fontWeight: FontWeight.bold)),
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: KnkColors.accent, fontSize: 28, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -131,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
           const SizedBox(height: 8),
-          Center(child: Text(widget.displayName, style: const TextStyle(color: KnkColors.text, fontWeight: FontWeight.bold, fontSize: 16))),
+          Center(child: Text(widget.displayName, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.bold, fontSize: 16))),
           const SizedBox(height: 20),
 
           // Durum mesajı
@@ -139,18 +139,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('DURUM MESAJI', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text('DURUM MESAJI', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               TextField(
                 controller: _statusCtrl,
-                style: const TextStyle(color: KnkColors.text, fontSize: 13),
+                style: TextStyle(color: KnkColors.text, fontSize: 13),
                 maxLength: 60,
                 decoration: InputDecoration(
                   hintText: 'Müsait, Meşgul, Toplantıda…',
-                  hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 12),
+                  hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
                   filled: true, fillColor: KnkColors.bg,
-                  counterStyle: const TextStyle(color: KnkColors.textDim, fontSize: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KnkColors.line)),
+                  counterStyle: TextStyle(color: KnkColors.textDim, fontSize: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
                 ),
               ),
               const SizedBox(height: 8),
@@ -166,19 +166,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Tema Toggle
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Icon(KnkTheme.instance.isDark ? Icons.dark_mode : Icons.light_mode, color: KnkColors.textDim, size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Tema', style: TextStyle(color: KnkColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(KnkTheme.instance.isDark ? 'Karanlık mod' : 'Aydınlık mod', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              ])),
+              Switch(
+                value: KnkTheme.instance.isDark,
+                onChanged: (v) async {
+                  KnkTheme.instance.setDark(v);
+                  await LocalStore.saveThemeDark(v);
+                  setState(() {});
+                },
+                activeColor: KnkColors.accent,
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
           // Adres
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 8),
-              Text(myAddress, style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace')),
+              Text(myAddress, style: TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace')),
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: const BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                   icon: const Icon(Icons.copy, size: 15),
                   label: const Text('Kodunu Kopyala', style: TextStyle(fontSize: 13)),
                   onPressed: () => Clipboard.setData(ClipboardData(text: widget.identity.code)),
@@ -195,9 +219,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: const Color(0xFF1A1314), border: Border.all(color: KnkColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Hesabı bu cihazdan kaldır', style: TextStyle(color: KnkColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text('Hesabı bu cihazdan kaldır', style: TextStyle(color: KnkColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 8),
-              const Text('FIP bloğun, kişi listen ve aktif sohbetlerin kalıcı olarak silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 11.5, height: 1.6)),
+              Text('FIP bloğun, kişi listen ve aktif sohbetlerin kalıcı olarak silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 11.5, height: 1.6)),
               const SizedBox(height: 14),
               if (!_confirming)
                 ElevatedButton(

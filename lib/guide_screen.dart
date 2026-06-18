@@ -83,7 +83,7 @@ class _GuideScreenState extends State<GuideScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _skip,
-                child: const Text('Atla', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+                child: Text('Atla', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
               ),
             ),
             Expanded(
@@ -147,9 +147,9 @@ class _PageContent extends StatelessWidget {
             child: Text(page.icon, style: const TextStyle(fontSize: 34)),
           ),
           const SizedBox(height: 24),
-          Text(page.title, style: const TextStyle(color: KnkColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
+          Text(page.title, style: TextStyle(color: KnkColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
           const SizedBox(height: 18),
-          Text(page.body, style: const TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.8)),
+          Text(page.body, style: TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.8)),
           if (page.highlight != null) ...[
             const SizedBox(height: 20),
             Container(
@@ -163,7 +163,7 @@ class _PageContent extends StatelessWidget {
               child: Text(
                 page.highlight!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: KnkColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
+                style: TextStyle(color: KnkColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
               ),
             ),
           ],
@@ -184,7 +184,7 @@ class _PageContent extends StatelessWidget {
                   Expanded(
                     child: Text(
                       page.tip!,
-                      style: const TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6),
+                      style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6),
                     ),
                   ),
                 ],
