@@ -46,7 +46,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
               const SizedBox(height: 40),
               Text('Sunucu Kurulumu', style: TextStyle(color: KnkColors.text, fontSize: 24, fontWeight: FontWeight.w800)),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Photon Chat kendi sunucunu kullanır.\n\nrender.com üzerinde ücretsiz bir Node.js servisi aç ve adresini buraya gir.',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.7),
               ),
@@ -54,7 +54,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: KnkColors.panelAlt, borderRadius: BorderRadius.circular(8), border: Border.all(color: KnkColors.line)),
-                child: const Text(
+                child: Text(
                   '1. render.com → New → Web Service\n2. GitHub reposunu seç (server/ klasörü)\n3. Free plan → Deploy\n4. Verilen URL\'yi buraya yapıştır',
                   style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.8, fontFamily: 'monospace'),
                 ),

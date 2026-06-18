@@ -91,7 +91,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             onPressed: () async {
               final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
               if (code != null && mounted) {
-                _codeCtrl.text = code;
+                _addrCtrl.text = code;
                 setState(() {});
                 _send();
               }

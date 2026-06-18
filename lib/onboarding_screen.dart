@@ -68,7 +68,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'PHOTON CHAT',
                       style: TextStyle(
                         fontFamily: 'sans-serif',
@@ -79,7 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'FIP tabanlı kimlik · sunucusuz rehber · numarasız',
                       style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 0.5),
                     ),
@@ -93,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onRegen: _regen,
               ),
               const SizedBox(height: 24),
-              const Text('Görünen ad (sadece arkadaşların görür)',
+              Text('Görünen ad (sadece arkadaşların görür)',
                   style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1)),
               const SizedBox(height: 8),
               TextField(
@@ -110,7 +110,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: const Text('Kimliği bu cihazda oluştur'),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Bu işlem internet hesabı, telefon numarası ya da e-posta gerektirmez. '
                 'FIP bloğun ve eşleşme kodun bu cihazda saklanır.',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6),
@@ -186,7 +186,7 @@ class FipCard extends StatelessWidget {
               if (onRegen != null)
                 GestureDetector(
                   onTap: onRegen,
-                  child: const Text('yeniden üret',
+                  child: Text('yeniden üret',
                       style: TextStyle(
                           color: KnkColors.accent2,
                           fontSize: 11,
@@ -214,7 +214,7 @@ class FipCard extends StatelessWidget {
                       SizedBox(
                         width: 22,
                         child: Text((i + 1).toString().padLeft(2, '0'),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: KnkColors.accent2, fontSize: 11, fontFamily: 'monospace')),
                       ),
                       Expanded(
@@ -238,11 +238,11 @@ class FipCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('EŞLEŞME KODU',
+              Text('EŞLEŞME KODU',
                   style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
               Text(
                 fip.code,
-                style: const TextStyle(
+                style: TextStyle(
                   color: KnkColors.accent,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

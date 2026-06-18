@@ -1,10 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-String chatKeyFor(String a, String b) {
-  final sorted = [a, b]..sort();
-  return '${sorted[0]}_${sorted[1]}';
-}
+const String bridgeUrl = 'https://photon-chat.onrender.com';
 
 class KnkApi {
   static Uri _u(String serverUrl, String path) {
@@ -411,66 +408,6 @@ class KnkApi {
       return err;
     } catch (_) {
       return 'Pulse AI\'e ulaşılamadı. Sunucu bağlantını kontrol et.';
-    }
-  }
-
-  // --- Emoji reactions ---
-
-  static Future<void> reactMessage(String serverUrl, String chatKey, String msgId, String fipId, String emoji) async {
-    try {
-      await http.post(_u(serverUrl, '/chat/$chatKey/msg/$msgId/react'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'emoji': emoji}));
-    } catch (_) {}
-  }
-
-  static Future<Map<String, dynamic>> getChatReactions(String serverUrl, String chatKey) async {
-    try {
-      final r = await http.get(_u(serverUrl, '/chat/$chatKey/reactions'));
-      if (r.statusCode == 200) return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
-    } catch (_) {}
-    return {};
-  }
-
-  // --- Group announcements ---
-
-  static Future<void> sendGroupAnnouncement(String ownerServerUrl, String groupId, {
-    required String from, required String fromName, required String text,
-  }) async {
-    try {
-      await http.post(_u(ownerServerUrl, '/groups/$groupId/announce'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'from': from, 'fromName': fromName, 'text': text}));
-    } catch (_) {}
-  }
-
-  static Future<List<Map<String, dynamic>>> getGroupAnnouncements(String myServerUrl, String groupId) async {
-    try {
-      final r = await http.get(_u(myServerUrl, '/groups/$groupId/announcements'));
-      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
-    } catch (_) {}
-    return [];
-  }
-
-  // --- Group polls ---
-
-  static Future<void> voteOnPoll(String ownerServerUrl, String groupId, String pollMsgId, String fipId, int optionIndex) async {
-    try {
-      await http.post(_u(ownerServerUrl, '/groups/$groupId/messages/$pollMsgId/vote'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'optionIndex': optionIndex}));
-    } catch (_) {}
-  }
-
-  static Future<void> sendGroupPoll(List<String> memberServerUrls, String groupId, {
-    required String from, required String fromName, required String question, required List<String> options, required int ts,
-  }) async {
-    for (final url in memberServerUrls) {
-      try {
-        await http.post(_u(url, '/groups/$groupId/messages'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'from': from, 'fromName': fromName, 'type': 'poll', 'question': question, 'options': options, 'votes': {}, 'ts': ts}));
-      } catch (_) {}
     }
   }
 
