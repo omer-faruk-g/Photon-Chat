@@ -411,22 +411,4 @@ class KnkApi {
     }
   }
 
-  // --- Notifications ---
-
-  static Future<void> sendNotification(String serverUrl, String fipId, String title, String body) async {
-    try {
-      await http.post(_u(serverUrl, '/notifs/$fipId'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'title': title, 'body': body}));
-    } catch (_) {}
-  }
-
-  static Future<List<Map<String, dynamic>>> getNotifications(String serverUrl, String fipId) async {
-    try {
-      final r = await http.get(_u(serverUrl, '/notifs/$fipId'));
-      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
-    } catch (_) {}
-    return [];
-  }
-
 }
