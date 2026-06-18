@@ -11,11 +11,13 @@ Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlay
 | Platform | İndir |
 |----------|-------|
 | 📱 Android | [**APK İndir →**](../../releases/latest) |
+| 🤖 Huawei | [**APK İndir →**](../../releases/latest) *(Google Play gerektirmez)* |
 | 🌐 Windows | [**Windows İndir →**](../../releases/latest) |
 | 🐧 Linux | [**Linux İndir →**](../../releases/latest) |
 | 🍏 iOS | Yakında *(Apple Developer hesabı gerektirir)* |
 
-> **Android:** APK dosyasını indirip aç. “Bilinmeyen kaynaktan yükle” izni isteyebilir — izin ver ve devam et.
+> **Android / Huawei:** APK dosyasını indirip aç. "Bilinmeyen kaynaktan yükle" izni isteyebilir — izin ver ve devam et.  
+> Huawei cihazlarda Google Play Services gerekmez. APK doğrudan yüklenir.
 
 ---
 
@@ -23,7 +25,7 @@ Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlay
 
 ### 1 — Kendi Ücretsiz Sunucunu Kur *(1 kez, 5 dakika)*
 
-Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsi̇z sunucusunu çalıştırır.
+Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsiz sunucusunu çalıştırır.
 
 1. [render.com](https://render.com) — ücretsiz hesap aç
 2. **New → Web Service** → bu repoyu bağla
@@ -33,7 +35,7 @@ Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsi̇z sunu
 ### 2 — Uygulamayı Aç
 
 1. Uygulamayı aç — kısa bir rehber görürsün
-2. Render URL’ini gir (`https://xxxx.onrender.com`)
+2. Render URL'ini gir (`https://xxxx.onrender.com`)
 3. Bir kullanıcı adı seç — kimliğin otomatik oluşturulur
 4. Adresin hazır → `12345@https://xxxx.onrender.com`
 
@@ -48,14 +50,40 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Telefon / e-posta gerektirmez | ✅ |
 | Gerçek uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
 | Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
-| Ekran görüntüsü engeli (Android) | ✅ |
-| Grup sohbeti — 500–1000 kişi, merkeziyetsiz | ✅ |
+| Grup sohbeti — merkeziyetsiz | ✅ |
 | Yazıyor göstergesi | ✅ |
-| Mesaj teslim durumu (✓ / ✓✓) | ✅ |
+| Mesaj teslim / okundu durumu (✓ / ✓✓ yeşil) | ✅ |
+| Mesaj silme ve düzenleme | ✅ |
+| Mesaja emoji tepkisi (👍❤️😂😮😢😡) | ✅ |
+| Mesaj alıntılama (reply/quote) | ✅ |
+| Profil fotoğrafı ve durum mesajı | ✅ |
+| Son görülme zamanı | ✅ |
+| QR kod ile arkadaş ekleme | ✅ |
 | Kullanıcı engelleme | ✅ |
+| Karanlık / Aydınlık tema | ✅ |
 | Grup yöneticisi (sustur / at) | ✅ |
+| Grup duyuruları (admin yayını) | ✅ |
+| Grup anketleri | ✅ |
+| Bildirimler — yeni mesaj, gruptan atılma, susturulma | ✅ Android + Huawei |
+| Otomatik güncelleme (kullanıcı izniyle) | ✅ |
 | Küfür filtresi | ✅ |
 | Pulse AI asistanı | ✅ |
+
+---
+
+## Huawei Desteği
+
+Photon Chat, Google Play Services **gerektirmez** ve Huawei cihazlarda sorunsuz çalışır.
+
+| | Durum |
+|---|---|
+| Uygulama yükleme (APK) | ✅ Google Play'siz yüklenebilir |
+| Mesajlaşma & gruplar | ✅ Tam destekli |
+| Bildirimler (uygulama açıkken) | ✅ Destekleniyor |
+| Bildirimler (arka planda) | ✅ Uygulama arka planda çalışırken destekleniyor |
+| Bildirimler (uygulama kapalıyken) | ⚠️ Huawei'nin pil optimizasyonu engelleyebilir — "Pil optimizasyonuna izin ver" ayarını kapat |
+
+> **İpucu (Huawei):** Ayarlar → Uygulama Yönetimi → Photon Chat → Pil → "Pil optimizasyonu yok" seç. Aksi hâlde sistem arka plan görevlerini kesebilir.
 
 ---
 
@@ -64,7 +92,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Veri | Davranış |
 |------|----------|
 | Kimlik | Cihazda şifreli — sunucuya gönderilmez |
-| Mesajlar | Uçtan uca şifreli, RAM’de, kalıcı kayıt yok |
+| Mesajlar | Uçtan uca şifreli, RAM'de, kalıcı kayıt yok |
 | Kişi listesi | Yalnızca cihazda |
 | Hesap silme | Tüm veriler anında imha edilir |
 
@@ -81,7 +109,7 @@ Uygulamaya entegre yapay zeka asistanı. Aktifleştirmek için Render dashboard 
 <details>
 <summary>Kaynağı derleme</summary>
 
-**Gereksinimler:** Flutter 3.16+, Dart ≥ 3.2, Node.js ≥ 18
+**Gereksinimler:** Flutter 3.24+, Dart ≥ 3.2, Node.js ≥ 18
 
 ```bash
 # Flutter bağımlılıkları
@@ -90,7 +118,7 @@ flutter pub get
 # Sunucuyu lokalde çalıştır
 cd server && npm install && npm start
 
-# Android APK
+# Android APK (Huawei dahil)
 flutter build apk --release
 
 # Windows
@@ -104,6 +132,17 @@ flutter build linux --release
 ```
 
 </details>
+
+---
+
+## Sürüm Geçmişi
+
+| Sürüm | Yenilikler |
+|-------|------------|
+| **v2.0.1** | Bildirimler (Android + Huawei), gruptan atılma / susturulma bildirimi |
+| **v2.0.0** | Emoji tepkileri, mesaj alıntılama, titreşim, karanlık/aydınlık tema, grup duyuruları, grup anketleri |
+| **v1.0.5** | Otomatik güncelleme |
+| **v1.0.4** | Okundu bilgisi, mesaj silme/düzenleme, profil fotoğrafı, son görülme, durum mesajı, QR kod |
 
 ---
 
