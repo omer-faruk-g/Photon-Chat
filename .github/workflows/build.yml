@@ -26,7 +26,8 @@ jobs:
           channel: 'stable'
       - name: Install Android SDK 35
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" || true
+          rm -rf /usr/local/lib/android/sdk/platforms/android-35
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35"
       - name: Generate Android platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
