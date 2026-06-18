@@ -27,6 +27,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollCtrl = ScrollController();
   List<_DisplayMessage> _messages = [];
   late final String _chatKey;
+  String _myDisplayName = '';
   bool _alive = true;
   bool _contactActive = true;
   String? _inputError;
@@ -45,6 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _chatKey = chatKeyFor(widget.identity.fipId, widget.contact.fipId);
+    LocalStore.loadDisplayName().then((n) { if (mounted) setState(() => _myDisplayName = n ?? ''); });
     _initE2E();
     _checkBlocked();
     _poll();
@@ -213,7 +215,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final (deliveredToContact, _) = await KnkApi.sendMessage(
         receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
+        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+        toFipId: widget.contact.fipId, senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId);
 
     if (mounted) {
       setState(() {

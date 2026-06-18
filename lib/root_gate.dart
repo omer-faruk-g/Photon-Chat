@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'fip.dart';
 import 'local_store.dart';
@@ -30,12 +31,10 @@ class RootGateState extends State<RootGate> {
   void initState() { super.initState(); _load(); }
 
   @override
-  void dispose() {
-    _notifTimer?.cancel();
-    super.dispose();
-  }
+  void dispose() { _notifTimer?.cancel(); super.dispose(); }
 
   void _startNotifPolling() {
+    if (!Platform.isAndroid) return;
     _notifTimer?.cancel();
     _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       final serverUrl = _myServerUrl;
@@ -64,9 +63,7 @@ class RootGateState extends State<RootGate> {
       _guideSeen = guideSeen;
       _loading = false;
     });
-    if (serverUrl != null && identity != null) {
-      _startNotifPolling();
-    }
+    if (serverUrl != null && identity != null) _startNotifPolling();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) UpdateChecker.check(context);
     });
