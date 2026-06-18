@@ -41,18 +41,28 @@ class _AddContactScreenState extends State<AddContactScreen> {
 
     setState(() { _sending = true; _error = null; });
 
-    final target = await KnkApi.lookupByCode(widget.myServerUrl, code);
+    // Bridge'den hedefin sunucu URL'sini bul
+    final targetServerUrl = await KnkApi.lookupServerOnBridge(code);
+    if (targetServerUrl == null) {
+      setState(() {
+        _sending = false;
+        _error = 'Bu kod kayıtlı değil. Karşı taraf uygulamayı açmış olmalı.';
+      });
+      return;
+    }
+
+    // Hedefin kendi sunucusundan bilgilerini al
+    final target = await KnkApi.lookupByCode(targetServerUrl, code);
     if (target == null) {
       setState(() {
         _sending = false;
-        _error = 'Bu kodla aktif bir kullanıcı bulunamadı.';
+        _error = 'Kullanıcı şu an çevrimdışı.';
       });
       return;
     }
 
     final targetFipId = target['fipId'] as String;
     final targetName = (target['name'] as String?) ?? 'Bilinmeyen';
-    final targetServerUrl = (target['serverUrl'] as String?) ?? widget.myServerUrl;
 
     await KnkApi.sendFriendRequest(
       toServerUrl: targetServerUrl,

@@ -9,6 +9,7 @@ const accepted = new Map();
 const chats = new Map();
 const groups = new Map();
 const typingMap = new Map(); // chatKey -> [{fipId, ts}]
+const registry = new Map(); // code -> serverUrl (bridge: global code directory)
 
 function rand(n) {
   return Math.floor(Math.random() * Math.pow(10, n)).toString().padStart(n, '0');
@@ -256,6 +257,20 @@ app.get('/groups/:groupId/key/:memberFipId', (req, res) => {
   const key = (g.groupKeys || {})[req.params.memberFipId];
   if (!key) return res.sendStatus(404);
   res.json({ encryptedKey: key });
+});
+
+// --- Bridge registry (global code -> serverUrl directory) ---
+app.post('/registry/register', (req, res) => {
+  const { code, serverUrl } = req.body;
+  if (!code || !serverUrl) return res.sendStatus(400);
+  registry.set(code, serverUrl);
+  res.sendStatus(200);
+});
+
+app.get('/registry/lookup/:code', (req, res) => {
+  const serverUrl = registry.get(req.params.code);
+  if (!serverUrl) return res.sendStatus(404);
+  res.json({ serverUrl });
 });
 
 // --- Pulse AI (proxies to Claude API, key stays on server) ---

@@ -2,16 +2,41 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class KnkApi {
+  static const String bridgeUrl = 'https://photon-chat.onrender.com';
+
   static Uri _u(String serverUrl, String path) {
     final base = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
     return Uri.parse('$base$path');
   }
+
+  // --- Bridge: global kod rehberi ---
+
+  static Future<void> registerOnBridge(String code, String myServerUrl) async {
+    try {
+      await http.post(_u(bridgeUrl, '/registry/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'code': code, 'serverUrl': myServerUrl}));
+    } catch (_) {}
+  }
+
+  static Future<String?> lookupServerOnBridge(String code) async {
+    try {
+      final r = await http.get(_u(bridgeUrl, '/registry/lookup/$code'));
+      if (r.statusCode == 200) {
+        return (jsonDecode(r.body) as Map<String, dynamic>)['serverUrl'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // --- Presence ---
 
   static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name) async {
     try {
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl}));
     } catch (_) {}
+    await registerOnBridge(code, myServerUrl);
   }
 
   static Future<Map<String, dynamic>?> lookupByCode(String serverUrl, String code) async {
