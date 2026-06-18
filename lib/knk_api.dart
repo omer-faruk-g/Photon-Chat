@@ -139,10 +139,12 @@ class KnkApi {
   }
 
   /// Mesajı gönderir; (delivered, msgId) döner.
-  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts, Map<String, dynamic>? replyTo}) async {
+  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts, Map<String, dynamic>? replyTo, String? toFipId, String? senderName}) async {
     try {
       final body = <String, dynamic>{'from': from, 'text': text, 'ts': ts};
       if (replyTo != null) body['replyTo'] = replyTo;
+      if (toFipId != null) body['toFipId'] = toFipId;
+      if (senderName != null) body['fromName'] = senderName;
       final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(body));
@@ -152,6 +154,24 @@ class KnkApi {
       }
     } catch (_) {}
     return (false, null);
+  }
+
+  // --- Notifications ---
+
+  static Future<void> sendNotification(String serverUrl, String fipId, String title, String body) async {
+    try {
+      await http.post(_u(serverUrl, '/notifs/$fipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'title': title, 'body': body}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getNotifications(String serverUrl, String fipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/notifs/$fipId'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
   }
 
   static Future<void> deleteChat(String serverUrl, String chatKey) async {

@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'theme.dart';
 import 'root_gate.dart';
 import 'app_keys.dart';
 import 'local_store.dart';
+import 'notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final isDark = await LocalStore.loadThemeDark();
   KnkTheme.instance.setDark(isDark);
+  if (Platform.isAndroid) await NotificationService.init();
   runApp(const KnkApp());
 }
 

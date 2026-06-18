@@ -12,6 +12,7 @@ const typingMap = new Map();
 const registry = new Map();
 const chatReads = new Map(); // chatKey -> { fipId: ts }
 const chatReactions = new Map(); // `${chatKey}_${msgId}` -> {emoji: [fipId,...]}
+const userNotifs = new Map();
 const groupAnnouncements = new Map(); // groupId -> [{id, from, fromName, text, ts}]
 
 function rand(n) {
@@ -90,6 +91,12 @@ app.post('/chat/:chatKey', (req, res) => {
   const id = msgId();
   msgs.push({ ...req.body, msgId: id });
   if (msgs.length > 200) msgs.splice(0, msgs.length - 200);
+  // Auto-notify recipient
+  const { toFipId, fromName } = req.body;
+  if (toFipId && fromName) {
+    if (!userNotifs.has(toFipId)) userNotifs.set(toFipId, []);
+    userNotifs.get(toFipId).push({ title: 'Yeni mesaj', body: `${fromName} size mesaj attı`, ts: Date.now() });
+  }
   res.json({ msgId: id });
 });
 
@@ -395,6 +402,23 @@ app.post('/ai/chat', async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: 'AI bağlantı hatası.' });
   }
+});
+
+// --- Notifications ---
+app.post('/notifs/:fipId', (req, res) => {
+  const { title, body } = req.body;
+  if (!title || !body) return res.sendStatus(400);
+  if (!userNotifs.has(req.params.fipId)) userNotifs.set(req.params.fipId, []);
+  const list = userNotifs.get(req.params.fipId);
+  list.push({ title, body, ts: Date.now() });
+  if (list.length > 50) list.splice(0, list.length - 50);
+  res.sendStatus(200);
+});
+
+app.get('/notifs/:fipId', (req, res) => {
+  const list = userNotifs.get(req.params.fipId) || [];
+  userNotifs.delete(req.params.fipId);
+  res.json(list);
 });
 
 const PORT = process.env.PORT || 3000;

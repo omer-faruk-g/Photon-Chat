@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'fip.dart';
 import 'local_store.dart';
@@ -8,6 +9,8 @@ import 'onboarding_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'app_keys.dart';
 import 'update_checker.dart';
+import 'knk_api.dart';
+import 'notification_service.dart';
 
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
@@ -21,9 +24,33 @@ class RootGateState extends State<RootGate> {
   String? _myServerUrl;
   FipBlock? _identity;
   String _displayName = '';
+  Timer? _notifTimer;
 
   @override
   void initState() { super.initState(); _load(); }
+
+  @override
+  void dispose() {
+    _notifTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startNotifPolling() {
+    _notifTimer?.cancel();
+    _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      final serverUrl = _myServerUrl;
+      final fipId = _identity?.fipId;
+      if (serverUrl == null || fipId == null) return;
+      final notifs = await KnkApi.getNotifications(serverUrl, fipId);
+      for (final n in notifs) {
+        final title = n['title'] as String? ?? '';
+        final body = n['body'] as String? ?? '';
+        if (title.isNotEmpty && body.isNotEmpty) {
+          await NotificationService.show(title, body);
+        }
+      }
+    });
+  }
 
   Future<void> _load() async {
     final serverUrl = await LocalStore.loadMyServerUrl();
@@ -37,6 +64,9 @@ class RootGateState extends State<RootGate> {
       _guideSeen = guideSeen;
       _loading = false;
     });
+    if (serverUrl != null && identity != null) {
+      _startNotifPolling();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) UpdateChecker.check(context);
     });

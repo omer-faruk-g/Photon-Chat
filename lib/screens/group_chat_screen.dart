@@ -132,6 +132,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _muteMember(GroupMember member) async {
     await KnkApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+    await KnkApi.sendNotification(member.serverUrl, member.fipId,
+        'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
     if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
     if (mounted) _showToast('${member.name} susturuldu.');
   }
@@ -144,6 +146,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _kickMember(GroupMember member) async {
     await KnkApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+    await KnkApi.sendNotification(member.serverUrl, member.fipId,
+        'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
     if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
     if (mounted) _showToast('${member.name} gruptan atıldı.');
   }
