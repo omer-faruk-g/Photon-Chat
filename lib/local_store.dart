@@ -8,9 +8,12 @@ class Contact {
   final String code;
   final String serverUrl;
   String status;
-  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status};
-  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status']);
+  String avatar;
+  String statusMsg;
+  int lastSeen;
+  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status, this.avatar = '', this.statusMsg = '', this.lastSeen = 0});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status, 'avatar': avatar, 'statusMsg': statusMsg, 'lastSeen': lastSeen};
+  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status'], avatar: (j['avatar'] as String?) ?? '', statusMsg: (j['statusMsg'] as String?) ?? '', lastSeen: (j['lastSeen'] as int?) ?? 0);
 }
 
 class ChatMessage {
@@ -58,6 +61,8 @@ class LocalStore {
   static const _kGroupsKey = 'knk_groups_v1';
   static const _kGuideSeenKey = 'knk_guide_seen_v1';
   static const _kBlockListKey = 'knk_block_list_v1';
+  static const _kStatusMsgKey = 'knk_status_msg_v1';
+  static const _kAvatarKey = 'knk_avatar_v1';
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
@@ -108,6 +113,11 @@ class LocalStore {
 
   static Future<void> saveBlockList(List<String> list) async =>
       (await SharedPreferences.getInstance()).setString(_kBlockListKey, jsonEncode(list));
+
+  static Future<String> loadStatusMsg() async => (await SharedPreferences.getInstance()).getString(_kStatusMsgKey) ?? '';
+  static Future<void> saveStatusMsg(String msg) async => (await SharedPreferences.getInstance()).setString(_kStatusMsgKey, msg);
+  static Future<String> loadAvatar() async => (await SharedPreferences.getInstance()).getString(_kAvatarKey) ?? '';
+  static Future<void> saveAvatar(String b64) async => (await SharedPreferences.getInstance()).setString(_kAvatarKey, b64);
 
   static Future<void> blockUser(String fipId) async {
     final list = await loadBlockList();

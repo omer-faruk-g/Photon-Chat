@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
@@ -39,7 +40,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final savedGroups = await LocalStore.loadGroups();
     final blockList = await LocalStore.loadBlockList();
     setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
-    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName);
+    final statusMsg = await LocalStore.loadStatusMsg();
+    final avatar = await LocalStore.loadAvatar();
+    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
     _sync();
     _groupSync();
   }
@@ -69,7 +72,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
     for (final c in _contacts.where((c) => c.status == 'on').toList()) {
       final active = await KnkApi.isActive(c.serverUrl, c.fipId);
-      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); }
+      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
+      // Profil bilgilerini güncelle (avatar, statusMsg, lastSeen)
+      final profile = await KnkApi.getProfile(c.serverUrl, c.fipId);
+      if (profile != null) {
+        c.avatar = (profile['avatar'] as String?) ?? '';
+        c.statusMsg = (profile['statusMsg'] as String?) ?? '';
+        c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
+      }
     }
     await LocalStore.saveContacts(_contacts);
     if (mounted) setState(() {});
@@ -158,7 +168,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   void _openSettings() async {
-    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl)));
+    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl, displayName: widget.displayName)));
     if (deactivated == true && mounted) {
       (rootGateKey.currentState as dynamic)?.reload();
       Navigator.popUntil(context, (route) => route.isFirst);
@@ -377,7 +387,7 @@ class _EmptyState extends StatelessWidget {
       const SizedBox(height: 8),
       const Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
       const SizedBox(height: 6),
-      const Text('Arkadaşının adresini gir (KOD@URL).', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+      const Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
       ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
     ]),
@@ -394,7 +404,7 @@ class _RequestRow extends StatelessWidget {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
-      _Avatar(name: contact.name, on: false), const SizedBox(width: 12),
+      _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
         Text('kod ${contact.code}', style: const TextStyle(color: KnkColors.textDim, fontSize: 11)),
@@ -455,14 +465,17 @@ class _ContactRow extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
-          _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
+          _Avatar(name: contact.name, on: true, avatar: contact.avatar), const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-            Row(children: [
-              Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-            ]),
+            if (contact.statusMsg.isNotEmpty)
+              Text(contact.statusMsg, style: const TextStyle(color: KnkColors.accent, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)
+            else
+              Row(children: [
+                Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              ]),
           ])),
           const Icon(Icons.chevron_right, color: KnkColors.textDim),
         ]),
@@ -480,7 +493,7 @@ class _PendingOutRow extends StatelessWidget {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
-      _Avatar(name: contact.name, on: false), const SizedBox(width: 12),
+      _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
         const Text('davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
@@ -492,9 +505,23 @@ class _PendingOutRow extends StatelessWidget {
 class _Avatar extends StatelessWidget {
   final String name;
   final bool on;
-  const _Avatar({required this.name, required this.on});
+  final String avatar;
+  const _Avatar({required this.name, required this.on, this.avatar = ''});
   @override
   Widget build(BuildContext context) {
+    if (avatar.isNotEmpty) {
+      try {
+        final bytes = base64Decode(avatar);
+        return Container(
+          width: 38, height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5), width: 2) : null,
+            image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover),
+          ),
+        );
+      } catch (_) {}
+    }
     final initials = name.trim().isEmpty ? '?' : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1).toUpperCase();
     return Container(
       width: 38, height: 38, alignment: Alignment.center,

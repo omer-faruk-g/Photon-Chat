@@ -12,10 +12,69 @@ class KnkApi {
     return Uri.parse('$base$path');
   }
 
-  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name) async {
+  // --- Bridge: global kod rehberi ---
+
+  static Future<void> registerOnBridge(String code, String myServerUrl) async {
+    try {
+      await http.post(_u(bridgeUrl, '/registry/register'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'code': code, 'serverUrl': myServerUrl}));
+    } catch (_) {}
+  }
+
+  static Future<String?> lookupServerOnBridge(String code) async {
+    try {
+      final r = await http.get(_u(bridgeUrl, '/registry/lookup/$code'));
+      if (r.statusCode == 200) {
+        return (jsonDecode(r.body) as Map<String, dynamic>)['serverUrl'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // --- Presence ---
+
+  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name, {String statusMsg = '', String avatar = ''}) async {
     try {
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name}));
+          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar}));
+      await registerOnBridge(code, myServerUrl);
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>?> getProfile(String serverUrl, String fipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/profile/$fipId'));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> markRead(String serverUrl, String chatKey, String fipId) async {
+    try {
+      await http.post(_u(serverUrl, '/chat/$chatKey/read'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId}));
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>> getReadStatus(String serverUrl, String chatKey) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/chat/$chatKey/read'));
+      if (r.statusCode == 200) return Map<String, dynamic>.from(jsonDecode(r.body) as Map);
+    } catch (_) {}
+    return {};
+  }
+
+  static Future<void> deleteMessage(String serverUrl, String chatKey, String msgId) async {
+    try { await http.delete(_u(serverUrl, '/chat/$chatKey/msg/$msgId')); } catch (_) {}
+  }
+
+  static Future<void> editMessage(String serverUrl, String chatKey, String msgId, String newText) async {
+    try {
+      await http.put(_u(serverUrl, '/chat/$chatKey/msg/$msgId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'text': newText}));
     } catch (_) {}
   }
 
@@ -79,15 +138,18 @@ class KnkApi {
     return [];
   }
 
-  /// Mesajı karşı tarafın sunucusuna gönderir; true dönerse teslim edildi (✓✓).
-  static Future<bool> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
+  /// Mesajı gönderir; (delivered, msgId) döner.
+  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts}) async {
     try {
       final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'from': from, 'text': text, 'ts': ts}));
-      return r.statusCode == 200;
+      if (r.statusCode == 200) {
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        return (true, body['msgId'] as String?);
+      }
     } catch (_) {}
-    return false;
+    return (false, null);
   }
 
   static Future<void> deleteChat(String serverUrl, String chatKey) async {

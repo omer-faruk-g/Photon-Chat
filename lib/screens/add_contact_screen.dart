@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'qr_scan_screen.dart';
 import '../fip.dart';
 import '../knk_api.dart';
 import '../local_store.dart';
@@ -79,7 +82,23 @@ class _AddContactScreenState extends State<AddContactScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Kişi Ekle')),
+      appBar: AppBar(
+        title: const Text('Kişi Ekle'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'QR ile Ekle',
+            onPressed: () async {
+              final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
+              if (code != null && mounted) {
+                _codeCtrl.text = code;
+                setState(() {});
+                _send();
+              }
+            },
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Container(
