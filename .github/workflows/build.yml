@@ -29,9 +29,7 @@ jobs:
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
           rm -rf android
           cp -r /tmp/flutter_template/android android
-          # Update Kotlin version to be compatible with current Gradle plugin
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
-          # Fix app name
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
@@ -75,7 +73,6 @@ jobs:
           flutter create --org com.example --project-name knk_flutter --platforms windows C:\flutter_template
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
-          # Fix window title to "Photon Chat"
           (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
         shell: pwsh
       - run: flutter config --enable-windows-desktop
@@ -89,8 +86,40 @@ jobs:
           name: PhotonChat-Windows
           path: PhotonChat-Windows.zip
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+      - name: Generate Linux platform files via flutter create
+        run: |
+          flutter create --org com.example --project-name knk_flutter --platforms linux /tmp/flutter_template
+          rm -rf linux
+          cp -r /tmp/flutter_template/linux linux
+          sed -i 's/set(BINARY_NAME "knk_flutter")/set(BINARY_NAME "photon_chat")/' linux/CMakeLists.txt
+          sed -i 's/set(APPLICATION_ID "com.example.knk_flutter")/set(APPLICATION_ID "com.example.photon_chat")/' linux/CMakeLists.txt
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+      - name: Generate launcher icons
+        run: flutter pub run flutter_launcher_icons
+      - run: flutter build linux --release
+      - run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ${{ github.workspace }}/PhotonChat-Linux.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhotonChat-Linux
+          path: PhotonChat-Linux.tar.gz
+
   release:
-    needs: [build-android, build-windows]
+    needs: [build-android, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -103,18 +132,40 @@ jobs:
         with:
           name: PhotonChat-Windows
           path: ./dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: PhotonChat-Linux
+          path: ./dist
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           name: "Photon Chat ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}"
           body: |
-            ## Photon Chat
+            ## 🔒 Photon Chat
 
-            Güvenli, sunucusuz P2P mesajlaşma uygulaması.
+            Güvenli, sunucusuz P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
 
-            ### İndir
-            - **Android**: `PhotonChat-Android.apk` — telefona yükle
-            - **Windows**: `PhotonChat-Windows.zip` — zip'i aç, `photon_chat.exe` çalıştır
+            ---
+
+            ### 📥 İndir
+
+            | Platform | Dosya | Durum |
+            |----------|-------|-------|
+            | 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |
+            | 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |
+            | 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |
+            | 🍎 iOS | — | 🔜 Yakında |
+
+            ---
+
+            ### 🚀 Kurulum
+
+            **Android:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)
+
+            **Windows:** ZIP dosyasını aç → `photon_chat.exe` çalıştır
+
+            **Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır
           files: |
             ./dist/PhotonChat-Android.apk
             ./dist/PhotonChat-Windows.zip
+            ./dist/PhotonChat-Linux.tar.gz
