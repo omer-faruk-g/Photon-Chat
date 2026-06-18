@@ -24,20 +24,19 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-      - name: Download clean Android SDK 35 platform from Google
+      - name: Install clean Android SDK 35 platform
         run: |
-          rm -rf /usr/local/lib/android/sdk/platforms/android-35
-          wget -q https://dl.google.com/android/repository/platform-35_r01.zip -O /tmp/p35.zip
-          unzip -q /tmp/p35.zip -d /tmp/p35
-          mv /tmp/p35/* /usr/local/lib/android/sdk/platforms/android-35
+          rm -rf $ANDROID_HOME/platforms/android-35
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35"
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.1.8937393"
       - name: Generate Android platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
           rm -rf android
           cp -r /tmp/flutter_template/android android
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
-          sed -i 's/id "com.android.application" version "[^"]*"/id "com.android.application" version "8.3.2"/' android/settings.gradle
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's/id "com.android.application" version "[^"]*"/id "com.android.application" version "8.7.3"/' android/settings.gradle
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           python3 - << 'PYEOF'
           import re
           with open('android/app/build.gradle') as f:
@@ -48,8 +47,8 @@ jobs:
           c = re.sub(r'([ \t]*)(sourceCompatibility\s*=?\s*JavaVersion)', r'\1coreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
           open('android/app/build.gradle', 'w').write(c)
           with open('android/app/build.gradle', 'a') as f:
-              f.write("\ndependencies {\n    coreLibraryDesugaring 'com.android.tools.desugar_jdk_libs:2.1.4'\n}\n")
-          print('build.gradle patched')
+              f.write("\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
+          print(open('android/app/build.gradle').read())
           PYEOF
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <application|' android/app/src/main/AndroidManifest.xml
