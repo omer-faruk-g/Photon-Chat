@@ -24,6 +24,12 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Download clean Android SDK 35 platform from Google
+        run: |
+          rm -rf /usr/local/lib/android/sdk/platforms/android-35
+          wget -q https://dl.google.com/android/repository/platform-35_r01.zip -O /tmp/p35.zip
+          unzip -q /tmp/p35.zip -d /tmp/p35
+          mv /tmp/p35/* /usr/local/lib/android/sdk/platforms/android-35
       - name: Generate Android platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
@@ -36,10 +42,13 @@ jobs:
           import re
           with open('android/app/build.gradle') as f:
               c = f.read()
-          c = re.sub(r'ndkVersion\s*=\s*flutter\.ndkVersion', 'ndkVersion = "25.1.8937393"', c)
+          c = re.sub(r'ndkVersion\s*=?\s*flutter\.ndkVersion', 'ndkVersion = "25.1.8937393"', c)
+          c = re.sub(r'compileSdk\s*=?\s*flutter\.compileSdkVersion', 'compileSdk = 35', c)
+          c = re.sub(r'targetSdk\s*=?\s*flutter\.targetSdkVersion', 'targetSdk = 35', c)
           c = re.sub(r'([ \t]*)(sourceCompatibility\s*=?\s*JavaVersion)', r'\1coreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
-          c = re.sub(r'dependencies\s*\{(\s*)\}', "dependencies {\\1    coreLibraryDesugaring 'com.android.tools.desugar_jdk_libs:2.1.4'\\1}", c)
           open('android/app/build.gradle', 'w').write(c)
+          with open('android/app/build.gradle', 'a') as f:
+              f.write("\ndependencies {\n    coreLibraryDesugaring 'com.android.tools.desugar_jdk_libs:2.1.4'\n}\n")
           print('build.gradle patched')
           PYEOF
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
