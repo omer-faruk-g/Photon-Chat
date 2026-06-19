@@ -103,11 +103,51 @@ jobs:
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
       - run: flutter build windows --release
+      - name: Create Inno Setup installer
+        run: |
+          $iss = @"
+          [Setup]
+          AppName=Photon Chat
+          AppVersion=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+          AppPublisher=Photon Chat
+          DefaultDirName={autopf}\Photon Chat
+          DefaultGroupName=Photon Chat
+          OutputDir=.
+          OutputBaseFilename=PhotonChat-Windows-Setup
+          Compression=lzma
+          SolidCompression=yes
+          SetupIconFile=windows\runner\resources\app_icon.ico
+          UninstallDisplayIcon={app}\photon_chat.exe
+          PrivilegesRequired=lowest
+          DisableProgramGroupPage=yes
+
+          [Languages]
+          Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Masaüstüne kısayol oluştur"; GroupDescription: "Ek simgeler:"; Flags: checked
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+
+          [Icons]
+          Name: "{autoprograms}\Photon Chat"; Filename: "{app}\photon_chat.exe"
+          Name: "{autodesktop}\Photon Chat"; Filename: "{app}\photon_chat.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\photon_chat.exe"; Description: "Photon Chat'i başlat"; Flags: nowait postinstall skipifsilent
+          "@
+          $iss | Out-File -FilePath installer.iss -Encoding utf8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        shell: pwsh
       - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PhotonChat-Windows.zip
+        shell: pwsh
       - uses: actions/upload-artifact@v4
         with:
           name: PhotonChat-Windows
-          path: PhotonChat-Windows.zip
+          path: |
+            PhotonChat-Windows.zip
+            PhotonChat-Windows-Setup.exe
 
   build-linux:
     if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
@@ -223,5 +263,6 @@ jobs:
           body: ${{ steps.notes.outputs.body }}
           files: |
             ./dist/PhotonChat-Android.apk
+            ./dist/PhotonChat-Windows-Setup.exe
             ./dist/PhotonChat-Windows.zip
             ./dist/PhotonChat-Linux.tar.gz
