@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
@@ -9,6 +10,8 @@ import '../e2e.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
+import '../chat_wallpaper.dart';
+import '../offline_queue.dart';
 import 'package:cryptography/cryptography.dart';
 
 class ChatScreen extends StatefulWidget {

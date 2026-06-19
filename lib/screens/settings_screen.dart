@@ -7,6 +7,7 @@ import '../knk_api.dart';
 import '../local_store.dart';
 import '../onboarding_screen.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 class SettingsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -105,6 +106,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildLangChip(String code, String label) {
+    final isActive = AppLang.instance.lang == code;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          AppLang.instance.setLang(code);
+          setState(() {});
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? KnkColors.accent : KnkColors.bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isActive ? KnkColors.accent : KnkColors.line),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            textDirection: code == 'ar' ? TextDirection.rtl : TextDirection.ltr,
+            style: TextStyle(
+              color: isActive ? const Color(0xFF06251A) : KnkColors.text,
+              fontSize: 12,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myAddress = '${widget.identity.code}@${widget.myServerUrl}';
@@ -186,6 +217,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 activeColor: KnkColors.accent,
               ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Dil Seçimi
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(Icons.language, color: KnkColors.textDim, size: 18),
+                const SizedBox(width: 12),
+                Text(AppLang.instance.t('language'), style: TextStyle(color: KnkColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                _buildLangChip('tr', AppLang.instance.t('turkish')),
+                const SizedBox(width: 8),
+                _buildLangChip('en', AppLang.instance.t('english')),
+                const SizedBox(width: 8),
+                _buildLangChip('ar', AppLang.instance.t('arabic')),
+              ]),
             ]),
           ),
           const SizedBox(height: 16),
