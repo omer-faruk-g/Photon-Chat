@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
@@ -327,6 +328,79 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  void _showInviteLink() {
+    final link = 'photon://${widget.group.address}';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KnkColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Davet Linki', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: KnkColors.bg,
+                  border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(link, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
+              ),
+              const SizedBox(height: 16),
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: knkPrimaryButtonStyle(),
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('Kopyala'),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: link));
+                      Navigator.pop(context);
+                      _showToast('Link kopyalandı!');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KnkColors.accent,
+                      side: BorderSide(color: KnkColors.accent),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.share, size: 16),
+                    label: const Text('Paylaş'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Share.shareUri(Uri.parse(link));
+                    },
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSenderInitials(String fromName) {
+    final initial = fromName.isNotEmpty ? fromName[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: KnkColors.accent.withOpacity(0.2),
+      child: Text(initial, style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
+  }
+
   void _showAnnounceDialog() {
     final ctrl = TextEditingController();
     showDialog(context: context, builder: (ctx) => AlertDialog(
@@ -475,19 +549,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       appBar: AppBar(
         title: Text(widget.group.name),
         actions: [
-          if (widget.group.isOwner)
-            PopupMenuButton<String>(
-              color: KnkColors.panel,
-              icon: Icon(Icons.add_circle_outline, color: KnkColors.accent),
-              onSelected: (v) {
-                if (v == 'announce') _showAnnounceDialog();
-                if (v == 'poll') _showPollDialog();
-              },
-              itemBuilder: (_) => [
+          PopupMenuButton<String>(
+            color: KnkColors.panel,
+            icon: Icon(Icons.more_vert, color: KnkColors.text),
+            onSelected: (v) {
+              if (v == 'announce') _showAnnounceDialog();
+              if (v == 'poll') _showPollDialog();
+              if (v == 'invite') _showInviteLink();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: KnkColors.accent, size: 16), SizedBox(width: 8), Text('Davet Linki', style: TextStyle(color: KnkColors.text))])),
+              if (widget.group.isOwner) ...[
                 PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: KnkColors.accent2, size: 16), SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: KnkColors.text))])),
                 PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: KnkColors.accent, size: 16), SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: KnkColors.text))])),
               ],
-            ),
+            ],
+          ),
           if (widget.group.isOwner && _pendingJoins.isNotEmpty)
             Stack(children: [
               IconButton(icon: Icon(Icons.person_add, color: KnkColors.text), onPressed: _showJoinRequests),
@@ -573,21 +650,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         _filtered[msgId] = displayText;
                       }
                     }
+                    final fromName = m['fromName'] as String? ?? '';
                     return GestureDetector(
                       onLongPress: () => _onLongPressGroupMessage(m),
-                      child: Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 3),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (!isMe) ...[
+                              _buildSenderInitials(fromName),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                           decoration: BoxDecoration(
                             color: isMe ? KnkColors.accent.withOpacity(0.18) : KnkColors.panel,
                             border: Border.all(color: isMe ? KnkColors.accent.withOpacity(0.3) : KnkColors.line),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                            if (!isMe) Text(m['fromName'] as String? ?? '', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                            if (!isMe) Text(fromName, style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
                             Text(displayText, style: TextStyle(color: KnkColors.text, fontSize: 14)),
                             if (_translating.contains(msgId))
                               Padding(
@@ -605,6 +690,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 ]),
                               ),
                           ]),
+                        )),
+                          ],
                         ),
                       ),
                     );

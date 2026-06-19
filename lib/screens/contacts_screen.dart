@@ -31,6 +31,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool _loading = true;
   String? _toast;
   final Map<String, int> _groupPendingCounts = {};
+  final Map<String, bool> _online = {};
 
   @override
   void initState() { super.initState(); _init(); }
@@ -72,7 +73,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
     for (final c in _contacts.where((c) => c.status == 'on').toList()) {
       final active = await KnkApi.isActive(c.serverUrl, c.fipId);
-      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
+      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _online.remove(c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
+      _online[c.fipId] = true;
       // Profil bilgilerini güncelle (avatar, statusMsg, lastSeen)
       final profile = await KnkApi.getProfile(c.serverUrl, c.fipId);
       if (profile != null) {
@@ -235,6 +237,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
                 ...active.map((c) => _ContactRow(
                   contact: c,
+                  isOnline: _online[c.fipId] ?? false,
                   onTap: () => _openChat(c),
                   onBlock: () => _blockContact(c),
                 )),
@@ -426,9 +429,10 @@ class _RequestRow extends StatelessWidget {
 
 class _ContactRow extends StatelessWidget {
   final Contact contact;
+  final bool isOnline;
   final VoidCallback onTap;
   final VoidCallback onBlock;
-  const _ContactRow({required this.contact, required this.onTap, required this.onBlock});
+  const _ContactRow({required this.contact, required this.isOnline, required this.onTap, required this.onBlock});
   @override
   Widget build(BuildContext context) => GestureDetector(
     onLongPress: () {
@@ -465,17 +469,28 @@ class _ContactRow extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
-          _Avatar(name: contact.name, on: true, avatar: contact.avatar), const SizedBox(width: 12),
+          Stack(children: [
+            _Avatar(name: contact.name, on: true, avatar: contact.avatar),
+            Positioned(
+              right: 0, bottom: 0,
+              child: Container(
+                width: 11, height: 11,
+                decoration: BoxDecoration(
+                  color: isOnline ? Colors.green : KnkColors.textDim,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: KnkColors.panel, width: 1.5),
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-            if (contact.statusMsg.isNotEmpty)
-              Text(contact.statusMsg, style: TextStyle(color: KnkColors.accent, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis)
-            else
-              Row(children: [
-                Container(width: 7, height: 7, decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-                const SizedBox(width: 6),
-                Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-              ]),
+            Text(
+              isOnline ? 'Çevrimiçi' : (contact.statusMsg.isNotEmpty ? contact.statusMsg : 'çevrimdışı'),
+              style: TextStyle(color: isOnline ? Colors.green : KnkColors.textDim, fontSize: 11),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
           ])),
           Icon(Icons.chevron_right, color: KnkColors.textDim),
         ]),

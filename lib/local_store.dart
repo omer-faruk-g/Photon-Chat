@@ -137,6 +137,30 @@ class LocalStore {
     await saveBlockList(list);
   }
 
+  static Future<int?> loadDisappearDuration(String chatKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('knk_disappear_$chatKey');
+  }
+
+  static Future<void> saveDisappearDuration(String chatKey, int? seconds) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (seconds == null) await prefs.remove('knk_disappear_$chatKey');
+    else await prefs.setInt('knk_disappear_$chatKey', seconds);
+  }
+
+  static Future<Map<String, dynamic>?> loadPinnedMessage(String chatKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final s = prefs.getString('knk_pinned_$chatKey');
+    if (s == null) return null;
+    return jsonDecode(s) as Map<String, dynamic>;
+  }
+
+  static Future<void> savePinnedMessage(String chatKey, Map<String, dynamic>? data) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (data == null) await prefs.remove('knk_pinned_$chatKey');
+    else await prefs.setString('knk_pinned_$chatKey', jsonEncode(data));
+  }
+
   static Future<void> wipeIdentity() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kIdentityKey);

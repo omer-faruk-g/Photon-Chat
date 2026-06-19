@@ -49,6 +49,15 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _typingDebounce;
   Timer? _typingPollTimer;
 
+  // Feature: disappearing messages
+  int? _disappearSeconds;
+
+  // Feature: pinned message
+  Map<String, dynamic>? _pinnedMessage;
+
+  // Feature: online status
+  bool _contactOnline = false;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +70,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _startTypingPoll();
     _startReadPoll();
     _markRead();
+    LocalStore.loadDisappearDuration(_chatKey).then((v) { if (mounted) setState(() => _disappearSeconds = v); });
+    LocalStore.loadPinnedMessage(_chatKey).then((v) { if (mounted) setState(() => _pinnedMessage = v); });
   }
 
   Future<void> _initE2E() async {
@@ -119,11 +130,16 @@ class _ChatScreenState extends State<ChatScreen> {
         final msgReactions = reactions[msgIdVal] as Map<String, dynamic>? ?? {};
         final parsedReactions = msgReactions.map((k, v) => MapEntry(k, List<String>.from(v as List)));
         final replyTo = m['replyTo'] as Map<String, dynamic>?;
+        final ts = m['ts'] as int;
+        // Skip disappeared messages
+        if (!deleted && _disappearSeconds != null && ts + (_disappearSeconds! * 1000) < DateTime.now().millisecondsSinceEpoch) {
+          continue;
+        }
         msgs.add(_DisplayMessage(
           msgId: msgIdVal,
           from: m['from'] as String,
           text: text,
-          ts: m['ts'] as int,
+          ts: ts,
           delivered: true,
           deleted: deleted,
           edited: edited,
@@ -148,7 +164,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _pollContactStatus() async {
     while (_alive) {
       final active = await KnkApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
-      if (_alive && mounted && active != _contactActive) setState(() => _contactActive = active);
+      if (_alive && mounted) {
+        if (active != _contactActive) setState(() => _contactActive = active);
+        if (active != _contactOnline) setState(() => _contactOnline = active);
+      }
       await Future.delayed(const Duration(seconds: 5));
     }
   }
@@ -241,6 +260,16 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         });
       }
+      // Disappearing messages: schedule deletion after send
+      if (_disappearSeconds != null && myMsgId != null) {
+        final msgId = myMsgId;
+        Future.delayed(Duration(seconds: _disappearSeconds!), () async {
+          if (!mounted) return;
+          await KnkApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
+          await KnkApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
+          if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
+        });
+      }
     } on SocketException {
       await _enqueueOffline(encryptedText, ts, replyData, text);
     } on TimeoutException {
@@ -301,18 +330,30 @@ class _ChatScreenState extends State<ChatScreen> {
             _filtered[m.msgId] = displayText;
           }
         }
+        // Disappearing message suffix
+        if (_disappearSeconds != null && !m.deleted) {
+          displayText = '$displayText ⏳';
+        }
         final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
         return GestureDetector(
           onLongPress: () => _onLongPressMessage(m),
-          child: Align(
-            alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-            child: Column(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!mine) ...[
+                  _buildAvatar(widget.contact.name, widget.contact.avatar, size: 28),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(child: Column(
               crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                   decoration: BoxDecoration(
                     color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
                     border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
@@ -394,6 +435,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
               ],
+            )),
+              ],
             ),
           ),
         );
@@ -464,6 +507,25 @@ class _ChatScreenState extends State<ChatScreen> {
               _translateMessage(m.msgId, m.text);
             },
           ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.push_pin, color: KnkColors.accent),
+            title: Text(
+              _pinnedMessage?['msgId'] == m.msgId ? 'Sabitlemeyi Kaldır' : 'Sabitle',
+              style: TextStyle(color: KnkColors.text),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              if (_pinnedMessage?['msgId'] == m.msgId) {
+                await LocalStore.savePinnedMessage(_chatKey, null);
+                if (mounted) setState(() => _pinnedMessage = null);
+              } else {
+                final pinData = {'msgId': m.msgId, 'text': m.text, 'from': m.from};
+                await LocalStore.savePinnedMessage(_chatKey, pinData);
+                if (mounted) setState(() => _pinnedMessage = pinData);
+              }
+            },
+          ),
         if (m.from == widget.identity.fipId && !m.deleted) ...[
           ListTile(
             leading: Icon(Icons.edit, color: KnkColors.accent),
@@ -500,6 +562,47 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   bool get _contactRead => _readStatus.containsKey(widget.contact.fipId);
+
+  void _showDisappearDialog() {
+    final options = <String, int?>{
+      'Kapalı': null,
+      '10 saniye': 10,
+      '30 saniye': 30,
+      '1 dakika': 60,
+      '5 dakika': 300,
+      '1 saat': 3600,
+    };
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: KnkColors.panel,
+        title: Text('Kaybolan Mesajlar', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.entries.map((e) => RadioListTile<int?>(
+            title: Text(e.key, style: TextStyle(color: KnkColors.text, fontSize: 13)),
+            value: e.value,
+            groupValue: _disappearSeconds,
+            activeColor: KnkColors.accent,
+            onChanged: (v) async {
+              Navigator.pop(ctx);
+              await LocalStore.saveDisappearDuration(_chatKey, v);
+              if (mounted) setState(() => _disappearSeconds = v);
+            },
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  String _formatLastSeen(int ts) {
+    if (ts == 0) return 'Son görülme bilinmiyor';
+    final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts));
+    if (diff.inMinutes < 1) return 'az önce';
+    if (diff.inMinutes < 60) return 'Son görülme: ${diff.inMinutes} dk önce';
+    if (diff.inHours < 24) return 'Son görülme: ${diff.inHours} saat önce';
+    return 'Son görülme: ${diff.inDays} gün önce';
+  }
 
   void _showDeactivatedDialog() {
     showDialog(
@@ -539,12 +642,24 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Row(children: [
           _buildAvatar(widget.contact.name, widget.contact.avatar, size: 32),
           const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.contact.name, style: const TextStyle(fontSize: 15)),
-            if (widget.contact.statusMsg.isNotEmpty)
-              Text(widget.contact.statusMsg, style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
-          ]),
+            Text(
+              _contactOnline ? 'Çevrimiçi' : _formatLastSeen(widget.contact.lastSeen),
+              style: TextStyle(
+                color: _contactOnline ? Colors.green : KnkColors.textDim,
+                fontSize: 10,
+              ),
+            ),
+          ])),
         ]),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? KnkColors.accent : KnkColors.textDim),
+            onPressed: _showDisappearDialog,
+            tooltip: 'Kaybolan Mesajlar',
+          ),
+        ],
       ),
       body: Stack(children: [
         ChatWallpaper.buildBackground(),
@@ -559,8 +674,32 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(width: 6),
               Text('FIP · ${widget.contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
               if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: KnkColors.accent, size: 11)],
+              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty, color: KnkColors.accent, size: 11)],
             ]),
           ),
+          // Pinned message banner
+          if (_pinnedMessage != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: KnkColors.accent.withOpacity(0.08),
+              child: Row(children: [
+                Icon(Icons.push_pin, color: KnkColors.accent, size: 14),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  _pinnedMessage!['text'] as String? ?? '',
+                  style: TextStyle(color: KnkColors.text, fontSize: 12),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                )),
+                GestureDetector(
+                  onTap: () async {
+                    await LocalStore.savePinnedMessage(_chatKey, null);
+                    if (mounted) setState(() => _pinnedMessage = null);
+                  },
+                  child: Icon(Icons.close, color: KnkColors.textDim, size: 16),
+                ),
+              ]),
+            ),
           if (_isBlocked)
             _banner(Icons.block, 'Bu kişiyi engellediniz.', KnkColors.danger)
           else if (!_contactActive)
