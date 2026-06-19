@@ -12,6 +12,22 @@ CHANGELOGS = {
         "- 🌗 Karanlık / Aydınlık tema\n"
         "- 🖥️ Android desteği"
     ),
+    'v1.0.1': (
+        "### ✨ v1.0.1 Yenilikleri\n"
+        "- 🛠️ iOS ikon üretimi devre dışı bırakıldı (iOS klasörü henüz yok)\n"
+        "- 🪲 Build sistemi hata düzeltmeleri"
+    ),
+    'v1.0.2': (
+        "### ✨ v1.0.2 Yenilikleri\n"
+        "- 🐧 Linux desteği eklendi\n"
+        "- 🔁 Linux apt-get güvenilir yeniden deneme mekanizması\n"
+        "- 🏗️ Build kararlılığı iyileştirmeleri"
+    ),
+    'v1.0.3': (
+        "### ✨ v1.0.3 Yenilikleri\n"
+        "- 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup\n"
+        "- 🔗 Merkezi kayıt sistemi entegrasyonu"
+    ),
     'v1.0.4+': (
         "### ✨ v1.0.4+ Yenilikleri\n"
         "- 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup\n"
