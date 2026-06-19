@@ -7,6 +7,7 @@ import 'app_keys.dart';
 import 'local_store.dart';
 import 'notification_service.dart';
 import 'chat_wallpaper.dart';
+import 'offline_queue.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,7 @@ void main() async {
   KnkTheme.instance.setDark(isDark);
   await AppLang.loadLang();
   await ChatWallpaper.loadWallpaper();
+  await OfflineQueue.instance.load();
   if (Platform.isAndroid) await NotificationService.init();
   runApp(const KnkApp());
 }

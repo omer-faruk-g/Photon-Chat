@@ -326,6 +326,24 @@ class _ChatScreenState extends State<ChatScreen> {
                         fontSize: 13.5, height: 1.45,
                         fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
                       )),
+                    if (_translating.contains(m.msgId))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+                      ),
+                    if (_translations.containsKey(m.msgId))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('çeviri', style: TextStyle(color: KnkColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                          const SizedBox(height: 2),
+                          Text(_translations[m.msgId]!,
+                            style: TextStyle(
+                              color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.8),
+                              fontSize: 13, height: 1.4, fontStyle: FontStyle.italic,
+                            )),
+                        ]),
+                      ),
                     Row(mainAxisSize: MainAxisSize.min, children: [
                       if (m.edited && !m.deleted)
                         Text('d\u00FCzenlendi \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
@@ -560,106 +578,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
                     ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
                     : _buildMessageList(),
-          ),
-                          return GestureDetector(
-                            onLongPress: () => _onLongPressMessage(m),
-                            child: Align(
-                              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                              child: Column(
-                                crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    margin: const EdgeInsets.symmetric(vertical: 4),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-                                    decoration: BoxDecoration(
-                                      color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
-                                      border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
-                                        bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
-                                      ),
-                                    ),
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                      // Reply quote
-                                      if (m.replyTo != null)
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          margin: const EdgeInsets.only(bottom: 6),
-                                          decoration: BoxDecoration(
-                                            color: mine ? const Color(0xFF06251A).withOpacity(0.3) : KnkColors.panelAlt,
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border(left: BorderSide(color: KnkColors.accent, width: 3)),
-                                          ),
-                                          child: Text(m.replyTo!['text'] as String? ?? '',
-                                            style: TextStyle(color: mine ? const Color(0xFF06251A) : KnkColors.textDim, fontSize: 11),
-                                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                                        ),
-                                      Text(displayText,
-                                        style: TextStyle(
-                                          color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
-                                          fontSize: 13.5, height: 1.45,
-                                          fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
-                                        )),
-                                      if (_translating.contains(m.msgId))
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
-                                        ),
-                                      if (_translations.containsKey(m.msgId))
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4),
-                                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                            Text('çeviri', style: TextStyle(color: KnkColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
-                                            const SizedBox(height: 2),
-                                            Text(_translations[m.msgId]!,
-                                              style: TextStyle(
-                                                color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.8),
-                                                fontSize: 13, height: 1.4, fontStyle: FontStyle.italic,
-                                              )),
-                                          ]),
-                                        ),
-                                      Row(mainAxisSize: MainAxisSize.min, children: [
-                                        if (m.edited && !m.deleted)
-                                          Text('düzenlendi · ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
-                                        Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.6), fontSize: 9.5)),
-                                        if (mine && !m.deleted) ...[
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            isLastMine && _contactRead ? '✓✓' : (m.delivered ? '✓✓' : '✓'),
-                                            style: TextStyle(
-                                              color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
-                                              fontSize: 9.5,
-                                              fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
-                                            ),
-                                          ),
-                                        ],
-                                      ]),
-                                    ]),
-                                  ),
-                                  // Reactions
-                                  if (m.reactions.isNotEmpty)
-                                    Padding(padding: const EdgeInsets.only(top: 2, bottom: 4),
-                                      child: Wrap(spacing: 4, runSpacing: 4,
-                                        children: m.reactions.entries.map((e) => GestureDetector(
-                                          onTap: () {
-                                            KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
-                                            KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(color: KnkColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: KnkColors.line)),
-                                            child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
-                                          ),
-                                        )).toList(),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
           ),
           if (_inputError != null)
             Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: KnkColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12))),
