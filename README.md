@@ -43,37 +43,59 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 
 ---
 
-## Özellikler
+## Tüm Özellikler
 
-| Özellik | |
-|---------|--|
+### Temel Mesajlaşma
+| Özellik | Durum |
+|---------|-------|
 | Telefon / e-posta gerektirmez | ✅ |
 | Gerçek uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
 | Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
-| Grup sohbeti — merkeziyetsiz | ✅ |
+| Birebir özel sohbet | ✅ |
 | Yazıyor göstergesi | ✅ |
 | Mesaj teslim / okundu durumu (✓ / ✓✓ yeşil) | ✅ |
 | Mesaj silme ve düzenleme | ✅ |
 | Mesaja emoji tepkisi (👍❤️😂😮😢😡) | ✅ |
 | Mesaj alıntılama (reply/quote) | ✅ |
+
+### Profil & Kişiler
+| Özellik | Durum |
+|---------|-------|
 | Profil fotoğrafı ve durum mesajı | ✅ |
 | Son görülme zamanı | ✅ |
 | QR kod ile arkadaş ekleme | ✅ |
 | Kullanıcı engelleme | ✅ |
-| Karanlık / Aydınlık tema | ✅ |
+
+### Grup Sohbeti
+| Özellik | Durum |
+|---------|-------|
+| Grup sohbeti — merkeziyetsiz | ✅ |
 | Grup yöneticisi (sustur / at) | ✅ |
 | Grup duyuruları (admin yayını) | ✅ |
-| Grup anketleri | ✅ |
-| Bildirimler — yeni mesaj, gruptan atılma, susturulma | ✅ Android + Huawei |
+| Grup anketleri (admin oluşturur, üyeler oy verir) | ✅ |
+
+### Bildirimler (Android + Huawei)
+| Özellik | Durum |
+|---------|-------|
+| Yeni mesaj bildirimi ("X size mesaj attı") | ✅ |
+| Gruptan atılma bildirimi ("X sizi gruptan çıkardı") | ✅ |
+| Susturulma bildirimi ("X sizi susturdu") | ✅ |
+| Titreşim bildirimi (uygulama açıkken) | ✅ |
+
+### Uygulama Geneli
+| Özellik | Durum |
+|---------|-------|
+| Karanlık / Aydınlık tema | ✅ |
 | Otomatik güncelleme (kullanıcı izniyle) | ✅ |
 | Küfür filtresi | ✅ |
 | Pulse AI asistanı | ✅ |
+| Ekran görüntüsü engelleme (FLAG_SECURE) | ✅ Android |
 
 ---
 
 ## Huawei Desteği
 
-Photon Chat, Google Play Services **gerektirmez** ve Huawei cihazlarda sorunsuz çalışır.
+Photon Chat, Google Play Services **gerektirmez** ve Huawei cihazlarda sorunsuz çalışır. `flutter_local_notifications` kütüphanesi doğrudan Android API'lerini kullanır — HMS veya GMS bağımlılığı yoktur.
 
 | | Durum |
 |---|---|
@@ -81,9 +103,21 @@ Photon Chat, Google Play Services **gerektirmez** ve Huawei cihazlarda sorunsuz 
 | Mesajlaşma & gruplar | ✅ Tam destekli |
 | Bildirimler (uygulama açıkken) | ✅ Destekleniyor |
 | Bildirimler (arka planda) | ✅ Uygulama arka planda çalışırken destekleniyor |
-| Bildirimler (uygulama kapalıyken) | ⚠️ Huawei'nin pil optimizasyonu engelleyebilir — "Pil optimizasyonuna izin ver" ayarını kapat |
+| Bildirimler (uygulama kapalıyken) | ⚠️ Huawei'nin pil optimizasyonu engelleyebilir — aşağıdaki ipucuna bakın |
 
 > **İpucu (Huawei):** Ayarlar → Uygulama Yönetimi → Photon Chat → Pil → "Pil optimizasyonu yok" seç. Aksi hâlde sistem arka plan görevlerini kesebilir.
+
+---
+
+## Platform Desteği
+
+| Platform | Durum | Dosya |
+|----------|-------|-------|
+| 🤖 Android | ✅ Hazır | `PhotonChat-Android.apk` |
+| 🤖 Huawei | ✅ Hazır (aynı APK) | `PhotonChat-Android.apk` |
+| 🪟 Windows | ✅ Hazır | `PhotonChat-Windows.zip` |
+| 🐧 Linux | ✅ Hazır | `PhotonChat-Linux.tar.gz` |
+| 🍎 iOS | 🔜 Yakında | — |
 
 ---
 
@@ -118,7 +152,7 @@ flutter pub get
 # Sunucuyu lokalde çalıştır
 cd server && npm install && npm start
 
-# Android APK (Huawei dahil)
+# Android APK (Huawei dahil — aynı APK, Google Play Services gerektirmez)
 flutter build apk --release
 
 # Windows
@@ -139,10 +173,14 @@ flutter build linux --release
 
 | Sürüm | Yenilikler |
 |-------|------------|
-| **v2.0.1** | Bildirimler (Android + Huawei), gruptan atılma / susturulma bildirimi |
-| **v2.0.0** | Emoji tepkileri, mesaj alıntılama, titreşim, karanlık/aydınlık tema, grup duyuruları, grup anketleri |
-| **v1.0.5** | Otomatik güncelleme |
-| **v1.0.4** | Okundu bilgisi, mesaj silme/düzenleme, profil fotoğrafı, son görülme, durum mesajı, QR kod |
+| **v2.0.1** | Bildirimler (Android + Huawei) — yeni mesaj, gruptan atılma, susturulma bildirimi, titreşim |
+| **v2.0.0** | Emoji tepkileri (👍❤️😂😮😢😡), mesaj alıntılama, karanlık/aydınlık tema, grup duyuruları, grup anketleri, otomatik güncelleme |
+| **v1.0.5** | Otomatik güncelleme sistemi |
+| **v1.0.4** | Okundu bilgisi (✓✓), mesaj silme/düzenleme, profil fotoğrafı, son görülme, durum mesajı, QR kod ile arkadaş ekleme |
+| **v1.0.3** | Grup sohbeti, kullanıcı engelleme, küfür filtresi |
+| **v1.0.2** | Yazıyor göstergesi, mesaj teslim durumu |
+| **v1.0.1** | Temel mesajlaşma, sunucu kurulumu |
+| **v1.0.0** | İlk sürüm — FIP kimlik sistemi, uçtan uca şifreleme |
 
 ---
 
