@@ -36,6 +36,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   String? _inputError;
   bool _annExpanded = false;
   final Map<String, String> _translations = {};
+  final Map<String, String> _filtered = {};
   final Set<String> _translating = {};
 
   @override
@@ -557,8 +558,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       return _buildPollMessage(m);
                     }
                     final isMe = m['from'] == myFipId;
-                    final displayText = filterProfanity(m['text'] as String? ?? '');
                     final msgId = m['msgId'] as String? ?? '';
+                    final rawText = m['text'] as String? ?? '';
+                    String displayText;
+                    if (_filtered.containsKey(msgId)) {
+                      displayText = _filtered[msgId]!;
+                    } else {
+                      displayText = filterProfanity(rawText);
+                      if (displayText == rawText) {
+                        filterProfanityAsync(rawText).then((v) {
+                          if (v != rawText && mounted) setState(() => _filtered[msgId] = v);
+                        });
+                      } else {
+                        _filtered[msgId] = displayText;
+                      }
+                    }
                     return GestureDetector(
                       onLongPress: () => _onLongPressGroupMessage(m),
                       child: Align(

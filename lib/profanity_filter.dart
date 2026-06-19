@@ -1,4 +1,5 @@
 // Displays only — filters profanity at render time, stored data is never modified.
+import 'translate_service.dart';
 
 const _words = [
   // Temel kökler
@@ -52,3 +53,17 @@ final _profanityPattern = RegExp(
 
 String filterProfanity(String text) =>
     text.replaceAllMapped(_profanityPattern, (m) => '******');
+
+/// Translates [text] to Turkish first, then censors any matched profanity
+/// spans in the ORIGINAL text by position mapping (approximate: censors whole
+/// original if translated version contains profanity).
+Future<String> filterProfanityAsync(String text) async {
+  if (filterProfanity(text) != text) return filterProfanity(text);
+  try {
+    final tr = await TranslateService.translate(text, targetLang: 'tr');
+    if (_profanityPattern.hasMatch(tr)) {
+      return text.replaceAll(RegExp(r'\S+'), '******');
+    }
+  } catch (_) {}
+  return text;
+}

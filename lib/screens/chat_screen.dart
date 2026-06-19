@@ -43,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Map<String, dynamic>? _replyToMsg;
   int _prevMsgCount = 0;
   final Map<String, String> _translations = {};
+  final Map<String, String> _filtered = {};
   final Set<String> _translating = {};
 
   Timer? _typingDebounce;
@@ -285,7 +286,21 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         final m = _messages[i];
         final mine = m.from == widget.identity.fipId;
-        final displayText = m.deleted ? '\u{1F5D1} Bu mesaj silindi.' : filterProfanity(m.text);
+        String displayText;
+        if (m.deleted) {
+          displayText = '\u{1F5D1} Bu mesaj silindi.';
+        } else if (_filtered.containsKey(m.msgId)) {
+          displayText = _filtered[m.msgId]!;
+        } else {
+          displayText = filterProfanity(m.text);
+          if (displayText == m.text) {
+            filterProfanityAsync(m.text).then((v) {
+              if (v != m.text && mounted) setState(() => _filtered[m.msgId] = v);
+            });
+          } else {
+            _filtered[m.msgId] = displayText;
+          }
+        }
         final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
         return GestureDetector(
           onLongPress: () => _onLongPressMessage(m),
