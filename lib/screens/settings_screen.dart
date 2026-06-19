@@ -163,6 +163,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _openLanguagePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KnkColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) {
+        return Container(
+          constraints: const BoxConstraints(maxHeight: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(AppLang.instance.t('selectLanguage'), style: TextStyle(color: KnkColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              Divider(color: KnkColors.line, height: 1),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: AppLang.supportedLanguages.length,
+                  itemBuilder: (ctx, i) {
+                    final lang = AppLang.supportedLanguages[i];
+                    final isActive = AppLang.instance.lang == lang['code'];
+                    return ListTile(
+                      leading: Text(lang['flag']!, style: const TextStyle(fontSize: 24)),
+                      title: Text(lang['name']!, style: TextStyle(color: KnkColors.text, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+                      trailing: isActive ? Icon(Icons.check_circle, color: KnkColors.accent, size: 20) : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        AppLang.instance.setLang(lang['code']!);
+                        setState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myAddress = '${widget.identity.code}@${widget.myServerUrl}';
@@ -288,12 +330,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
               const SizedBox(height: 12),
               Row(children: [
-                _buildLangChip('tr', AppLang.instance.t('turkish')),
+                _buildLangChip('tr', '🇹🇷 Türkçe'),
                 const SizedBox(width: 8),
-                _buildLangChip('en', AppLang.instance.t('english')),
+                _buildLangChip('en', '🇬🇧 English'),
                 const SizedBox(width: 8),
-                _buildLangChip('ar', AppLang.instance.t('arabic')),
+                _buildLangChip('ar', '🇸🇦 العربية'),
               ]),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: KnkColors.accent,
+                    side: BorderSide(color: KnkColors.line),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: Icon(Icons.translate, size: 16, color: KnkColors.accent),
+                  label: Text('${AppLang.supportedLanguages.length} ${AppLang.instance.t('language')}', style: TextStyle(fontSize: 12)),
+                  onPressed: _openLanguagePicker,
+                ),
+              ),
+              if (AppLang.instance.translatingUi)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(children: [
+                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.accent)),
+                    const SizedBox(width: 8),
+                    Text(AppLang.instance.t('translating'), style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+                  ]),
+                ),
             ]),
           ),
           const SizedBox(height: 16),
