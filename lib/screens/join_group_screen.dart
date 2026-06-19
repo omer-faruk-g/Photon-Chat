@@ -18,30 +18,48 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   bool _loading = false;
   String? _error;
 
+  /// Parse input: accepts
+  ///   - 7-digit code alone  (requires ownerServerUrl known via invite link — not possible alone)
+  ///   - GRUPKODU@https://sunucu  (legacy full address)
+  ///   - photon://GRUPKODU@https://sunucu  (invite link format)
+  ({String code, String ownerServerUrl})? _parse(String raw) {
+    // Strip photon:// prefix
+    var s = raw.trim();
+    if (s.startsWith('photon://')) s = s.substring(9);
+
+    final at = s.indexOf('@');
+    if (at < 0) return null;
+
+    final code = s.substring(0, at);
+    final ownerServerUrl = s.substring(at + 1);
+    if (code.length != 7) return null;
+    if (!ownerServerUrl.startsWith('http')) return null;
+    return (code: code, ownerServerUrl: ownerServerUrl);
+  }
+
   Future<void> _join() async {
-    final raw = _ctrl.text.trim();
-    final at = raw.indexOf('@');
-    if (at < 0) { setState(() => _error = 'Format: GRUPKODU@https://sunucu.onrender.com'); return; }
-    final code = raw.substring(0, at);
-    final ownerServerUrl = raw.substring(at + 1);
-    if (code.length != 7) { setState(() => _error = 'Grup kodu 7 haneli olmalı'); return; }
+    final parsed = _parse(_ctrl.text);
+    if (parsed == null) {
+      setState(() => _error = 'Davet linkini veya grup adresini tam gir\n(photon://GRUPKODU@https://sunucu)');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await KnkApi.getGroupByCode(ownerServerUrl, code);
+      final data = await KnkApi.getGroupByCode(parsed.ownerServerUrl, parsed.code);
       if (data == null) { setState(() { _error = 'Grup bulunamadı'; _loading = false; }); return; }
       final groupId = data['groupId'] as String;
       final groupName = data['name'] as String? ?? 'Grup';
-      await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
+      await KnkApi.sendGroupJoinRequest(parsed.ownerServerUrl, groupId,
         fromFipId: widget.identity.fipId,
         fromName: widget.displayName,
         fromServerUrl: widget.myServerUrl,
       );
       final group = Group(
         groupId: groupId,
-        groupCode: code,
+        groupCode: parsed.code,
         name: groupName,
         ownerFipId: data['ownerFipId'] as String? ?? '',
-        ownerServerUrl: ownerServerUrl,
+        ownerServerUrl: parsed.ownerServerUrl,
         isOwner: false,
         members: [],
       );
@@ -61,22 +79,47 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Grup sahibinden aldığın adresi gir.\n\nFormat:  GRUPKODU@https://sunucu.onrender.com', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7)),
-            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: KnkColors.panel,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: KnkColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('GRUBA KATILMA', style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Grup sahibinden davet linkini al ve yapıştır.',
+                    style: TextStyle(color: KnkColors.text, fontSize: 13, height: 1.6),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Davet linki formatı:\nphoton://1234567@https://sunucu.onrender.com',
+                    style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: _ctrl,
-              style: TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
+              style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace'),
               decoration: InputDecoration(
-                labelText: 'Grup Adresi',
-                hintText: '1234567@https://sunucu.onrender.com',
+                labelText: 'Davet Linki',
+                hintText: 'photon://1234567@https://sunucu.onrender.com',
                 hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
                 labelStyle: TextStyle(color: KnkColors.textDim),
                 enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
                 focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
                 errorText: _error,
+                errorMaxLines: 3,
                 errorStyle: TextStyle(color: KnkColors.danger),
               ),
               autocorrect: false,
+              onChanged: (_) => setState(() => _error = null),
             ),
             const SizedBox(height: 20),
             SizedBox(
