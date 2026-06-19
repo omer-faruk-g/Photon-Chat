@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-android:
-    if: github.event.inputs.tag != 'REORDER'
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,7 +82,7 @@ jobs:
           path: PhotonChat-Android.apk
 
   build-windows:
-    if: github.event.inputs.tag != 'REORDER'
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -110,7 +110,7 @@ jobs:
           path: PhotonChat-Windows.zip
 
   build-linux:
-    if: github.event.inputs.tag != 'REORDER'
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -148,118 +148,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - name: Update all release notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: |
-          python3 << 'PYEOF'
-          import os, json, urllib.request, urllib.error, textwrap
-
-          token = os.environ['GH_TOKEN']
-          repo = os.environ['REPO']
-
-          changelogs = {
-            'v1.0.0': textwrap.dedent("""\
-              ### ✨ v1.0.0 Yenilikleri
-              - 🔒 FIP tabanlı kimlik sistemi (telefon numarası veya hesap gerekmez)
-              - 💬 Uçtan uca şifreli 1-1 mesajlaşma (X25519 + AES-GCM)
-              - 👥 Kişi ekleme (5 haneli eşleşme kodu ile)
-              - 🌗 Karanlık / Aydınlık tema
-              - 🖥️ Android desteği"""),
-            'v1.0.4+': textwrap.dedent("""\
-              ### ✨ v1.0.4+ Yenilikleri
-              - 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup
-              - ⚡ Performans iyileştirmeleri ve hata düzeltmeleri
-              - 🔧 Bağlantı kararlılığı artırıldı"""),
-            'v1.0.5': textwrap.dedent("""\
-              ### ✨ v1.0.5 Yenilikleri
-              - 🐧 Linux desteği eklendi
-              - 🏗️ Build sistemi iyileştirmeleri
-              - 🪲 Küçük hata düzeltmeleri"""),
-            'v2.0.0': textwrap.dedent("""\
-              ### ✨ v2.0.0 Yenilikleri
-              - 😀 Emoji reaksiyonlar (👍❤️😂😮😢😡)
-              - 💬 Mesaj yanıtlama / alıntı
-              - 📳 Yeni mesajda titreşim bildirimi
-              - 🌓 Karanlık / Aydınlık tema değiştirici
-              - 👥 Grup sohbetleri
-              - 📢 Grup duyuruları (sadece yönetici)
-              - 📊 Grup anketleri (yönetici oluşturur, üyeler oy kullanır)
-              - 🔄 Otomatik güncelleme (kullanıcı izniyle, veriler korunur)"""),
-            'v2.0.1': textwrap.dedent("""\
-              ### ✨ v2.0.1 Yenilikleri
-              - 📱 Huawei desteği (GMS gerektirmez, tüm Huawei cihazlarda çalışır)
-              - 📄 Kapsamlı döküman güncellemeleri"""),
-            'v2.0.2': textwrap.dedent("""\
-              ### ✨ v2.0.2 Yenilikleri
-              - 🌍 45 dil desteği (Google Translate ile gerçek zamanlı çeviri)
-              - 🔤 Mesaj çevirisi (uzun bas → Çevir)
-              - 🖼️ Sohbet duvar kağıdı seçimi
-              - 📥 Çevrimdışı mesaj kuyruğu (internet gelince otomatik gönderir)
-              - 🚫 Geliştirilmiş küfür filtresi (tüm 45 dili destekler)"""),
-            'v2.0.3': textwrap.dedent("""\
-              ### ✨ v2.0.3 Yenilikleri
-              - ⏳ Kaybolan mesajlar (10s / 30s / 1dk / 5dk / 1 saat seçenekleri)
-              - 📌 Mesaj sabitleme (uzun bas → Sabitle)
-              - 🟢 Çevrimiçi / son görülme durumu
-              - 🔗 Grup davet linki (kopyala & paylaş)
-              - 🖼️ Profil fotoğrafı gösterimi (kişi listesi ve mesaj balonları)"""),
-          }
-
-          huawei_versions = {'v2.0.1','v2.0.2','v2.0.3'}
-
-          def make_body(tag, notes):
-              huawei_row = '| 📱 Huawei | `PhotonChat-Android.apk` | ✅ Hazır (GMS gerekmez) |\n' if tag in huawei_versions else ''
-              return f"""## 🔒 Photon Chat
-
-Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
-
-{notes}
-
----
-
-### 📥 İndir
-
-| Platform | Dosya | Durum |
-|----------|-------|-------|
-| 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |
-{huawei_row}| 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |
-| 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |
-| 🍎 iOS | — | 🔜 Yakında |
-
----
-
-### 🚀 Kurulum
-
-**Android / Huawei:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)
-
-**Windows:** ZIP dosyasını aç → `photon_chat.exe` çalıştır
-
-**Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır"""
-
-          # Fetch all releases
-          req = urllib.request.Request(
-              f'https://api.github.com/repos/{repo}/releases?per_page=100',
-              headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json'}
-          )
-          releases = json.loads(urllib.request.urlopen(req).read())
-
-          for r in releases:
-              tag = r['tag_name']
-              if tag not in changelogs:
-                  print(f'Skipping {tag} (no changelog defined)')
-                  continue
-              body = make_body(tag, changelogs[tag])
-              payload = json.dumps({'body': body}).encode()
-              patch_req = urllib.request.Request(
-                  f'https://api.github.com/repos/{repo}/releases/{r["id"]}',
-                  data=payload, method='PATCH',
-                  headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}
-              )
-              urllib.request.urlopen(patch_req)
-              print(f'Updated {tag}')
-          PYEOF
+        run: python3 .github/scripts/release_notes.py update-all
 
   reorder-releases:
     if: github.event.inputs.tag == 'REORDER'
@@ -297,7 +191,7 @@ Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap 
           echo "Reorder complete."
 
   release:
-    if: github.event.inputs.tag != 'REORDER'
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     needs: [build-android, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
@@ -315,107 +209,12 @@ Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap 
         with:
           name: PhotonChat-Linux
           path: ./dist
+      - uses: actions/checkout@v4
       - name: Generate release notes
         id: notes
         env:
           TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-        run: |
-          python3 << 'PYEOF'
-          import os, textwrap
-          tag = os.environ['TAG']
-
-          changelogs = {
-            'v1.0.0': textwrap.dedent("""\
-              ### ✨ v1.0.0 Yenilikleri
-              - 🔒 FIP tabanlı kimlik sistemi (telefon numarası veya hesap gerekmez)
-              - 💬 Uçtan uca şifreli 1-1 mesajlaşma (X25519 + AES-GCM)
-              - 👥 Kişi ekleme (5 haneli eşleşme kodu ile)
-              - 🌗 Karanlık / Aydınlık tema
-              - 🖥️ Android desteği
-            """),
-            'v1.0.4+': textwrap.dedent("""\
-              ### ✨ v1.0.4+ Yenilikleri
-              - 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup
-              - ⚡ Performans iyileştirmeleri ve hata düzeltmeleri
-              - 🔧 Bağlantı kararlılığı artırıldı
-            """),
-            'v1.0.5': textwrap.dedent("""\
-              ### ✨ v1.0.5 Yenilikleri
-              - 🐧 Linux desteği eklendi
-              - 🏗️ Build sistemi iyileştirmeleri
-              - 🪲 Küçük hata düzeltmeleri
-            """),
-            'v2.0.0': textwrap.dedent("""\
-              ### ✨ v2.0.0 Yenilikleri
-              - 😀 Emoji reaksiyonlar (👍❤️😂😮😢😡)
-              - 💬 Mesaj yanıtlama / alıntı
-              - 📳 Yeni mesajda titreşim bildirimi
-              - 🌓 Karanlık / Aydınlık tema değiştirici
-              - 👥 Grup sohbetleri
-              - 📢 Grup duyuruları (sadece yönetici)
-              - 📊 Grup anketleri (yönetici oluşturur, üyeler oy kullanır)
-              - 🔄 Otomatik güncelleme (kullanıcı izniyle, veriler korunur)
-            """),
-            'v2.0.1': textwrap.dedent("""\
-              ### ✨ v2.0.1 Yenilikleri
-              - 📱 Huawei desteği (GMS gerektirmez, tüm Huawei cihazlarda çalışır)
-              - 📄 Kapsamlı döküman güncellemeleri
-            """),
-            'v2.0.2': textwrap.dedent("""\
-              ### ✨ v2.0.2 Yenilikleri
-              - 🌍 45 dil desteği (Google Translate ile gerçek zamanlı çeviri)
-              - 🔤 Mesaj çevirisi (uzun bas → Çevir)
-              - 🖼️ Sohbet duvar kağıdı seçimi
-              - 📥 Çevrimdışı mesaj kuyruğu (internet gelince otomatik gönderir)
-              - 🚫 Geliştirilmiş küfür filtresi (tüm 45 dili destekler)
-            """),
-            'v2.0.3': textwrap.dedent("""\
-              ### ✨ v2.0.3 Yenilikleri
-              - ⏳ Kaybolan mesajlar (10s / 30s / 1dk / 5dk / 1 saat seçenekleri)
-              - 📌 Mesaj sabitleme (uzun bas → Sabitle)
-              - 🟢 Çevrimiçi / son görülme durumu
-              - 🔗 Grup davet linki (kopyala & paylaş)
-              - 🖼️ Profil fotoğrafı gösterimi (kişi listesi ve mesaj balonları)
-            """),
-          }
-
-          notes = changelogs.get(tag, f'### ✨ {tag} Yenilikleri\n- Genel iyileştirmeler ve hata düzeltmeleri\n')
-
-          # Download table — Huawei row for v2.0.1+
-          huawei_versions = {'v2.0.1','v2.0.2','v2.0.3'}
-          huawei_row = '| 📱 Huawei | `PhotonChat-Android.apk` | ✅ Hazır (GMS gerekmez) |\n' if tag in huawei_versions else ''
-
-          body = f"""## 🔒 Photon Chat
-
-Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
-
-{notes}
----
-
-### 📥 İndir
-
-| Platform | Dosya | Durum |
-|----------|-------|-------|
-| 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |
-{huawei_row}| 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |
-| 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |
-| 🍎 iOS | — | 🔜 Yakında |
-
----
-
-### 🚀 Kurulum
-
-**Android / Huawei:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)
-
-**Windows:** ZIP dosyasını aç → `photon_chat.exe` çalıştır
-
-**Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır"""
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
-              f.write('body<<BODYEOF\n')
-              f.write(body)
-              f.write('\nBODYEOF\n')
-          PYEOF
+        run: python3 .github/scripts/release_notes.py output
 
       - uses: softprops/action-gh-release@v2
         with:
