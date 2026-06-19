@@ -7,6 +7,8 @@ import '../knk_api.dart';
 import '../local_store.dart';
 import '../onboarding_screen.dart';
 import '../theme.dart';
+import '../chat_wallpaper.dart';
+import 'wallpaper_screen.dart';
 import '../i18n.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -89,6 +91,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await LocalStore.wipeIdentity();
     if (!mounted) return;
     Navigator.pop(context, true);
+  }
+
+  Widget _buildWallpaperPreview() {
+    if (ChatWallpaper.type == 'color' && ChatWallpaper.value.isNotEmpty) {
+      return Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          color: Color(int.parse(ChatWallpaper.value, radix: 16)),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: KnkColors.line),
+        ),
+      );
+    }
+    if (ChatWallpaper.type == 'image' && ChatWallpaper.value.isNotEmpty) {
+      try {
+        final bytes = base64Decode(ChatWallpaper.value);
+        return Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: KnkColors.line)),
+          clipBehavior: Clip.antiAlias,
+          child: Image.memory(bytes, fit: BoxFit.cover),
+        );
+      } catch (_) {}
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildAvatar() {
@@ -218,6 +245,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 activeColor: KnkColors.accent,
               ),
             ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Sohbet Duvar Kağıdı
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperPickerScreen()));
+              await ChatWallpaper.loadWallpaper();
+              setState(() {});
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.wallpaper, color: KnkColors.textDim, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Sohbet Duvar Kagidi', style: TextStyle(color: KnkColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(
+                    ChatWallpaper.type == 'none' ? 'Varsayilan' : ChatWallpaper.type == 'color' ? 'Renk' : 'Resim',
+                    style: TextStyle(color: KnkColors.textDim, fontSize: 11),
+                  ),
+                ])),
+                _buildWallpaperPreview(),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: KnkColors.textDim, size: 20),
+              ]),
+            ),
           ),
           const SizedBox(height: 16),
 

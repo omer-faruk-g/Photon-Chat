@@ -102,6 +102,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _poll() async {
     while (_alive) {
+      await OfflineQueue.instance.flush();
+      if (mounted) setState(() {});
       final raw = await KnkApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
       final reactions = await KnkApi.getChatReactions(widget.myServerUrl, _chatKey);
       final msgs = <_DisplayMessage>[];
@@ -209,33 +211,187 @@ class _ChatScreenState extends State<ChatScreen> {
         : null;
     setState(() { _replyToMsg = null; });
 
-    final (_, myMsgId) = await KnkApi.sendMessage(
-        receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
+    try {
+      final (ok, myMsgId) = await KnkApi.sendMessage(
+          receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
+          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
+      if (!ok) throw const SocketException('Server unreachable');
 
-    final newMsg = _DisplayMessage(
-        msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
-        ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
-    setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
-    _scrollToBottom();
+      final newMsg = _DisplayMessage(
+          msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
+          ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
+      setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
+      _scrollToBottom();
 
-    final (deliveredToContact, _) = await KnkApi.sendMessage(
-        receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
-        toFipId: widget.contact.fipId, senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId);
+      final (deliveredToContact, _) = await KnkApi.sendMessage(
+          receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
+          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+          toFipId: widget.contact.fipId, senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId);
 
-    if (mounted) {
-      setState(() {
-        final idx = _messages.indexWhere((m) => m.ts == ts && m.from == widget.identity.fipId);
-        if (idx != -1) {
-          _messages[idx] = _DisplayMessage(
-            msgId: _messages[idx].msgId, from: _messages[idx].from, text: _messages[idx].text,
-            ts: _messages[idx].ts, delivered: deliveredToContact, deleted: false, edited: false,
-            replyTo: _messages[idx].replyTo,
-          );
-        }
-      });
+      if (mounted) {
+        setState(() {
+          final idx = _messages.indexWhere((m) => m.ts == ts && m.from == widget.identity.fipId);
+          if (idx != -1) {
+            _messages[idx] = _DisplayMessage(
+              msgId: _messages[idx].msgId, from: _messages[idx].from, text: _messages[idx].text,
+              ts: _messages[idx].ts, delivered: deliveredToContact, deleted: false, edited: false,
+              replyTo: _messages[idx].replyTo,
+            );
+          }
+        });
+      }
+    } on SocketException {
+      await _enqueueOffline(encryptedText, ts, replyData, text);
+    } on TimeoutException {
+      await _enqueueOffline(encryptedText, ts, replyData, text);
     }
+  }
+
+  Future<void> _enqueueOffline(String encryptedText, int ts, Map<String, dynamic>? replyData, String plainText) async {
+    await OfflineQueue.instance.enqueue(QueuedMessage(
+      chatKey: _chatKey, receiverServerUrl: widget.myServerUrl,
+      from: widget.identity.fipId, text: encryptedText, ts: ts,
+      replyToMsgId: replyData?['msgId'] as String?,
+      replyToFrom: replyData?['from'] as String?,
+      replyToText: replyData?['text'] as String?,
+    ));
+    await OfflineQueue.instance.enqueue(QueuedMessage(
+      chatKey: _chatKey, receiverServerUrl: widget.contact.serverUrl,
+      from: widget.identity.fipId, text: encryptedText, ts: ts,
+      replyToMsgId: replyData?['msgId'] as String?,
+      replyToFrom: replyData?['from'] as String?,
+      replyToText: replyData?['text'] as String?,
+      toFipId: widget.contact.fipId,
+      senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId,
+    ));
+    if (mounted) setState(() { _draftCtrl.clear(); });
+  }
+
+  Widget _buildMessageList() {
+    final queued = OfflineQueue.instance.getForChat(_chatKey);
+    // Deduplicate: only show queued messages whose ts is not already in _messages
+    final existingTs = _messages.map((m) => m.ts).toSet();
+    final uniqueQueued = queued.where((q) => !existingTs.contains(q.ts)).toList();
+    final totalCount = _messages.length + uniqueQueued.length;
+    return ListView.builder(
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.all(14),
+      itemCount: totalCount,
+      itemBuilder: (context, i) {
+        // Queued messages appear at the bottom
+        if (i >= _messages.length) {
+          final q = uniqueQueued[i - _messages.length];
+          return _buildQueuedBubble(q);
+        }
+        final m = _messages[i];
+        final mine = m.from == widget.identity.fipId;
+        final displayText = m.deleted ? '\u{1F5D1} Bu mesaj silindi.' : filterProfanity(m.text);
+        final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
+        return GestureDetector(
+          onLongPress: () => _onLongPressMessage(m),
+          child: Align(
+            alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                  decoration: BoxDecoration(
+                    color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
+                    border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
+                      bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
+                    ),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    if (m.replyTo != null)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: mine ? const Color(0xFF06251A).withOpacity(0.3) : KnkColors.panelAlt,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border(left: BorderSide(color: KnkColors.accent, width: 3)),
+                        ),
+                        child: Text(m.replyTo!['text'] as String? ?? '',
+                          style: TextStyle(color: mine ? const Color(0xFF06251A) : KnkColors.textDim, fontSize: 11),
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ),
+                    Text(displayText,
+                      style: TextStyle(
+                        color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
+                        fontSize: 13.5, height: 1.45,
+                        fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
+                      )),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (m.edited && !m.deleted)
+                        Text('d\u00FCzenlendi \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
+                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.6), fontSize: 9.5)),
+                      if (mine && !m.deleted) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          isLastMine && _contactRead ? '\u2713\u2713' : (m.delivered ? '\u2713\u2713' : '\u2713'),
+                          style: TextStyle(
+                            color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
+                            fontSize: 9.5,
+                            fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ]),
+                  ]),
+                ),
+                if (m.reactions.isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 2, bottom: 4),
+                    child: Wrap(spacing: 4, runSpacing: 4,
+                      children: m.reactions.entries.map((e) => GestureDetector(
+                        onTap: () {
+                          KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                          KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: KnkColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: KnkColors.line)),
+                          child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQueuedBubble(QueuedMessage q) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: BoxDecoration(
+          color: KnkColors.accent.withOpacity(0.5),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
+            bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(2),
+          ),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(q.text, style: TextStyle(color: const Color(0xFF06251A), fontSize: 13.5, height: 1.45)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(_formatTime(q.ts), style: TextStyle(color: const Color(0xFF06251A).withOpacity(0.6), fontSize: 9.5)),
+            const SizedBox(width: 4),
+            Icon(Icons.access_time, color: const Color(0xFF06251A).withOpacity(0.7), size: 11),
+          ]),
+        ]),
+      ),
+    );
   }
 
   void _onLongPressMessage(_DisplayMessage m) {
@@ -401,17 +557,10 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: _isBlocked
                 ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6))))
-                : _messages.isEmpty
+                : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
                     ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.all(14),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, i) {
-                          final m = _messages[i];
-                          final mine = m.from == widget.identity.fipId;
-                          final displayText = m.deleted ? '🗑 Bu mesaj silindi.' : filterProfanity(m.text);
-                          final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
+                    : _buildMessageList(),
+          ),
                           return GestureDetector(
                             onLongPress: () => _onLongPressMessage(m),
                             child: Align(
