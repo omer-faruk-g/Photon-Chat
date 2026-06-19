@@ -380,7 +380,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     label: const Text('Paylaş'),
                     onPressed: () {
                       Navigator.pop(context);
-                      Share.shareUri(Uri.parse(link));
+                      Share.share('Photon Chat grup davet linki:\n$link');
                     },
                   ),
                 ),
