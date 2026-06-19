@@ -13,6 +13,7 @@ on:
 
 jobs:
   build-android:
+    if: github.event.inputs.tag != 'REORDER'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +82,7 @@ jobs:
           path: PhotonChat-Android.apk
 
   build-windows:
+    if: github.event.inputs.tag != 'REORDER'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +110,7 @@ jobs:
           path: PhotonChat-Windows.zip
 
   build-linux:
+    if: github.event.inputs.tag != 'REORDER'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -139,7 +142,43 @@ jobs:
           name: PhotonChat-Linux
           path: PhotonChat-Linux.tar.gz
 
+  reorder-releases:
+    if: github.event.inputs.tag == 'REORDER'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Re-publish releases in desired order
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          # Desired display order (top to bottom): v2.0.1, v2.0.0, v1.0.5, v1.0.4+
+          # GitHub lists newest published_at first, so re-publish oldest->newest in this order:
+          ORDER="v1.0.4+ v1.0.5 v2.0.0 v2.0.1"
+          get_id() {
+            curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                 -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases?per_page=100" \
+              | python3 -c "import sys,json; t='$1'; print(next((r['id'] for r in json.load(sys.stdin) if r['tag_name']==t), ''))"
+          }
+          for tag in $ORDER; do
+            id=$(get_id "$tag")
+            if [ -z "$id" ]; then echo "Release $tag not found, skipping"; continue; fi
+            echo "Re-publishing $tag (id=$id)..."
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases/$id" -d '{"draft":true}' > /dev/null
+            sleep 2
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases/$id" -d '{"draft":false,"make_latest":"true"}' > /dev/null
+            echo "Done $tag"
+            sleep 3
+          done
+          echo "Reorder complete."
+
   release:
+    if: github.event.inputs.tag != 'REORDER'
     needs: [build-android, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
