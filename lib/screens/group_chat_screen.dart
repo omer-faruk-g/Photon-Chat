@@ -7,6 +7,8 @@ import '../knk_api.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
+import '../chat_wallpaper.dart';
+import '../translate_service.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Group group;
@@ -31,6 +33,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Timer? _annTimer;
   String? _inputError;
   bool _annExpanded = false;
+  final Map<String, String> _translations = {};
+  final Set<String> _translating = {};
 
   @override
   void initState() {
@@ -52,6 +56,42 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _msgCtrl.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  Future<void> _translateMessage(String msgId, String text) async {
+    if (_translations.containsKey(msgId)) {
+      setState(() => _translations.remove(msgId));
+      return;
+    }
+    setState(() => _translating.add(msgId));
+    final translated = await TranslateService.translate(text);
+    if (mounted) {
+      setState(() {
+        _translating.remove(msgId);
+        if (translated != text) _translations[msgId] = translated;
+      });
+    }
+  }
+
+  void _onLongPressGroupMessage(Map<String, dynamic> m) {
+    final msgId = m['msgId'] as String? ?? '';
+    final text = m['text'] as String? ?? '';
+    if (text.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KnkColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: Icon(Icons.translate, color: KnkColors.accent),
+          title: Text('Çevir', style: TextStyle(color: KnkColors.text)),
+          onTap: () {
+            Navigator.pop(context);
+            _translateMessage(msgId, text);
+          },
+        ),
+      ])),
+    );
   }
 
   void _pollMessages() {
@@ -431,6 +471,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       backgroundColor: KnkColors.bg,
       body: Stack(
         children: [
+          ChatWallpaper.buildBackground(),
           Column(
             children: [
               // Announcements banner
@@ -467,21 +508,40 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     }
                     final isMe = m['from'] == myFipId;
                     final displayText = filterProfanity(m['text'] as String? ?? '');
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                        decoration: BoxDecoration(
-                          color: isMe ? KnkColors.accent.withOpacity(0.18) : KnkColors.panel,
-                          border: Border.all(color: isMe ? KnkColors.accent.withOpacity(0.3) : KnkColors.line),
-                          borderRadius: BorderRadius.circular(10),
+                    final msgId = m['msgId'] as String? ?? '';
+                    return GestureDetector(
+                      onLongPress: () => _onLongPressGroupMessage(m),
+                      child: Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          decoration: BoxDecoration(
+                            color: isMe ? KnkColors.accent.withOpacity(0.18) : KnkColors.panel,
+                            border: Border.all(color: isMe ? KnkColors.accent.withOpacity(0.3) : KnkColors.line),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                            if (!isMe) Text(m['fromName'] as String? ?? '', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                            Text(displayText, style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                            if (_translating.contains(msgId))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+                              ),
+                            if (_translations.containsKey(msgId))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('çeviri', style: TextStyle(color: KnkColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                                  const SizedBox(height: 2),
+                                  Text(_translations[msgId]!,
+                                    style: TextStyle(color: KnkColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                                ]),
+                              ),
+                          ]),
                         ),
-                        child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                          if (!isMe) Text(m['fromName'] as String? ?? '', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-                          Text(displayText, style: TextStyle(color: KnkColors.text, fontSize: 14)),
-                        ]),
                       ),
                     );
                   },
