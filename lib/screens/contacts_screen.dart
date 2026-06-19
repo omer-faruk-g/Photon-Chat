@@ -210,12 +210,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kişiler'),
-          leading: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(6)),
-              child: Text(widget.identity.code, style: TextStyle(color: KnkColors.accent, fontSize: 10, letterSpacing: 1.5)),
+          leading: Tooltip(
+            message: 'Senin 5 haneli kodun — tıkla, kopyala',
+            child: GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: widget.identity.code));
+                _showToast('Kodun kopyalandı: ${widget.identity.code}');
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('KODUM', style: TextStyle(color: KnkColors.textDim, fontSize: 7, letterSpacing: 1.2)),
+                    const SizedBox(height: 1),
+                    Text(widget.identity.code, style: TextStyle(color: KnkColors.accent, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
+                  ],
+                ),
+              ),
             ),
           ),
           actions: [IconButton(icon: Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
@@ -532,7 +544,7 @@ class _Avatar extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5), width: 2) : null,
-            image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover),
+            image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover, alignment: Alignment.topCenter),
           ),
         );
       } catch (_) {}
