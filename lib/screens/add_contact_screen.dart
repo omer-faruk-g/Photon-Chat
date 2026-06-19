@@ -30,38 +30,33 @@ class _AddContactScreenState extends State<AddContactScreen> {
   }
 
   Future<void> _send() async {
-    final raw = _addrCtrl.text.trim();
-    final at = raw.indexOf('@');
-    if (at < 0) {
-      setState(() => _error = 'Format: KOD@https://sunucu.onrender.com');
-      return;
-    }
-    final code = raw.substring(0, at);
-    final targetServerUrl = raw.substring(at + 1);
+    final code = _addrCtrl.text.trim();
 
-    if (code.length != 5) {
-      setState(() => _error = 'Kod 5 haneli olmalı');
+    if (code.length != 5 || !RegExp(r'^\d{5}$').hasMatch(code)) {
+      setState(() => _error = 'Kod tam olarak 5 rakamdan oluşmalıdır');
       return;
     }
 
-    if (code == widget.identity.code && targetServerUrl == widget.myServerUrl) {
-      setState(() => _error = 'Bu senin kendi adresin.');
+    if (code == widget.identity.code) {
+      setState(() => _error = 'Bu senin kendi kodun.');
       return;
     }
 
     setState(() { _sending = true; _error = null; });
 
-    final target = await KnkApi.lookupByCode(targetServerUrl, code);
-    if (target == null) {
+    // Bridge'den koda karşılık gelen sunucuyu bul
+    final lookup = await KnkApi.lookupByCodeFromBridge(code);
+    if (lookup == null) {
       setState(() {
         _sending = false;
-        _error = 'Bu adreste aktif bir kullanıcı bulunamadı.';
+        _error = 'Bu koda sahip aktif bir kullanıcı bulunamadı.';
       });
       return;
     }
 
-    final targetFipId = target['fipId'] as String;
-    final targetName = (target['name'] as String?) ?? 'Bilinmeyen';
+    final targetServerUrl = lookup['serverUrl'] as String;
+    final targetFipId = lookup['fipId'] as String;
+    final targetName = (lookup['name'] as String?) ?? 'Bilinmeyen';
 
     await KnkApi.sendFriendRequest(
       toServerUrl: targetServerUrl,
@@ -113,26 +108,26 @@ class _AddContactScreenState extends State<AddContactScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'KARŞI TARAFIN ADRESİ',
+                'ARKADAŞİNİN 5 HANELİ KODU',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Format:  KOD@https://sunucu.onrender.com',
-                style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _addrCtrl,
                 autofocus: true,
+                keyboardType: TextInputType.number,
+                maxLength: 5,
                 style: TextStyle(
                   color: KnkColors.accent,
-                  fontSize: 13,
+                  fontSize: 22,
                   fontFamily: 'monospace',
+                  letterSpacing: 8,
                 ),
+                textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  hintText: '12345@https://sunucu.onrender.com',
-                  hintStyle: TextStyle(color: Color(0xFF5C6E6B), fontSize: 12),
+                  hintText: '• • • • •',
+                  hintStyle: TextStyle(color: Color(0xFF5C6E6B), fontSize: 22, letterSpacing: 8),
+                  counterText: '',
                   filled: true,
                   fillColor: KnkColors.bg,
                   border: OutlineInputBorder(
@@ -145,8 +140,8 @@ class _AddContactScreenState extends State<AddContactScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Arkadaşının adresini sana bildirmesi gerekir. '
-                'Mesaj isteği onun sunucusuna gönderilir.',
+                'Arkadaşının profilindeki 5 haneli kodu gir. '
+                'Davet isteği otomatik olarak onun sunucusuna gönderilir.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6),
               ),
@@ -168,7 +163,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                   Expanded(
                     child: ElevatedButton(
                       style: knkPrimaryButtonStyle(),
-                      onPressed: (_addrCtrl.text.trim().contains('@') && !_sending) ? _send : null,
+                      onPressed: (_addrCtrl.text.trim().length == 5 && !_sending) ? _send : null,
                       child: _sending
                           ? const SizedBox(
                               width: 18,

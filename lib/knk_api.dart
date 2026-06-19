@@ -75,6 +75,14 @@ class KnkApi {
     } catch (_) {}
   }
 
+  static Future<Map<String, dynamic>?> lookupByCodeFromBridge(String code) async {
+    final serverUrl = await lookupServerOnBridge(code);
+    if (serverUrl == null) return null;
+    final info = await lookupByCode(serverUrl, code);
+    if (info == null) return null;
+    return {...info, 'serverUrl': serverUrl};
+  }
+
   static Future<Map<String, dynamic>?> lookupByCode(String serverUrl, String code) async {
     try {
       final r = await http.get(_u(serverUrl, '/lookup/$code'));
