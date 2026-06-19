@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
@@ -7,6 +8,7 @@ import '../knk_api.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
+import '../offline_queue.dart';
 import '../chat_wallpaper.dart';
 import '../translate_service.dart';
 
@@ -96,6 +98,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollMessages() {
     _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      await OfflineQueue.instance.flush();
+      if (mounted) setState(() {});
       final msgs = await KnkApi.getGroupMessages(widget.myServerUrl, widget.group.groupId);
       msgs.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
       if (mounted) setState(() => _messages = msgs);
@@ -141,10 +145,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _msgCtrl.clear();
     final memberUrls = widget.group.members.map((m) => m.serverUrl).toList();
     memberUrls.add(widget.myServerUrl);
-    await KnkApi.sendGroupMessage(memberUrls, widget.group.groupId,
-      from: widget.identity.fipId, fromName: widget.displayName,
-      text: text, ts: DateTime.now().millisecondsSinceEpoch,
-    );
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await KnkApi.sendGroupMessage(memberUrls, widget.group.groupId,
+        from: widget.identity.fipId, fromName: widget.displayName,
+        text: text, ts: ts,
+      );
+    } on SocketException {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: widget.group.groupId, receiverServerUrl: widget.myServerUrl,
+        from: widget.identity.fipId, text: text, ts: ts,
+        isGroup: true, groupMemberUrls: memberUrls,
+        groupId: widget.group.groupId, fromName: widget.displayName,
+      ));
+      if (mounted) setState(() {});
+    } on TimeoutException {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: widget.group.groupId, receiverServerUrl: widget.myServerUrl,
+        from: widget.identity.fipId, text: text, ts: ts,
+        isGroup: true, groupMemberUrls: memberUrls,
+        groupId: widget.group.groupId, fromName: widget.displayName,
+      ));
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _vote(Map<String, dynamic> pollMsg, int optionIndex) async {
@@ -438,6 +461,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  List<QueuedMessage> get _queuedGroupMessages {
+    final queued = OfflineQueue.instance.getForChat(widget.group.groupId);
+    final existingTs = _messages.map((m) => m['ts'] as int).toSet();
+    return queued.where((q) => !existingTs.contains(q.ts)).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final myFipId = widget.identity.fipId;
@@ -499,8 +528,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 child: ListView.builder(
                   controller: _scroll,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  itemCount: _messages.length,
+                  itemCount: _messages.length + _queuedGroupMessages.length,
                   itemBuilder: (_, i) {
+                    if (i >= _messages.length) {
+                      final q = _queuedGroupMessages[i - _messages.length];
+                      return Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          decoration: BoxDecoration(
+                            color: KnkColors.accent.withOpacity(0.12),
+                            border: Border.all(color: KnkColors.accent.withOpacity(0.2)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(q.text, style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Icon(Icons.access_time, color: KnkColors.textDim, size: 11),
+                          ]),
+                        ),
+                      );
+                    }
                     final m = _messages[i];
                     // Poll type
                     if (m['type'] == 'poll') {
