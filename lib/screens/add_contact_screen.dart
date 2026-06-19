@@ -29,6 +29,37 @@ class _AddContactScreenState extends State<AddContactScreen> {
     super.dispose();
   }
 
+  void _showMyQr() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KnkColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('BENİM QR KODUM', style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: QrImageView(data: widget.identity.code, size: 200),
+            ),
+            const SizedBox(height: 16),
+            Text(widget.identity.code,
+              style: TextStyle(color: KnkColors.accent, fontSize: 28, fontFamily: 'monospace', letterSpacing: 10, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Arkadaşın bu kodu veya QR\'ı tarayarak seni ekleyebilir.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _send() async {
     final code = _addrCtrl.text.trim();
 
@@ -81,8 +112,13 @@ class _AddContactScreenState extends State<AddContactScreen> {
         title: Text('Kişi Ekle'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'Benim QR Kodum',
+            onPressed: () => _showMyQr(),
+          ),
+          IconButton(
             icon: const Icon(Icons.qr_code_scanner),
-            tooltip: 'QR ile Ekle',
+            tooltip: 'Arkadaşının QR\'ını Tara',
             onPressed: () async {
               final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
               if (code != null && mounted) {

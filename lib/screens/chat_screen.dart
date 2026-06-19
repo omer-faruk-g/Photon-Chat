@@ -49,6 +49,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _typingDebounce;
   Timer? _typingPollTimer;
 
+  // Locally sent messages keyed by msgId — merged into poll results so own messages always show
+  final Map<String, _DisplayMessage> _sentCache = {};
+
   // Feature: disappearing messages
   int? _disappearSeconds;
 
@@ -148,12 +151,23 @@ class _ChatScreenState extends State<ChatScreen> {
         ));
       }
       if (_alive && mounted) {
-        final newCount = msgs.length;
+        // Merge: remove from sentCache any messages the server now returns
+        final serverIds = msgs.map((m) => m.msgId).toSet();
+        _sentCache.removeWhere((id, _) => serverIds.contains(id));
+        // Append any locally sent messages not yet confirmed by server
+        final merged = [...msgs];
+        for (final sent in _sentCache.values) {
+          if (!merged.any((m) => m.ts == sent.ts && m.from == sent.from)) {
+            merged.add(sent);
+          }
+        }
+        merged.sort((a, b) => a.ts.compareTo(b.ts));
+        final newCount = merged.length;
         if (newCount > _prevMsgCount && _prevMsgCount > 0) {
           HapticFeedback.mediumImpact();
         }
         _prevMsgCount = newCount;
-        setState(() => _messages = msgs);
+        setState(() => _messages = merged);
         _scrollToBottom();
       }
       await KnkApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
@@ -240,6 +254,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final newMsg = _DisplayMessage(
           msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
           ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
+      _sentCache[myMsgId ?? '_$ts'] = newMsg;
       setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
       _scrollToBottom();
 
