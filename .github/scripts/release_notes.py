@@ -72,14 +72,35 @@ CHANGELOGS = {
         "- 🔗 Grup davet linki (kopyala & paylaş)\n"
         "- 🖼️ Profil fotoğrafı gösterimi (kişi listesi ve mesaj balonları)"
     ),
+    'v2.0.4': (
+        "### ✨ v2.0.4 Yenilikleri\n"
+        "- 🪟 Windows yükleyici (.exe) — masaüstü kısayolu otomatik oluşturulur\n"
+        "- 📷 QR kod ile kişi eşleştirme — kendi QR'ını göster, arkadaşının QR'ını tara\n"
+        "- 🔗 Gruba 7 haneli kod veya davet linki ile katılma (photon:// formatı)\n"
+        "- ✅ Kendi gönderdiğin mesajlar artık anında görünüyor\n"
+        "- 🐛 Hata düzeltmeleri ve kararlılık iyileştirmeleri"
+    ),
+    'v2.0.5': (
+        "### ✨ v2.0.5 Yenilikleri\n"
+        "- 🎨 Ana ekran yeniden tasarlandı — profil şeridi, belirgin bölüm başlıkları\n"
+        "- 👤 Profil şeridi: avatar, isim, durum mesajı ve kodun tek bakışta görünür\n"
+        "- 📋 5 haneli koduna tıklayarak kopyala\n"
+        "- 🖼️ Avatar portre fotoğraflarda artık yüz/üst bölge düzgün görünüyor\n"
+        "- ➕ Alt bar: 'Kişi Ekle' ve 'Grup' yan yana iki düğme\n"
+        "- 📝 Grup açıklaması — grup oluştururken kısa tanım yaz, üye listesinde ve sohbet başlığında göster"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5'}
+
+
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5'}
 
 
 def make_body(tag):
     notes = CHANGELOGS.get(tag, f"### ✨ {tag} Yenilikleri\n- Genel iyileştirmeler ve hata düzeltmeleri")
     huawei_row = "| 📱 Huawei | `PhotonChat-Android.apk` | ✅ Hazır (GMS gerekmez) |\n" if tag in HUAWEI_VERSIONS else ""
+    installer_row = "| 🪟 Windows Kurulum | `PhotonChat-Windows-Setup.exe` | ✅ Tek tıkla kur |\n" if tag in INSTALLER_VERSIONS else ""
     return (
         "## 🔒 Photon Chat\n\n"
         "Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.\n\n"
@@ -90,13 +111,14 @@ def make_body(tag):
         "|----------|-------|-------|\n"
         "| 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |\n"
         + huawei_row +
+        installer_row +
         "| 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |\n"
         "| 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |\n"
         "| 🍎 iOS | — | 🔜 Yakında |\n\n"
         "---\n\n"
         "### 🚀 Kurulum\n\n"
         "**Android / Huawei:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)\n\n"
-        "**Windows:** ZIP dosyasını aç → `photon_chat.exe` çalıştır\n\n"
+        "**Windows:** Kurulum için `PhotonChat-Windows-Setup.exe` çalıştır, ya da ZIP'i aç → `photon_chat.exe` çalıştır\n\n"
         "**Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır"
     )
 
