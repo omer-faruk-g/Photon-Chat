@@ -66,6 +66,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       }
       final groupId   = data['groupId'] as String;
       final groupName = data['name']    as String? ?? 'Grup';
+      final groupDesc = data['description'] as String? ?? '';
       await KnkApi.sendGroupJoinRequest(server, groupId,
         fromFipId:   widget.identity.fipId,
         fromName:    widget.displayName,
@@ -73,6 +74,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       );
       final group = Group(
         groupId: groupId, groupCode: code, name: groupName,
+        description: groupDesc,
         ownerFipId: data['ownerFipId'] as String? ?? '',
         ownerServerUrl: server, isOwner: false, members: [],
       );

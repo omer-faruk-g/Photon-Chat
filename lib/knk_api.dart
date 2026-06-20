@@ -212,12 +212,12 @@ class KnkApi {
   // --- Group API ---
 
   static Future<Map<String, dynamic>?> createGroup(String myServerUrl, {
-    required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl,
+    required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl, String description = '',
   }) async {
     try {
       final r = await http.post(_u(myServerUrl, '/groups'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name, 'ownerServerUrl': ownerServerUrl}));
+          body: jsonEncode({'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name, 'ownerServerUrl': ownerServerUrl, 'description': description}));
       if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body) as Map<String, dynamic>;
     } catch (_) {}
     return null;

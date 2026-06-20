@@ -38,14 +38,16 @@ class Group {
   final String groupId;
   final String groupCode;
   final String name;
+  String description;
   final String ownerFipId;
   final String ownerServerUrl;
   final bool isOwner;
   List<GroupMember> members;
-  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
-  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
+  Group({required this.groupId, required this.groupCode, required this.name, this.description = '', required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
+  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'description': description, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
   factory Group.fromJson(Map<String, dynamic> j) => Group(
     groupId: j['groupId'], groupCode: j['groupCode'], name: j['name'],
+    description: (j['description'] as String?) ?? '',
     ownerFipId: j['ownerFipId'], ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
     isOwner: j['isOwner'] ?? false,
     members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),

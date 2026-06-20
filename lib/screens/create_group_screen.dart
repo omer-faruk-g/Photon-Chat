@@ -16,9 +16,17 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
   Group? _created;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
@@ -31,12 +39,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerName: widget.displayName,
         name: name,
         ownerServerUrl: widget.myServerUrl,
+        description: _descCtrl.text.trim(),
       );
       if (data == null) { setState(() { _error = 'Grup oluşturulamadı'; _loading = false; }); return; }
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
         name: name,
+        description: _descCtrl.text.trim(),
         ownerFipId: widget.identity.fipId,
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
@@ -77,7 +87,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           errorStyle: TextStyle(color: KnkColors.danger),
         ),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 14),
+      TextField(
+        controller: _descCtrl,
+        maxLength: 120,
+        maxLines: 2,
+        style: TextStyle(color: KnkColors.text, fontSize: 13),
+        decoration: InputDecoration(
+          labelText: 'Grup Açıklaması (isteğe bağlı)',
+          labelStyle: TextStyle(color: KnkColors.textDim),
+          hintText: 'Kısa bir tanım yazabilirsin…',
+          hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
+          counterStyle: TextStyle(color: KnkColors.textDim, fontSize: 10),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      const SizedBox(height: 8),
       SizedBox(
         width: double.infinity,
         child: ElevatedButton(

@@ -289,6 +289,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       context: context, backgroundColor: KnkColors.panel,
       builder: (_) => ListView(padding: const EdgeInsets.all(20), children: [
         Text(widget.group.name, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        if (widget.group.description.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(widget.group.description, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.5)),
+        ],
         const SizedBox(height: 6),
         if (widget.group.isOwner) ...[
           Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
@@ -547,7 +551,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final myFipId = widget.identity.fipId;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.group.name),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.group.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            if (widget.group.description.isNotEmpty)
+              Text(widget.group.description, style: TextStyle(fontSize: 11, color: KnkColors.textDim, fontWeight: FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
         actions: [
           PopupMenuButton<String>(
             color: KnkColors.panel,

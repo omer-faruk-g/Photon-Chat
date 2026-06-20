@@ -495,6 +495,10 @@ class _GroupRow extends StatelessWidget {
           const SizedBox(height: 2),
           Text(group.isOwner ? 'Sahip · Kod: ${group.groupCode}' : 'Üye · Kod: ${group.groupCode}',
               style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+          if (group.description.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(group.description, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
         ])),
         if (pendingCount > 0)
           Container(
