@@ -144,12 +144,13 @@ class KnkApi {
   }
 
   /// Mesajı gönderir; (delivered, msgId) döner.
-  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts, Map<String, dynamic>? replyTo, String? toFipId, String? senderName}) async {
+  static Future<(bool, String?)> sendMessage({required String receiverServerUrl, required String chatKey, required String from, required String text, required int ts, Map<String, dynamic>? replyTo, String? toFipId, String? senderName, String? imageData, bool nsfw = false}) async {
     try {
       final body = <String, dynamic>{'from': from, 'text': text, 'ts': ts};
       if (replyTo != null) body['replyTo'] = replyTo;
       if (toFipId != null) body['toFipId'] = toFipId;
       if (senderName != null) body['fromName'] = senderName;
+      if (imageData != null) { body['type'] = 'image'; body['imageData'] = imageData; body['nsfw'] = nsfw; }
       final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(body));

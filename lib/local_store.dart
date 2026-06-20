@@ -66,6 +66,10 @@ class LocalStore {
   static const _kStatusMsgKey = 'knk_status_msg_v1';
   static const _kAvatarKey = 'knk_avatar_v1';
   static const _kThemeDarkKey = 'knk_theme_dark_v1';
+  static const _kSttEnabledKey = 'knk_stt_enabled_v1';
+
+  static Future<bool> loadSttEnabled() async => (await SharedPreferences.getInstance()).getBool(_kSttEnabledKey) ?? false;
+  static Future<void> saveSttEnabled(bool v) async => (await SharedPreferences.getInstance()).setBool(_kSttEnabledKey, v);
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());

@@ -87,14 +87,22 @@ CHANGELOGS = {
         "- 📋 5 haneli koduna tıklayarak kopyala\n"
         "- 🖼️ Avatar portre fotoğraflarda artık yüz/üst bölge düzgün görünüyor\n"
         "- ➕ Alt bar: 'Kişi Ekle' ve 'Grup' yan yana iki düğme\n"
-        "- 📝 Grup açıklaması — grup oluştururken kısa tanım yaz, üye listesinde ve sohbet başlığında göster"
+        "- 📝 Grup açıklaması — grup oluştururken kısa tanım yaz"
+    ),
+    'v3.0.0': (
+        "### ✨ v3.0.0 Yenilikleri\n"
+        "- 📸 Fotoğraf paylaşımı — galeriden görsel seç, sohbette gönder\n"
+        "- 🔒 Gelen görseller varsayılan olarak bulanık — dokunarak aç\n"
+        "- ⛔ Hassas/+18 içerik işaretleme — gönderen işaretlerse karşı tarafta siyah blok + uyarı mesajı\n"
+        "- 🎙️ Sesli yazım (STT) — konuşarak mesaj yaz, 'Gönder' diyince otomatik gönderir\n"
+        "- 🔇 STT varsayılan kapalı — Ayarlar → Sesli Mesaj'dan aktif edilir, mikrofon izni ister\n"
+        "- ✏️ Mesaj düzenleme — uzun bas → Düzenle\n"
+        "- 🗑️ Herkesten sil — uzun bas → Sil"
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5'}
-
-
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0'}
 
 
 def make_body(tag):

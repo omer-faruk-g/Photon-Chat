@@ -28,10 +28,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _statusMsg = '';
   final _statusCtrl = TextEditingController();
   bool _savingStatus = false;
+  bool _sttEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
     _load();
   }
 
@@ -289,6 +291,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
           const SizedBox(height: 16),
+
+          const SizedBox(height: 12),
+          // Sesli Mesaj (STT)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Icon(Icons.mic, color: KnkColors.textDim, size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Sesli Mesaj (STT)', style: TextStyle(color: KnkColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text('Konuşarak mesaj yaz. "Gönder" diyince otomatik gönderir. Mikrofon izni gerekir.', style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5)),
+              ])),
+              Switch(
+                value: _sttEnabled,
+                onChanged: (v) async {
+                  await LocalStore.saveSttEnabled(v);
+                  setState(() => _sttEnabled = v);
+                },
+                activeColor: KnkColors.accent,
+              ),
+            ]),
+          ),
 
           // Sohbet Duvar Kağıdı
           GestureDetector(

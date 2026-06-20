@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../fip.dart';
 import '../knk_api.dart';
 import '../local_store.dart';
@@ -61,6 +64,16 @@ class _ChatScreenState extends State<ChatScreen> {
   // Feature: online status
   bool _contactOnline = false;
 
+  // Feature: image sharing
+  final _imagePicker = ImagePicker();
+  final Set<String> _revealedImages = {};
+
+  // Feature: STT
+  final _speech = SpeechToText();
+  bool _isListening = false;
+  bool _sttEnabled = false;
+  bool _sttAvailable = false;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +88,103 @@ class _ChatScreenState extends State<ChatScreen> {
     _markRead();
     LocalStore.loadDisappearDuration(_chatKey).then((v) { if (mounted) setState(() => _disappearSeconds = v); });
     LocalStore.loadPinnedMessage(_chatKey).then((v) { if (mounted) setState(() => _pinnedMessage = v); });
+    LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
+    _initStt();
+  }
+
+  Future<void> _initStt() async {
+    final available = await _speech.initialize(onStatus: (s) {
+      if (s == 'done' || s == 'notListening') {
+        if (mounted) setState(() => _isListening = false);
+      }
+    });
+    if (mounted) setState(() => _sttAvailable = available);
+  }
+
+  Future<void> _pickAndSendImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    // Compress to max 800px, quality 70
+    final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: 800, minHeight: 800, quality: 70);
+    if (compressed.length > 3 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Görsel çok büyük (maks 3 MB)')));
+      return;
+    }
+
+    final b64 = base64Encode(compressed);
+    bool markNsfw = false;
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
+        backgroundColor: KnkColors.panel,
+        title: Text('Görsel Gönder', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(compressed, height: 180, fit: BoxFit.cover),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: KnkColors.danger),
+            const SizedBox(width: 4),
+            Expanded(child: Text('Hassas / +18 içerik olarak işaretle', style: TextStyle(color: KnkColors.text, fontSize: 12))),
+          ]),
+          if (markNsfw)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('⚠️ Karşı tarafa siyah blok olarak gönderilir ve uyarı mesajı iletilir.', style: TextStyle(color: KnkColors.danger, fontSize: 11, height: 1.5)),
+            ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Gönder', style: TextStyle(color: KnkColors.accent))),
+        ],
+      )),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final displayText = markNsfw ? '[Hassas Görsel]' : '[Fotoğraf]';
+    await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+
+    if (markNsfw) {
+      final warnTs = ts + 1;
+      final warnText = '⚠️ Sistem uyarısı: Önceki mesajda hassas/+18 içerik tespit edildi.';
+      await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+    }
+  }
+
+  void _startListening() async {
+    if (!_sttAvailable) return;
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+    setState(() => _isListening = true);
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        var text = result.recognizedWords;
+        final lower = text.toLowerCase().trim();
+        if (lower.endsWith('gönder')) {
+          text = text.substring(0, text.toLowerCase().lastIndexOf('gönder')).trim();
+          _draftCtrl.text = text;
+          _speech.stop();
+          setState(() => _isListening = false);
+          if (text.isNotEmpty) _send();
+        } else {
+          setState(() => _draftCtrl.text = text);
+        }
+      },
+      localeId: 'tr_TR',
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
+    );
   }
 
   Future<void> _initE2E() async {
@@ -148,6 +258,8 @@ class _ChatScreenState extends State<ChatScreen> {
           edited: edited,
           reactions: parsedReactions,
           replyTo: replyTo,
+          imageData: m['imageData'] as String?,
+          isNsfw: m['nsfw'] == true,
         ));
       }
       if (_alive && mounted) {
@@ -391,6 +503,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           style: TextStyle(color: mine ? const Color(0xFF06251A) : KnkColors.textDim, fontSize: 11),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
+                    if (m.imageData != null && !m.deleted)
+                      _buildImageBubble(m, mine)
+                    else
                     Text(displayText,
                       style: TextStyle(
                         color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
@@ -636,6 +751,63 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
+  Widget _buildImageBubble(_DisplayMessage m, bool mine) {
+    final revealed = _revealedImages.contains(m.msgId);
+    if (m.isNsfw && !revealed) {
+      return GestureDetector(
+        onTap: () => setState(() => _revealedImages.add(m.msgId)),
+        child: Container(
+          width: 200, height: 200,
+          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(8)),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Text('⛔', style: TextStyle(fontSize: 32)),
+            const SizedBox(height: 8),
+            Text('Hassas içerik\nGörmek için dokun', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 11)),
+          ]),
+        ),
+      );
+    }
+    try {
+      final bytes = base64Decode(m.imageData!);
+      if (!revealed && !mine) {
+        return GestureDetector(
+          onTap: () => setState(() => _revealedImages.add(m.msgId)),
+          child: Stack(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.2, 0.2, 0.2, 0, 0,
+                  0.2, 0.2, 0.2, 0, 0,
+                  0.2, 0.2, 0.2, 0, 0,
+                  0,   0,   0,   1, 0,
+                ]),
+                child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
+              ),
+            ),
+            Positioned.fill(child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.touch_app, color: Colors.white70, size: 28),
+                const SizedBox(height: 4),
+                Text('Görmek için dokun', style: TextStyle(color: Colors.white70, fontSize: 11)),
+              ]),
+            )),
+          ]),
+        );
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
+      );
+    } catch (_) {
+      return Text('[Görsel yüklenemedi]', style: TextStyle(color: KnkColors.textDim, fontSize: 12));
+    }
+  }
+
   Widget _buildAvatar(String name, String avatar, {double size = 36}) {
     if (avatar.isNotEmpty) {
       try {
@@ -770,14 +942,22 @@ class _ChatScreenState extends State<ChatScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: KnkColors.panel, border: Border(top: BorderSide(color: KnkColors.line))),
             child: Row(children: [
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.photo_outlined, color: KnkColors.textDim),
+                  tooltip: 'Fotoğraf Gönder',
+                  onPressed: _pickAndSendImage,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
               Expanded(
                 child: TextField(
                   controller: _draftCtrl,
                   style: TextStyle(color: KnkColors.text, fontSize: 14),
                   enabled: !_isBlocked,
                   decoration: InputDecoration(
-                    hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_editingMsgId != null ? 'Mesajı düzenle…' : (_contactActive ? 'Mesaj yaz…' : 'Kişi artık aktif değil…')),
-                    hintStyle: TextStyle(color: KnkColors.textDim),
+                    hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_editingMsgId != null ? 'Mesajı düzenle…' : (_isListening ? '🎙 Dinliyor…' : (_contactActive ? 'Mesaj yaz…' : 'Kişi artık aktif değil…'))),
+                    hintStyle: TextStyle(color: _isListening ? KnkColors.accent : KnkColors.textDim),
                     filled: true, fillColor: KnkColors.bg,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: KnkColors.line)),
@@ -786,7 +966,26 @@ class _ChatScreenState extends State<ChatScreen> {
                   onSubmitted: (_) => _send(),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
+              if (_sttEnabled && _sttAvailable)
+                InkWell(
+                  onTap: _startListening,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 38, height: 38, alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _isListening ? KnkColors.danger : KnkColors.panelAlt,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _isListening ? KnkColors.danger : KnkColors.line),
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.stop : Icons.mic,
+                      color: _isListening ? Colors.white : KnkColors.textDim,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 6),
               InkWell(
                 onTap: _isBlocked ? null : _send,
                 borderRadius: BorderRadius.circular(20),
@@ -828,5 +1027,7 @@ class _DisplayMessage {
   final bool edited;
   final Map<String, List<String>> reactions;
   final Map<String, dynamic>? replyTo;
-  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo});
+  final String? imageData;
+  final bool isNsfw;
+  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo, this.imageData, this.isNsfw = false});
 }
