@@ -30,6 +30,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   List<String> _blockList = [];
   bool _loading = true;
   String? _toast;
+  String _myAvatar = '';
+  String _myStatusMsg = '';
   final Map<String, int> _groupPendingCounts = {};
   final Map<String, bool> _online = {};
 
@@ -40,9 +42,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final savedContacts = await LocalStore.loadContacts();
     final savedGroups = await LocalStore.loadGroups();
     final blockList = await LocalStore.loadBlockList();
-    setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
     final statusMsg = await LocalStore.loadStatusMsg();
     final avatar = await LocalStore.loadAvatar();
+    setState(() {
+      _contacts = savedContacts;
+      _groups = savedGroups;
+      _blockList = blockList;
+      _loading = false;
+      _myAvatar = avatar ?? '';
+      _myStatusMsg = statusMsg ?? '';
+    });
     await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
     _sync();
     _groupSync();
@@ -58,7 +67,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
     for (final req in incoming) {
       final fromFipId = req['fromFipId'] as String;
-      // Engellenen kişilerden gelen istekleri filtrele
       if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
       if (!_contacts.any((c) => c.fipId == fromFipId)) {
@@ -75,7 +83,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
       final active = await KnkApi.isActive(c.serverUrl, c.fipId);
       if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _online.remove(c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
       _online[c.fipId] = true;
-      // Profil bilgilerini güncelle (avatar, statusMsg, lastSeen)
       final profile = await KnkApi.getProfile(c.serverUrl, c.fipId);
       if (profile != null) {
         c.avatar = (profile['avatar'] as String?) ?? '';
@@ -175,6 +182,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
       (rootGateKey.currentState as dynamic)?.reload();
       Navigator.popUntil(context, (route) => route.isFirst);
     }
+    // Ayarlardan dönerken avatar/statusMsg güncellenmiş olabilir
+    final avatar = await LocalStore.loadAvatar();
+    final statusMsg = await LocalStore.loadStatusMsg();
+    if (mounted) setState(() { _myAvatar = avatar ?? ''; _myStatusMsg = statusMsg ?? ''; });
   }
 
   Future<void> _handleExit(List<Contact> active) async {
@@ -209,9 +220,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
       onPopInvoked: (didPop) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Kişiler'),
+          title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           leading: Tooltip(
-            message: 'Senin 5 haneli kodun — tıkla, kopyala',
+            message: 'Kodunu kopyala',
             child: GestureDetector(
               onTap: () {
                 Clipboard.setData(ClipboardData(text: widget.identity.code));
@@ -235,18 +246,35 @@ class _ContactsScreenState extends State<ContactsScreen> {
         body: Stack(
           children: [
             ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
               children: [
-                // Pulse AI sabitlenmiş kart
+                // Profil şeridi
+                _ProfileStrip(
+                  name: widget.displayName,
+                  code: widget.identity.code,
+                  avatar: _myAvatar,
+                  statusMsg: _myStatusMsg,
+                  onTap: _openSettings,
+                  onCopyCode: () {
+                    Clipboard.setData(ClipboardData(text: widget.identity.code));
+                    _showToast('Kodun kopyalandı: ${widget.identity.code}');
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Pulse AI
                 _PulseAiCard(onTap: _openPulseAI),
                 const SizedBox(height: 20),
+
                 if (incoming.isNotEmpty) ...[
-                  _SectionTitle('Davetler · ${incoming.length}'),
+                  _SectionTitle('Davetler', count: incoming.length),
                   ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
                   const SizedBox(height: 16),
                 ],
-                _SectionTitle('Kişiler · ${active.length}'),
-                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
+
+                _SectionTitle('Kişiler', count: active.length),
+                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty)
+                  _EmptyState(onAdd: _openAddScreen),
                 ...active.map((c) => _ContactRow(
                   contact: c,
                   isOnline: _online[c.fipId] ?? false,
@@ -255,14 +283,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 )),
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: _SectionTitle('Gruplar · ${_groups.length}')),
-                    _GroupActionButton(label: '+ Oluştur', onTap: _openCreateGroup),
-                    const SizedBox(width: 8),
-                    _GroupActionButton(label: '+ Katıl', onTap: _openJoinGroup),
-                  ],
-                ),
+
+                _SectionTitle('Gruplar', count: _groups.length),
                 if (_groups.isEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
@@ -272,13 +294,63 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
               ],
             ),
+
+            // Alt bar: iki düğme
             Positioned(
               left: 16, right: 16, bottom: 20,
-              child: ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: _openAddScreen, child: const Text('+ Kişi ekle')),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: knkPrimaryButtonStyle(),
+                      onPressed: _openAddScreen,
+                      icon: const Icon(Icons.person_add, size: 16),
+                      label: const Text('Kişi Ekle'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: KnkColors.accent,
+                        side: BorderSide(color: KnkColors.accent.withOpacity(0.6)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      onPressed: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: KnkColors.panel,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                        builder: (_) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: Icon(Icons.group_add, color: KnkColors.accent),
+                                title: Text('Yeni Grup Oluştur', style: TextStyle(color: KnkColors.text)),
+                                onTap: () { Navigator.pop(context); _openCreateGroup(); },
+                              ),
+                              ListTile(
+                                leading: Icon(Icons.login, color: KnkColors.accent),
+                                title: Text('Gruba Katıl', style: TextStyle(color: KnkColors.text)),
+                                onTap: () { Navigator.pop(context); _openJoinGroup(); },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.group, size: 16),
+                      label: const Text('Grup'),
+                    ),
+                  ),
+                ],
+              ),
             ),
+
             if (_toast != null)
               Positioned(
-                left: 16, right: 16, bottom: 84,
+                left: 16, right: 16, bottom: 86,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
@@ -291,6 +363,76 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
   }
 }
+
+// ─── Profil Şeridi ───────────────────────────────────────────────────────────
+
+class _ProfileStrip extends StatelessWidget {
+  final String name, code, avatar, statusMsg;
+  final VoidCallback onTap, onCopyCode;
+  const _ProfileStrip({required this.name, required this.code, required this.avatar, required this.statusMsg, required this.onTap, required this.onCopyCode});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: KnkColors.panel,
+        border: Border.all(color: KnkColors.line),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: _AvatarWidget(name: name, avatar: avatar, size: 52, on: true),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+                if (statusMsg.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(statusMsg, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                const SizedBox(height: 6),
+                GestureDetector(
+                  onTap: onCopyCode,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: KnkColors.accent.withOpacity(0.08),
+                      border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('KODUM  ', style: TextStyle(color: KnkColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                        Text(code, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.copy, size: 11, color: KnkColors.accent.withOpacity(0.6)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.settings_outlined, color: KnkColors.textDim, size: 20),
+            onPressed: onTap,
+            tooltip: 'Ayarlar',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Yardımcı Widget'lar ────────────────────────────────────────────────────
 
 class _PulseAiCard extends StatelessWidget {
   final VoidCallback onTap;
@@ -330,21 +472,6 @@ class _PulseAiCard extends StatelessWidget {
   );
 }
 
-class _GroupActionButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _GroupActionButton({required this.label, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.5)), borderRadius: BorderRadius.circular(6)),
-      child: Text(label, style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
-    ),
-  );
-}
-
 class _GroupRow extends StatelessWidget {
   final Group group;
   final int pendingCount;
@@ -359,13 +486,15 @@ class _GroupRow extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
       child: Row(children: [
-        Container(width: 38, height: 38, alignment: Alignment.center,
-            decoration: BoxDecoration(color: KnkColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-            child: Icon(Icons.group, color: KnkColors.accent, size: 20)),
+        Container(width: 46, height: 46, alignment: Alignment.center,
+            decoration: BoxDecoration(color: KnkColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.group, color: KnkColors.accent, size: 22)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-          Text(group.isOwner ? 'Sahip · ${group.groupCode}' : 'Üye · ${group.groupCode}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+          const SizedBox(height: 2),
+          Text(group.isOwner ? 'Sahip · Kod: ${group.groupCode}' : 'Üye · Kod: ${group.groupCode}',
+              style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
         ])),
         if (pendingCount > 0)
           Container(
@@ -382,11 +511,26 @@ class _GroupRow extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   final String text;
-  const _SectionTitle(this.text);
+  final int? count;
+  const _SectionTitle(this.text, {this.count});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8, top: 4),
-    child: Text(text.toUpperCase(), style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+    padding: const EdgeInsets.only(bottom: 10, top: 4),
+    child: Row(
+      children: [
+        Container(width: 3, height: 14, decoration: BoxDecoration(color: KnkColors.accent, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(text.toUpperCase(), style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+        if (count != null) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: KnkColors.line, borderRadius: BorderRadius.circular(10)),
+            child: Text('$count', style: TextStyle(color: KnkColors.textDim, fontSize: 10, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ],
+    ),
   );
 }
 
@@ -419,19 +563,21 @@ class _RequestRow extends StatelessWidget {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
-      _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
+      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
+      const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        Text('kod ${contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text('Kod: ${contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
       ])),
       Column(children: [
         SizedBox(height: 30, child: ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: KnkColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          style: ElevatedButton.styleFrom(backgroundColor: KnkColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           onPressed: onAccept, child: const Text('Kabul et'),
         )),
         const SizedBox(height: 4),
         SizedBox(height: 26, child: OutlinedButton(
-          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           onPressed: onDecline, child: const Text('Sil'),
         )),
       ]),
@@ -458,10 +604,7 @@ class _ContactRow extends StatelessWidget {
               ListTile(
                 leading: Icon(Icons.block, color: KnkColors.danger),
                 title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: KnkColors.danger)),
-                onTap: () {
-                  Navigator.pop(context);
-                  onBlock();
-                },
+                onTap: () { Navigator.pop(context); onBlock(); },
               ),
               ListTile(
                 leading: Icon(Icons.cancel_outlined, color: KnkColors.textDim),
@@ -478,19 +621,19 @@ class _ContactRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
           Stack(children: [
-            _Avatar(name: contact.name, on: true, avatar: contact.avatar),
+            _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: true),
             Positioned(
               right: 0, bottom: 0,
               child: Container(
-                width: 11, height: 11,
+                width: 12, height: 12,
                 decoration: BoxDecoration(
-                  color: isOnline ? Colors.green : KnkColors.textDim,
+                  color: isOnline ? const Color(0xFF4CAF50) : KnkColors.textDim,
                   shape: BoxShape.circle,
-                  border: Border.all(color: KnkColors.panel, width: 1.5),
+                  border: Border.all(color: KnkColors.bg, width: 2),
                 ),
               ),
             ),
@@ -498,13 +641,14 @@ class _ContactRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+            const SizedBox(height: 2),
             Text(
-              isOnline ? 'Çevrimiçi' : (contact.statusMsg.isNotEmpty ? contact.statusMsg : 'çevrimdışı'),
-              style: TextStyle(color: isOnline ? Colors.green : KnkColors.textDim, fontSize: 11),
+              isOnline ? 'Çevrimiçi' : (contact.statusMsg.isNotEmpty ? contact.statusMsg : 'Çevrimdışı'),
+              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : KnkColors.textDim, fontSize: 11),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ])),
-          Icon(Icons.chevron_right, color: KnkColors.textDim),
+          Icon(Icons.chevron_right, color: KnkColors.textDim, size: 18),
         ]),
       ),
     ),
@@ -517,30 +661,39 @@ class _PendingOutRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
-      _Avatar(name: contact.name, on: false, avatar: contact.avatar), const SizedBox(width: 12),
+      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
+      const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        Text('davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        const SizedBox(height: 2),
+        Row(children: [
+          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+          const SizedBox(width: 6),
+          Text('Davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        ]),
       ])),
     ]),
   );
 }
 
-class _Avatar extends StatelessWidget {
+// ─── Avatar Widget ──────────────────────────────────────────────────────────
+
+class _AvatarWidget extends StatelessWidget {
   final String name;
   final bool on;
   final String avatar;
-  const _Avatar({required this.name, required this.on, this.avatar = ''});
+  final double size;
+  const _AvatarWidget({required this.name, required this.on, this.avatar = '', this.size = 46});
   @override
   Widget build(BuildContext context) {
     if (avatar.isNotEmpty) {
       try {
         final bytes = base64Decode(avatar);
         return Container(
-          width: 38, height: 38,
+          width: size, height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5), width: 2) : null,
@@ -551,9 +704,13 @@ class _Avatar extends StatelessWidget {
     }
     final initials = name.trim().isEmpty ? '?' : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1).toUpperCase();
     return Container(
-      width: 38, height: 38, alignment: Alignment.center,
-      decoration: BoxDecoration(color: KnkColors.line, borderRadius: BorderRadius.circular(8), border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5)) : null),
-      child: Text(initials, style: TextStyle(color: on ? KnkColors.accent : KnkColors.textDim, fontWeight: FontWeight.w700, fontSize: 13)),
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: KnkColors.line,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5)) : null,
+      ),
+      child: Text(initials, style: TextStyle(color: on ? KnkColors.accent : KnkColors.textDim, fontWeight: FontWeight.w700, fontSize: size * 0.32)),
     );
   }
 }
