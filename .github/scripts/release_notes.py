@@ -99,21 +99,22 @@ INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5'}
 
 def make_body(tag):
     notes = CHANGELOGS.get(tag, f"### ✨ {tag} Yenilikleri\n- Genel iyileştirmeler ve hata düzeltmeleri")
-    huawei_row = "| 📱 Huawei | `PhotonChat-Android.apk` | ✅ Hazır (GMS gerekmez) |\n" if tag in HUAWEI_VERSIONS else ""
-    installer_row = "| 🪟 Windows Kurulum | `PhotonChat-Windows-Setup.exe` | ✅ Tek tıkla kur |\n" if tag in INSTALLER_VERSIONS else ""
+    base = f"https://github.com/omer-faruk-g/photon-chat/releases/download/{tag}"
+    huawei_row = f"| 📱 Huawei | [PhotonChat-Android.apk]({base}/PhotonChat-Android.apk) | ✅ İndir (GMS gerekmez) |\n" if tag in HUAWEI_VERSIONS else ""
+    installer_row = f"| 🪟 Windows Kurulum | [PhotonChat-Windows-Setup.exe]({base}/PhotonChat-Windows-Setup.exe) | ✅ İndir |\n" if tag in INSTALLER_VERSIONS else ""
     return (
         "## 🔒 Photon Chat\n\n"
         "Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.\n\n"
         + notes + "\n\n"
         "---\n\n"
         "### 📥 İndir\n\n"
-        "| Platform | Dosya | Durum |\n"
-        "|----------|-------|-------|\n"
-        "| 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |\n"
+        "| Platform | İndir | |\n"
+        "|----------|-------|---|\n"
+        f"| 🤖 Android | [PhotonChat-Android.apk]({base}/PhotonChat-Android.apk) | ✅ İndir |\n"
         + huawei_row +
         installer_row +
-        "| 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |\n"
-        "| 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |\n"
+        f"| 🪟 Windows | [PhotonChat-Windows.zip]({base}/PhotonChat-Windows.zip) | ✅ İndir |\n"
+        f"| 🐧 Linux | [PhotonChat-Linux.tar.gz]({base}/PhotonChat-Linux.tar.gz) | ✅ İndir |\n"
         "| 🍎 iOS | — | 🔜 Yakında |\n\n"
         "---\n\n"
         "### 🚀 Kurulum\n\n"
