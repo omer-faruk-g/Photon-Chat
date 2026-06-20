@@ -239,6 +239,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: PhotonChat-Android
@@ -251,7 +252,6 @@ jobs:
         with:
           name: PhotonChat-Linux
           path: ./dist
-      - uses: actions/checkout@v4
       - name: Generate release notes
         id: notes
         env:
