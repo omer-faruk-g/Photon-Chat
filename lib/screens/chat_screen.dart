@@ -630,6 +630,24 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         if (!m.deleted)
           ListTile(
+            leading: Icon(Icons.forward, color: KnkColors.accent),
+            title: Text('İlet', style: TextStyle(color: KnkColors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              _forwardMessage(m);
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.copy, color: KnkColors.accent),
+            title: Text('Kopyala', style: TextStyle(color: KnkColors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              Clipboard.setData(ClipboardData(text: m.text));
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
             leading: Icon(Icons.translate, color: KnkColors.accent),
             title: Text('Çevir', style: TextStyle(color: KnkColors.text)),
             onTap: () {
@@ -674,6 +692,50 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ])),
     );
+  }
+
+  void _forwardMessage(_DisplayMessage m) {
+    LocalStore.loadContacts().then((list) {
+      final active = list.where((c) => c.status == 'on').toList();
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: KnkColors.panel,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (_) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Kime ilet?', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+            Divider(color: KnkColors.line, height: 1),
+            if (active.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Aktif kişin yok.', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+              ),
+            ...active.map((c) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: KnkColors.accent.withOpacity(0.15),
+                child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700)),
+              ),
+              title: Text(c.name, style: TextStyle(color: KnkColors.text, fontSize: 14)),
+              subtitle: Text('Kod: ${c.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              onTap: () async {
+                Navigator.pop(context);
+                final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
+                final ts = DateTime.now().millisecondsSinceEpoch;
+                final fwdText = '↗️ İletildi:\n${m.text}';
+                await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, senderName: _myDisplayName);
+                await KnkApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} kişisine iletildi'), duration: const Duration(seconds: 2)));
+              },
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> _translateMessage(String msgId, String text) async {
