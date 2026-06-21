@@ -14,46 +14,63 @@ class JoinGroupScreen extends StatefulWidget {
 }
 
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
-  final _codeCtrl   = TextEditingController();
+  final _inputCtrl  = TextEditingController();
   final _serverCtrl = TextEditingController();
   bool _loading = false;
+  bool _showServer = false;
   String? _error;
 
   @override
   void dispose() {
-    _codeCtrl.dispose();
+    _inputCtrl.dispose();
     _serverCtrl.dispose();
     super.dispose();
   }
 
-  /// Davet linkini otomatik parse eder ve alanları doldurur.
-  void _onCodeChanged(String val) {
-    setState(() => _error = null);
+  String _extractCode(String val) {
     var s = val.trim();
     if (s.startsWith('photon://')) s = s.substring(9);
     final at = s.indexOf('@');
-    if (at > 0) {
-      final code = s.substring(0, at);
-      final server = s.substring(at + 1);
-      if (code.length == 7 && server.startsWith('http')) {
-        _codeCtrl.text = code;
-        _codeCtrl.selection = TextSelection.collapsed(offset: code.length);
-        _serverCtrl.text = server;
-        setState(() {});
+    if (at > 0) return s.substring(0, at);
+    return s;
+  }
+
+  String _extractServer(String val) {
+    var s = val.trim();
+    if (s.startsWith('photon://')) s = s.substring(9);
+    final at = s.indexOf('@');
+    if (at > 0) return s.substring(at + 1);
+    return '';
+  }
+
+  void _onInputChanged(String val) {
+    setState(() => _error = null);
+    final server = _extractServer(val);
+    if (server.startsWith('http')) {
+      _serverCtrl.text = server;
+      setState(() => _showServer = false);
+    } else {
+      final code = _extractCode(val);
+      if (code.length == 7) {
+        setState(() => _showServer = true);
+      } else {
+        setState(() => _showServer = false);
       }
     }
   }
 
   Future<void> _join() async {
-    final code = _codeCtrl.text.trim();
-    final server = _serverCtrl.text.trim();
+    final code   = _extractCode(_inputCtrl.text);
+    final server = _extractServer(_inputCtrl.text).isNotEmpty
+        ? _extractServer(_inputCtrl.text)
+        : _serverCtrl.text.trim();
 
     if (code.length != 7) {
       setState(() => _error = 'Grup kodu 7 haneli olmalıdır');
       return;
     }
     if (server.isEmpty || !server.startsWith('http')) {
-      setState(() => _error = 'Sunucu adresi eksik veya geçersiz');
+      setState(() => _error = 'Grup sahibinin sunucu adresi eksik');
       return;
     }
 
@@ -61,15 +78,15 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     try {
       final data = await KnkApi.getGroupByCode(server, code);
       if (data == null) {
-        setState(() { _error = 'Grup bulunamadı. Kodu ve sunucuyu kontrol et.'; _loading = false; });
+        setState(() { _error = 'Grup bulunamadı. Davet linkini kontrol et.'; _loading = false; });
         return;
       }
       final groupId   = data['groupId'] as String;
       final groupName = data['name']    as String? ?? 'Grup';
       final groupDesc = data['description'] as String? ?? '';
       await KnkApi.sendGroupJoinRequest(server, groupId,
-        fromFipId:   widget.identity.fipId,
-        fromName:    widget.displayName,
+        fromFipId:     widget.identity.fipId,
+        fromName:      widget.displayName,
         fromServerUrl: widget.myServerUrl,
       );
       final group = Group(
@@ -84,10 +101,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     }
   }
 
-  bool get _canJoin =>
-      _codeCtrl.text.trim().length == 7 &&
-      _serverCtrl.text.trim().startsWith('http') &&
-      !_loading;
+  bool get _canJoin {
+    final code   = _extractCode(_inputCtrl.text);
+    final server = _extractServer(_inputCtrl.text).isNotEmpty
+        ? _extractServer(_inputCtrl.text)
+        : _serverCtrl.text.trim();
+    return code.length == 7 && server.startsWith('http') && !_loading;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +119,6 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Bilgi kutusu
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -107,55 +126,52 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: KnkColors.line),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('GRUBA KATILMA', style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
-                const SizedBox(height: 10),
-                Text('Davet linkini yapıştır — otomatik doldurulur.\nYa da kodu ve sunucu adresini elle gir.',
-                  style: TextStyle(color: KnkColors.text, fontSize: 13, height: 1.6)),
-              ]),
+              child: Text(
+                'Grup sahibinin paylaştığı davet linkini yapıştır — otomatik tanınır.\n\nDavet linki yoksa 7 haneli grup kodunu yaz.',
+                style: TextStyle(color: KnkColors.text, fontSize: 13, height: 1.6),
+              ),
             ),
             const SizedBox(height: 20),
 
-            // Kod alanı (davet linki yapıştırılabilir)
-            Text('GRUP KODU / DAVET LİNKİ',
+            Text('DAVET LİNKİ VEYA GRUP KODU',
               style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.2)),
             const SizedBox(height: 6),
             TextField(
-              controller: _codeCtrl,
+              controller: _inputCtrl,
               keyboardType: TextInputType.text,
-              maxLength: 200,
-              style: TextStyle(color: KnkColors.accent, fontSize: 15, fontFamily: 'monospace', letterSpacing: 4),
-              textAlign: TextAlign.center,
+              maxLength: 300,
+              style: TextStyle(color: KnkColors.accent, fontSize: 14, fontFamily: 'monospace'),
               decoration: InputDecoration(
-                hintText: '1234567  veya  photon://1234567@https://…',
-                hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 0),
+                hintText: 'photon://1234567@https://… veya sadece 1234567',
+                hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 11),
                 counterText: '',
                 filled: true, fillColor: KnkColors.bg,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
                 focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.accent)),
               ),
               autocorrect: false,
-              onChanged: _onCodeChanged,
+              onChanged: _onInputChanged,
             ),
-            const SizedBox(height: 16),
 
-            // Sunucu alanı
-            Text('GRUP SAHİBİNİN SUNUCU ADRESİ',
-              style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.2)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _serverCtrl,
-              style: TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
-              decoration: InputDecoration(
-                hintText: 'https://sunucu.onrender.com',
-                hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
-                filled: true, fillColor: KnkColors.bg,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.accent)),
+            if (_showServer) ...[
+              const SizedBox(height: 16),
+              Text('GRUP SAHİBİNİN SUNUCU ADRESİ',
+                style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.2)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _serverCtrl,
+                style: TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
+                decoration: InputDecoration(
+                  hintText: 'https://sunucu.onrender.com',
+                  hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
+                  filled: true, fillColor: KnkColors.bg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.accent)),
+                ),
+                autocorrect: false,
+                onChanged: (_) => setState(() => _error = null),
               ),
-              autocorrect: false,
-              onChanged: (_) => setState(() => _error = null),
-            ),
+            ],
 
             if (_error != null) ...[
               const SizedBox(height: 12),
