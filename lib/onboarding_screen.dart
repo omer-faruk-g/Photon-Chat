@@ -126,11 +126,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                    Text('SENİN KODUN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                     const SizedBox(height: 8),
                     Text(
-                      '${_created!.code}@${widget.myServerUrl}',
-                      style: TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace'),
+                      _created!.code,
+                      style: TextStyle(color: KnkColors.accent, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6, fontFamily: 'monospace'),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Bu kodu arkadaşlarınla paylaş',
+                      style: TextStyle(color: KnkColors.textDim, fontSize: 11),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -143,8 +148,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.copy, size: 15),
-                        label: const Text('Adresi Kopyala', style: TextStyle(fontSize: 13)),
-                        onPressed: () => Clipboard.setData(ClipboardData(text: '${_created!.code}@${widget.myServerUrl}')),
+                        label: const Text('Kodu Kopyala', style: TextStyle(fontSize: 13)),
+                        onPressed: () => Clipboard.setData(ClipboardData(text: _created!.code)),
                       ),
                     ),
                   ]),

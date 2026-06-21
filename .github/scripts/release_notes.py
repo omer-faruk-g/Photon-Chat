@@ -99,10 +99,16 @@ CHANGELOGS = {
         "- ✏️ Mesaj düzenleme — uzun bas → Düzenle\n"
         "- 🗑️ Herkesten sil — uzun bas → Sil"
     ),
+    'v3.0.1': (
+        "### ✨ v3.0.1 Yenilikleri\n"
+        "- 🔧 Başlangıç rehberi güncellendi — 5 haneli kod sistemi doğru anlatılıyor\n"
+        "- 💾 Sunucu adresi artık kaydediliyor — uygulama her açılışında tekrar sorulmaz\n"
+        "- 🎯 Kimlik oluşturulunca kod büyük ve belirgin gösteriliyor"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1'}
 
 
 def make_body(tag):

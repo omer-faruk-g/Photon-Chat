@@ -20,25 +20,25 @@ class _GuideScreenState extends State<GuideScreen> {
     ),
     _GuidePage(
       icon: '🌐',
-      title: 'Kendi Sunucunu Kur',
-      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nHer kullanıcı render.com üzerinde ücretsiz kendi sunucusunu çalıştırır. Mesajların sadece senin sunucuna gider — başkasına değil.\n\nİlk adımda bu sunucunun adresini gireceksin.',
+      title: 'Kendi Sunucunu Kur (Bir Kez)',
+      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nrender.com üzerinde ücretsiz kendi sunucunu çalıştır. Bu kurulumu yalnızca bir kez yapman yeterli — sonraki açılışlarda tekrar sorulmaz.',
       tip: 'render.com → New Web Service → ücretsiz plan',
     ),
     _GuidePage(
       icon: '🔢',
-      title: 'Senin Adresin: KOD@SUNUCU',
-      body: 'Kimliğin oluşturulunca sana 5 haneli bir kod verilir.\n\nArkadaşlarına şu formatta adresini ver:\n\n  12345@https://senin-sunucu.onrender.com\n\nBu adres senin tek kimliğindir.',
-      highlight: 'KOD @ SUNUCU URL',
+      title: 'Senin Kodun',
+      body: 'Kimliğin oluşturulunca sana 5 haneli bir eşleşme kodu verilir.\n\nBu kod senin tek adresindir. Arkadaşlarına sadece bu kodu ver — başka bir şey gerekmez.',
+      highlight: '1 2 3 4 5',
     ),
     _GuidePage(
       icon: '🤝',
       title: 'Arkadaş Ekle',
-      body: 'Arkadaşının tam adresini gir:\n\n  67890@https://onun-sunucu.onrender.com\n\nİstek onun sunucusuna gider. Kabul ederse ikiniz bağlanırsınız.\n\nMesajların yalnızca senin sunucuna kaydedilir — arkadaşının sunucusuna yük bindirmezsin.',
+      body: 'Arkadaşının 5 haneli kodunu gir — ya da QR kodunu tara.\n\nİstek bridge üzerinden iletilir. Kabul ederse ikiniz bağlanırsınız.\n\nSunucu URL\'si paylaşmanıza gerek yok.',
     ),
     _GuidePage(
       icon: '👥',
       title: 'Grup Sohbetleri',
-      body: 'Gruplar merkeziyetsizdir — her üyenin sunucusu grubun bir parçasını taşır.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Grubun adresi:  KOD@SUNUCU_URL\n• Bu adresi paylaş → üyeler katılmak için gönderir\n• Sen kabul et → mesajlaşma başlar\n\nHer üyenin sunucusu en fazla 10 kişiden mesaj depolar.',
+      body: 'Gruplar merkeziyetsizdir — her üyenin sunucusu grubun bir parçasını taşır.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Bu kodu paylaş → üyeler katılmak için gönderir\n• Sen kabul et → mesajlaşma başlar',
     ),
     _GuidePage(
       icon: '🔒',

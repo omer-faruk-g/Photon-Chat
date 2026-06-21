@@ -88,7 +88,10 @@ class RootGateState extends State<RootGate> {
     }
 
     if (_myServerUrl == null) {
-      return ServerSetupScreen(onDone: (url) => setState(() => _myServerUrl = url));
+      return ServerSetupScreen(onDone: (url) async {
+        await LocalStore.saveMyServerUrl(url);
+        setState(() => _myServerUrl = url);
+      });
     }
 
     if (_identity == null) {
