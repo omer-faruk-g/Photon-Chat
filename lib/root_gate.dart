@@ -26,12 +26,17 @@ class RootGateState extends State<RootGate> {
   FipBlock? _identity;
   String _displayName = '';
   Timer? _notifTimer;
+  Timer? _keepAliveTimer;
 
   @override
   void initState() { super.initState(); _load(); }
 
   @override
-  void dispose() { _notifTimer?.cancel(); super.dispose(); }
+  void dispose() {
+    _notifTimer?.cancel();
+    _keepAliveTimer?.cancel();
+    super.dispose();
+  }
 
   void _startNotifPolling() {
     if (!Platform.isAndroid) return;
@@ -51,6 +56,16 @@ class RootGateState extends State<RootGate> {
     });
   }
 
+  void _startKeepAlive(String serverUrl) {
+    _keepAliveTimer?.cancel();
+    // İlk ping hemen
+    KnkApi.pingServer(serverUrl);
+    // Sonra her 10 dakikada bir ping — Render sunucusu uyumasın
+    _keepAliveTimer = Timer.periodic(const Duration(minutes: 10), (_) {
+      KnkApi.pingServer(serverUrl);
+    });
+  }
+
   Future<void> _load() async {
     final serverUrl = await LocalStore.loadMyServerUrl();
     final identity = await LocalStore.loadIdentity();
@@ -63,7 +78,10 @@ class RootGateState extends State<RootGate> {
       _guideSeen = guideSeen;
       _loading = false;
     });
-    if (serverUrl != null && identity != null) _startNotifPolling();
+    if (serverUrl != null && identity != null) {
+      _startNotifPolling();
+      _startKeepAlive(serverUrl);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) UpdateChecker.check(context);
     });
@@ -90,6 +108,7 @@ class RootGateState extends State<RootGate> {
     if (_myServerUrl == null) {
       return ServerSetupScreen(onDone: (url) async {
         await LocalStore.saveMyServerUrl(url);
+        _startKeepAlive(url);
         setState(() => _myServerUrl = url);
       });
     }
@@ -104,3 +123,4 @@ class RootGateState extends State<RootGate> {
     return ContactsScreen(identity: _identity!, displayName: _displayName, myServerUrl: _myServerUrl!);
   }
 }
+

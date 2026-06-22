@@ -9,6 +9,14 @@ class KnkApi {
     return Uri.parse('$base$path');
   }
 
+  // Render sunucusunu uyanık tutar (ücretsiz planda uyuma önleme)
+  static Future<void> pingServer(String serverUrl) async {
+    try {
+      await http.get(_u(serverUrl, '/lookup/00000'))
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {}
+  }
+
   // --- Bridge: global kod rehberi ---
 
   static Future<void> registerOnBridge(String code, String myServerUrl) async {
