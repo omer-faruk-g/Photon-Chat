@@ -60,8 +60,11 @@ jobs:
               c = re.sub(r'compileSdk\s*=?\s*flutter\.compileSdkVersion', 'compileSdk = 36', c)
               c = re.sub(r'targetSdk\s*=?\s*flutter\.targetSdkVersion', 'targetSdk = 36', c)
               # coreLibraryDesugaring — Groovy veya KTS syntax
-              if 'coreLibraryDesugaringEnabled' not in c:
-                  c = re.sub(r'([ \t]*)(sourceCompatibility\s*[=:])', r'\1coreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
+              if 'coreLibraryDesugaringEnabled' not in c and 'isCoreLibraryDesugaringEnabled' not in c:
+                  if bf.endswith('.kts'):
+                      c = re.sub(r'([ \t]*)(sourceCompatibility\s*[=:])', r'\1isCoreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
+                  else:
+                      c = re.sub(r'([ \t]*)(sourceCompatibility\s*[=:])', r'\1coreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
               open(bf, 'w').write(c)
               # desugar dependency ekle
               with open(bf, 'a') as f:
