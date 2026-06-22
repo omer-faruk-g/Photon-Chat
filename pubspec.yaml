@@ -32,6 +32,10 @@ dependencies:
   record: ^5.0.0
   permission_handler: ^11.0.0
 
+dependency_overrides:
+  record_linux: ^2.1.0
+  record_platform_interface: ^1.6.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
