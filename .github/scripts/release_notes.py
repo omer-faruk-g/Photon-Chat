@@ -105,10 +105,16 @@ CHANGELOGS = {
         "- 💾 Sunucu adresi artık kaydediliyor — uygulama her açılışında tekrar sorulmaz\n"
         "- 🎯 Kimlik oluşturulunca kod büyük ve belirgin gösteriliyor"
     ),
+    'v3.0.2': (
+        "### ✨ v3.0.2 Yenilikleri\n"
+        "- 🔄 Arka plan keep-alive — uygulama kapalıyken de sunucu uyanık kalır (Android)\n"
+        "- ⏰ Her 15 dakikada bir otomatik ping — Render ücretsiz sunucu uyumaz\n"
+        "- 🌐 Uygulama açıkken her 10 dakikada ping (tüm platformlar)"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2'}
 
 
 def make_body(tag):
