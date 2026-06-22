@@ -435,42 +435,82 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showPollDialog() {
     final questionCtrl = TextEditingController();
-    final opt1 = TextEditingController(text: 'Evet');
-    final opt2 = TextEditingController(text: 'Hayır');
-    final opt3 = TextEditingController();
-    final opt4 = TextEditingController();
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: KnkColors.panel,
-      title: Text('Anket Oluştur', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: questionCtrl, autofocus: true, style: TextStyle(color: KnkColors.text), decoration: InputDecoration(hintText: 'Soru…', hintStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)))),
-        const SizedBox(height: 10),
-        TextField(controller: opt1, style: TextStyle(color: KnkColors.text), decoration: InputDecoration(labelText: 'Seçenek 1', labelStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)))),
-        const SizedBox(height: 8),
-        TextField(controller: opt2, style: TextStyle(color: KnkColors.text), decoration: InputDecoration(labelText: 'Seçenek 2', labelStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)))),
-        const SizedBox(height: 8),
-        TextField(controller: opt3, style: TextStyle(color: KnkColors.text), decoration: InputDecoration(labelText: 'Seçenek 3 (opsiyonel)', labelStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)))),
-        const SizedBox(height: 8),
-        TextField(controller: opt4, style: TextStyle(color: KnkColors.text), decoration: InputDecoration(labelText: 'Seçenek 4 (opsiyonel)', labelStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)))),
-      ])),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
-        ElevatedButton(
-          style: knkPrimaryButtonStyle(),
-          onPressed: () async {
-            Navigator.pop(ctx);
-            final opts = [opt1.text.trim(), opt2.text.trim(), if (opt3.text.trim().isNotEmpty) opt3.text.trim(), if (opt4.text.trim().isNotEmpty) opt4.text.trim()].where((o) => o.isNotEmpty).toList();
-            if (questionCtrl.text.trim().isEmpty || opts.length < 2) return;
-            final memberUrls = widget.group.members.map((m) => m.serverUrl).toList()..add(widget.myServerUrl);
-            await KnkApi.sendGroupPoll(memberUrls, widget.group.groupId,
-              from: widget.identity.fipId, fromName: widget.displayName,
-              question: questionCtrl.text.trim(), options: opts, ts: DateTime.now().millisecondsSinceEpoch);
-            _showToast('Anket gönderildi.');
-          },
-          child: const Text('Oluştur'),
-        ),
-      ],
-    ));
+    final optCtrls = [
+      TextEditingController(text: 'Evet'),
+      TextEditingController(text: 'Hayır'),
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        return AlertDialog(
+          backgroundColor: KnkColors.panel,
+          title: Text('Anket Oluştur', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: questionCtrl,
+                autofocus: true,
+                style: TextStyle(color: KnkColors.text),
+                decoration: InputDecoration(
+                  hintText: 'Soru…',
+                  hintStyle: TextStyle(color: KnkColors.textDim),
+                  filled: true, fillColor: KnkColors.bg,
+                  border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...List.generate(optCtrls.length, (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: optCtrls[i],
+                      style: TextStyle(color: KnkColors.text),
+                      decoration: InputDecoration(
+                        labelText: 'Seçenek ${i + 1}${i < 2 ? "" : " (opsiyonel)"}',
+                        labelStyle: TextStyle(color: KnkColors.textDim),
+                        filled: true, fillColor: KnkColors.bg,
+                        border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)),
+                      ),
+                    ),
+                  ),
+                  if (i >= 2) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => ss(() { optCtrls[i].dispose(); optCtrls.removeAt(i); }),
+                      child: Icon(Icons.remove_circle_outline, color: KnkColors.danger, size: 22),
+                    ),
+                  ],
+                ]),
+              )),
+              TextButton.icon(
+                onPressed: () => ss(() => optCtrls.add(TextEditingController())),
+                icon: Icon(Icons.add, color: KnkColors.accent, size: 18),
+                label: Text('Seçenek Ekle', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
+            ElevatedButton(
+              style: knkPrimaryButtonStyle(),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final opts = optCtrls.map((c) => c.text.trim()).where((o) => o.isNotEmpty).toList();
+                if (questionCtrl.text.trim().isEmpty || opts.length < 2) return;
+                final memberUrls = widget.group.members.map((m) => m.serverUrl).toList()..add(widget.myServerUrl);
+                await KnkApi.sendGroupPoll(memberUrls, widget.group.groupId,
+                  from: widget.identity.fipId, fromName: widget.displayName,
+                  question: questionCtrl.text.trim(), options: opts, ts: DateTime.now().millisecondsSinceEpoch);
+                _showToast('Anket gönderildi.');
+              },
+              child: const Text('Oluştur'),
+            ),
+          ],
+        );
+      }),
+    );
   }
 
   Widget _buildPollMessage(Map<String, dynamic> m) {
