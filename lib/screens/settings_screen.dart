@@ -8,6 +8,7 @@ import '../local_store.dart';
 import '../onboarding_screen.dart';
 import '../theme.dart';
 import '../chat_wallpaper.dart';
+import '../nsfw_scanner.dart';
 import 'wallpaper_screen.dart';
 import '../i18n.dart';
 
@@ -58,6 +59,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 40, maxWidth: 128, maxHeight: 128);
     if (file == null) return;
     final bytes = await file.readAsBytes();
+
+    // Avatar NSFW taraması
+    final isNsfw = await NsfwScanner.hasImageViolation(bytes);
+    if (isNsfw) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('⛔ Bu görsel uygunsuz içerik taşıyor — avatar olarak ayarlanamaz.'),
+            backgroundColor: KnkColors.danger,
+          ),
+        );
+      }
+      return;
+    }
+
     if (bytes.length > 200 * 1024) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fotoğraf çok büyük (max 200KB)')));
       return;

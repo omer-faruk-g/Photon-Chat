@@ -16,6 +16,8 @@ import '../message_guard.dart';
 import '../chat_wallpaper.dart';
 import '../offline_queue.dart';
 import '../translate_service.dart';
+import '../nsfw_scanner.dart';
+import 'gif_creator_screen.dart';
 import 'package:cryptography/cryptography.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -113,8 +115,11 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
+    // Otomatik NSFW taraması
+    final autoNsfw = await NsfwScanner.hasImageViolation(compressed);
+
     final b64 = base64Encode(compressed);
-    bool markNsfw = false;
+    bool markNsfw = autoNsfw;
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -156,6 +161,20 @@ class _ChatScreenState extends State<ChatScreen> {
       final warnText = '⚠️ Sistem uyarısı: Önceki mesajda hassas/+18 içerik tespit edildi.';
       await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
     }
+  }
+
+  Future<void> _openGifCreator() async {
+    final result = await Navigator.push<GifResult>(context, MaterialPageRoute(builder: (_) => const GifCreatorScreen()));
+    if (result == null || !mounted) return;
+    final gifBytes = result.gifBytes;
+    final caption = result.caption;
+
+    final b64 = base64Encode(gifBytes);
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final displayText = caption.isNotEmpty ? caption : '[GIF]';
+
+    await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
   }
 
   void _startListening() async {
@@ -1009,6 +1028,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: Icon(Icons.photo_outlined, color: KnkColors.textDim),
                   tooltip: 'Fotoğraf Gönder',
                   onPressed: _pickAndSendImage,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.gif_box_outlined, color: KnkColors.textDim),
+                  tooltip: 'GIF Oluştur',
+                  onPressed: _openGifCreator,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),

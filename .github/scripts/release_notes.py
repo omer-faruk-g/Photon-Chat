@@ -111,10 +111,17 @@ CHANGELOGS = {
         "- ⏰ Her 15 dakikada bir otomatik ping — Render ücretsiz sunucu uyumaz\n"
         "- 🌐 Uygulama açıkken her 10 dakikada ping (tüm platformlar)"
     ),
+    'v3.0.3': (
+        "### ✨ v3.0.3 Yenilikleri\n"
+        "- 🎬 GIF oluşturucu — galeriden kare seç, animasyonlu GIF oluştur ve gönder\n"
+        "- 🔍 Otomatik içerik taraması — GIF kareleri ve fotoğraflar gönderilmeden taranır\n"
+        "- 🛡️ Avatar NSFW filtresi — uygunsuz profil fotoğrafı ayarlanamaz\n"
+        "- ⛔ Küfür + görsel filtresi aynı anda çalışır — uygunsuz içerik hiç oluşturulmaz"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3'}
 
 
 def make_body(tag):
