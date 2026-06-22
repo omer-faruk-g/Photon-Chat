@@ -73,7 +73,10 @@ jobs:
 
           for rb in root_build_files:
               with open(rb, 'a') as f:
-                  f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
+                  if rb.endswith('.kts'):
+                      f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        extensions.configure<com.android.build.gradle.LibraryExtension> {\n            compileSdk = 36\n        }\n    }\n}\n')
+                  else:
+                      f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
           PYEOF
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
