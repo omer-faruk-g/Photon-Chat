@@ -128,8 +128,8 @@ CHANGELOGS = {
         "- 🏷️ Uygulama adı Photon Chat olarak güncellendi — tüm KNK referansları kaldırıldı\n"
         "- 🎨 Tüm sınıf ve tema isimleri Photon adıyla yeniden düzenlendi"
     ),
-    'v3.0.6': (
-        "### ✨ v3.0.6 Yenilikleri\n"
+    'v4.0.0': (
+        "### 🚀 v4.0.0 Yenilikleri\n"
         "- 🎤 Sesli mesaj — bas-konuş, erkek/kadın TTS sesiyle gönderilir (gerçek ses korunmaz)\n"
         "- 📍 Konum paylaşımı — anlık konumunu sohbete gönder, OpenStreetMap'te aç\n"
         "- 📝 Bio — profile max 100 karakterlik kısa tanıtım ekle\n"
@@ -137,8 +137,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v3.0.6'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v3.0.6'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0'}
 
 
 def make_body(tag):
