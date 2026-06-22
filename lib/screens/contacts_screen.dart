@@ -605,6 +605,24 @@ class _ContactRow extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (contact.bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: PhotonColors.bg,
+                      border: Border.all(color: PhotonColors.line),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('BIO', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      const SizedBox(height: 4),
+                      Text(contact.bio, style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.5)),
+                    ]),
+                  ),
+                ),
               ListTile(
                 leading: Icon(Icons.block, color: PhotonColors.danger),
                 title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: PhotonColors.danger)),

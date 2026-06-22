@@ -19,6 +19,9 @@ import '../translate_service.dart';
 import '../nsfw_scanner.dart';
 import 'gif_creator_screen.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -76,6 +79,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sttEnabled = false;
   bool _sttAvailable = false;
 
+  // Feature: Voice messages (TTS)
+  final _flutterTts = FlutterTts();
+  bool _isRecordingVoice = false;
+  String _voiceGender = 'male';
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +100,8 @@ class _ChatScreenState extends State<ChatScreen> {
     LocalStore.loadPinnedMessage(_chatKey).then((v) { if (mounted) setState(() => _pinnedMessage = v); });
     LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
     _initStt();
+    LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    _initTts();
   }
 
   Future<void> _initStt() async {
@@ -101,6 +111,79 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
     if (mounted) setState(() => _sttAvailable = available);
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage('tr-TR');
+    await _flutterTts.setSpeechRate(0.5);
+  }
+
+  Future<void> _shareLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum servisi kapalı.')));
+      return;
+    }
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni reddedildi.')));
+        return;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni kalıcı olarak reddedildi.')));
+      return;
+    }
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final locationText = '[📍KONUM:${pos.latitude},${pos.longitude}]';
+      _draftCtrl.text = locationText;
+      await _send();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Konum alınamadı: $e')));
+    }
+  }
+
+  Future<void> _startVoiceMessage() async {
+    if (_isRecordingVoice) return;
+    setState(() => _isRecordingVoice = true);
+    try {
+      if (!_sttAvailable) {
+        await _speech.initialize();
+      }
+      String transcript = '';
+      await _speech.listen(
+        onResult: (result) {
+          transcript = result.recognizedWords;
+        },
+        localeId: 'tr_TR',
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+      );
+      await Future.delayed(const Duration(seconds: 4));
+      await _speech.stop();
+      if (transcript.isNotEmpty) {
+        final voiceMsg = '[🎤SES:$transcript]';
+        _draftCtrl.text = voiceMsg;
+        await _send();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ses kaydı başlatılamadı: $e')));
+    } finally {
+      if (mounted) setState(() => _isRecordingVoice = false);
+    }
+  }
+
+  Future<void> _playVoiceMessage(String transcript) async {
+    final gender = _voiceGender;
+    if (gender == 'female') {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-A', 'locale': 'tr-TR'});
+    } else {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-B', 'locale': 'tr-TR'});
+    }
+    await _flutterTts.speak(transcript);
   }
 
   Future<void> _pickAndSendImage() async {
@@ -524,6 +607,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     if (m.imageData != null && !m.deleted)
                       _buildImageBubble(m, mine)
+                    else if (!m.deleted && m.text.startsWith('[📍KONUM:'))
+                      _buildLocationBubble(m.text, mine)
+                    else if (!m.deleted && m.text.startsWith('[🎤SES:'))
+                      _buildVoiceBubble(m.text, mine)
                     else
                     Text(displayText,
                       style: TextStyle(
@@ -889,6 +976,72 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Widget _buildLocationBubble(String text, bool mine) {
+    final match = RegExp(r'\[📍KONUM:([-\d.]+),([-\d.]+)\]').firstMatch(text);
+    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 13.5));
+    final lat = match.group(1)!;
+    final lng = match.group(2)!;
+    final url = 'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng&zoom=15';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
+          const SizedBox(width: 6),
+          Text('Konumunu Paylaştı', style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.map, color: PhotonColors.accent, size: 14),
+              const SizedBox(width: 6),
+              Text('Haritada Aç', style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildVoiceBubble(String text, bool mine) {
+    final match = RegExp(r'\[🎤SES:(.*)\]', dotAll: true).firstMatch(text);
+    final transcript = match?.group(1) ?? '';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => _playVoiceMessage(transcript),
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+            child: Icon(Icons.play_arrow, color: PhotonColors.accent, size: 20),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Sesli Mesaj', style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          if (transcript.isNotEmpty)
+            Text(transcript, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+        ])),
+        Icon(Icons.mic, color: PhotonColors.accent.withOpacity(0.6), size: 16),
+      ]),
+    );
+  }
+
   Widget _buildAvatar(String name, String avatar, {double size = 36}) {
     if (avatar.isNotEmpty) {
       try {
@@ -1038,6 +1191,33 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPressed: _openGifCreator,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.location_on, color: PhotonColors.textDim),
+                  tooltip: 'Konum Paylaş',
+                  onPressed: _shareLocation,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                GestureDetector(
+                  onLongPressStart: (_) => _startVoiceMessage(),
+                  onLongPressEnd: (_) {},
+                  child: Container(
+                    width: 36, height: 36,
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
+                    ),
+                    child: Icon(
+                      _isRecordingVoice ? Icons.stop : Icons.mic_none,
+                      color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
+                      size: 18,
+                    ),
+                  ),
                 ),
               Expanded(
                 child: TextField(

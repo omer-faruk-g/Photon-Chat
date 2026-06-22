@@ -11,9 +11,10 @@ class Contact {
   String avatar;
   String statusMsg;
   int lastSeen;
-  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status, this.avatar = '', this.statusMsg = '', this.lastSeen = 0});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status, 'avatar': avatar, 'statusMsg': statusMsg, 'lastSeen': lastSeen};
-  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status'], avatar: (j['avatar'] as String?) ?? '', statusMsg: (j['statusMsg'] as String?) ?? '', lastSeen: (j['lastSeen'] as int?) ?? 0);
+  String bio;
+  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status, this.avatar = '', this.statusMsg = '', this.lastSeen = 0, this.bio = ''});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status, 'avatar': avatar, 'statusMsg': statusMsg, 'lastSeen': lastSeen, 'bio': bio};
+  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status'], avatar: (j['avatar'] as String?) ?? '', statusMsg: (j['statusMsg'] as String?) ?? '', lastSeen: (j['lastSeen'] as int?) ?? 0, bio: (j['bio'] as String?) ?? '');
 }
 
 class ChatMessage {
@@ -67,9 +68,16 @@ class LocalStore {
   static const _kAvatarKey = 'knk_avatar_v1';
   static const _kThemeDarkKey = 'knk_theme_dark_v1';
   static const _kSttEnabledKey = 'knk_stt_enabled_v1';
+  static const _kBioKey = 'knk_bio_v1';
+  static const _kVoiceGenderKey = 'knk_voice_gender_v1';
 
   static Future<bool> loadSttEnabled() async => (await SharedPreferences.getInstance()).getBool(_kSttEnabledKey) ?? false;
   static Future<void> saveSttEnabled(bool v) async => (await SharedPreferences.getInstance()).setBool(_kSttEnabledKey, v);
+
+  static Future<String> loadBio() async => (await SharedPreferences.getInstance()).getString(_kBioKey) ?? '';
+  static Future<void> saveBio(String bio) async => (await SharedPreferences.getInstance()).setString(_kBioKey, bio);
+  static Future<String> loadVoiceGender() async => (await SharedPreferences.getInstance()).getString(_kVoiceGenderKey) ?? 'male';
+  static Future<void> saveVoiceGender(String gender) async => (await SharedPreferences.getInstance()).setString(_kVoiceGenderKey, gender);
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());

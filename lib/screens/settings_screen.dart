@@ -30,17 +30,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _statusCtrl = TextEditingController();
   bool _savingStatus = false;
   bool _sttEnabled = false;
+  String _bio = '';
+  final _bioCtrl = TextEditingController();
+  bool _savingBio = false;
+  String _voiceGender = 'male';
 
   @override
   void initState() {
     super.initState();
     LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
+    LocalStore.loadBio().then((v) { if (mounted) setState(() { _bio = v; _bioCtrl.text = v; }); });
+    LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
     _load();
   }
 
   @override
   void dispose() {
     _statusCtrl.dispose();
+    _bioCtrl.dispose();
     super.dispose();
   }
 
@@ -90,6 +97,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await LocalStore.saveStatusMsg(msg);
     setState(() { _statusMsg = msg; _savingStatus = false; });
     await _syncPresence();
+  }
+
+  Future<void> _saveBio() async {
+    setState(() => _savingBio = true);
+    final bio = _bioCtrl.text.trim();
+    await LocalStore.saveBio(bio);
+    setState(() { _bio = bio; _savingBio = false; });
   }
 
   Future<void> _syncPresence() async {
@@ -284,6 +298,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Bio
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('BIO', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              const SizedBox(height: 10),
+              Focus(
+                onFocusChange: (hasFocus) { if (!hasFocus) _saveBio(); },
+                child: TextField(
+                  controller: _bioCtrl,
+                  style: TextStyle(color: PhotonColors.text, fontSize: 13),
+                  maxLength: 100,
+                  maxLines: 1,
+                  decoration: InputDecoration(
+                    hintText: 'Kendin hakkında kısa bir şeyler yaz…',
+                    hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                    filled: true, fillColor: PhotonColors.bg,
+                    counterText: '${_bioCtrl.text.length}/100',
+                    counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: photonPrimaryButtonStyle(),
+                  onPressed: _savingBio ? null : _saveBio,
+                  child: _savingBio ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : const Text('Kaydet'),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
           // Tema Toggle
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -327,6 +379,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() => _sttEnabled = v);
                 },
                 activeColor: PhotonColors.accent,
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          // Ses Cinsiyeti
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Icon(Icons.record_voice_over, color: PhotonColors.textDim, size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('SES CİNSİYETİ', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text('TTS sesli mesaj için ses tonu', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              ])),
+              DropdownButton<String>(
+                value: _voiceGender,
+                dropdownColor: PhotonColors.panel,
+                underline: const SizedBox(),
+                style: TextStyle(color: PhotonColors.text, fontSize: 13),
+                items: [
+                  DropdownMenuItem(value: 'male', child: Text('Erkek', style: TextStyle(color: PhotonColors.text))),
+                  DropdownMenuItem(value: 'female', child: Text('Kadın', style: TextStyle(color: PhotonColors.text))),
+                ],
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await LocalStore.saveVoiceGender(v);
+                  setState(() => _voiceGender = v);
+                },
               ),
             ]),
           ),

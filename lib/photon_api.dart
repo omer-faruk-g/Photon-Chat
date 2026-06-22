@@ -39,10 +39,10 @@ class PhotonApi {
 
   // --- Presence ---
 
-  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name, {String statusMsg = '', String avatar = ''}) async {
+  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name, {String statusMsg = '', String avatar = '', String bio = ''}) async {
     try {
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar}));
+          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar, 'bio': bio}));
       await registerOnBridge(code, myServerUrl);
     } catch (_) {}
   }
@@ -102,11 +102,12 @@ class PhotonApi {
   static Future<void> sendFriendRequest({
     required String toServerUrl, required String toFipId,
     required String fromFipId, required String fromCode, required String fromName, required String fromServerUrl,
+    String bio = '',
     String? fromPublicKey,
   }) async {
     await http.post(_u(toServerUrl, '/requests/$toFipId'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'fromFipId': fromFipId, 'fromCode': fromCode, 'fromName': fromName, 'fromServerUrl': fromServerUrl, if (fromPublicKey != null) 'fromPublicKey': fromPublicKey}));
+        body: jsonEncode({'fromFipId': fromFipId, 'fromCode': fromCode, 'fromName': fromName, 'fromServerUrl': fromServerUrl, 'bio': bio, if (fromPublicKey != null) 'fromPublicKey': fromPublicKey}));
   }
 
   static Future<List<Map<String, dynamic>>> getIncomingRequests(String myServerUrl, String myFipId) async {
