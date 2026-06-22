@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'knk_api.dart';
+import 'photon_api.dart';
 
 class QueuedMessage {
   final String chatKey;
@@ -142,7 +142,7 @@ class OfflineQueue {
         : null;
 
     // Send to own server
-    final (ok1, _) = await KnkApi.sendMessage(
+    final (ok1, _) = await PhotonApi.sendMessage(
       receiverServerUrl: msg.receiverServerUrl,
       chatKey: msg.chatKey,
       from: msg.from,
@@ -154,7 +154,7 @@ class OfflineQueue {
 
     // Send to contact server (if toFipId is set, this is the contact copy)
     if (msg.toFipId != null) {
-      await KnkApi.sendMessage(
+      await PhotonApi.sendMessage(
         receiverServerUrl: msg.receiverServerUrl,
         chatKey: msg.chatKey,
         from: msg.from,
@@ -169,7 +169,7 @@ class OfflineQueue {
 
   Future<void> _sendGroupMessage(QueuedMessage msg) async {
     if (msg.groupMemberUrls == null || msg.groupId == null) return;
-    await KnkApi.sendGroupMessage(
+    await PhotonApi.sendGroupMessage(
       msg.groupMemberUrls!,
       msg.groupId!,
       from: msg.from,

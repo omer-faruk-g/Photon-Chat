@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 import '../app_keys.dart';
 import 'add_contact_screen.dart';
@@ -52,7 +52,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _myAvatar = avatar ?? '';
       _myStatusMsg = statusMsg ?? '';
     });
-    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
+    await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
     _sync();
     _groupSync();
   }
@@ -64,7 +64,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _sync() async {
     final me = widget.identity;
-    final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
+    final incoming = await PhotonApi.getIncomingRequests(widget.myServerUrl, me.fipId);
     for (final req in incoming) {
       final fromFipId = req['fromFipId'] as String;
       if (_blockList.contains(fromFipId)) continue;
@@ -74,16 +74,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
             code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in'));
       }
     }
-    final accepted = await KnkApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
+    final accepted = await PhotonApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
     for (final fipId in accepted) {
       final idx = _contacts.indexWhere((c) => c.fipId == fipId);
       if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
     }
     for (final c in _contacts.where((c) => c.status == 'on').toList()) {
-      final active = await KnkApi.isActive(c.serverUrl, c.fipId);
+      final active = await PhotonApi.isActive(c.serverUrl, c.fipId);
       if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _online.remove(c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
       _online[c.fipId] = true;
-      final profile = await KnkApi.getProfile(c.serverUrl, c.fipId);
+      final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
       if (profile != null) {
         c.avatar = (profile['avatar'] as String?) ?? '';
         c.statusMsg = (profile['statusMsg'] as String?) ?? '';
@@ -99,7 +99,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _groupSync() async {
     for (final g in _groups.where((g) => g.isOwner)) {
       try {
-        final reqs = await KnkApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
+        final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
         if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
       } catch (_) {}
     }
@@ -110,7 +110,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _accept(Contact c) async {
     setState(() => c.status = 'on');
     await LocalStore.saveContacts(_contacts);
-    await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
+    await PhotonApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
     _showToast('${c.name} arkadaş listene eklendi.');
   }
 
@@ -193,24 +193,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final keep = await showDialog<bool>(
       context: context, barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        backgroundColor: PhotonColors.panel,
+        title: Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Hayır, imha et', style: TextStyle(color: KnkColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Evet, sakla', style: TextStyle(color: KnkColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Hayır, imha et', style: TextStyle(color: PhotonColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Evet, sakla', style: TextStyle(color: PhotonColors.accent))),
         ],
       ),
     );
     if (keep == false) {
-      for (final c in active) await KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId));
+      for (final c in active) await PhotonApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId));
     }
     SystemNavigator.pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Scaffold(body: Center(child: CircularProgressIndicator(color: KnkColors.accent)));
+    if (_loading) return Scaffold(body: Center(child: CircularProgressIndicator(color: PhotonColors.accent)));
     final incoming = _contacts.where((c) => c.status == 'pending_in').toList();
     final outgoing = _contacts.where((c) => c.status == 'pending_out').toList();
     final active = _contacts.where((c) => c.status == 'on').toList();
@@ -233,15 +233,15 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('KODUM', style: TextStyle(color: KnkColors.textDim, fontSize: 7, letterSpacing: 1.2)),
+                    Text('KODUM', style: TextStyle(color: PhotonColors.textDim, fontSize: 7, letterSpacing: 1.2)),
                     const SizedBox(height: 1),
-                    Text(widget.identity.code, style: TextStyle(color: KnkColors.accent, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
+                    Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.w700, fontFamily: 'monospace')),
                   ],
                 ),
               ),
             ),
           ),
-          actions: [IconButton(icon: Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
+          actions: [IconButton(icon: Icon(Icons.settings, color: PhotonColors.text), onPressed: _openSettings)],
         ),
         body: Stack(
           children: [
@@ -288,8 +288,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 if (_groups.isEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-                    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+                    decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+                    child: Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
                   ),
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
               ],
@@ -302,7 +302,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      style: knkPrimaryButtonStyle(),
+                      style: photonPrimaryButtonStyle(),
                       onPressed: _openAddScreen,
                       icon: const Icon(Icons.person_add, size: 16),
                       label: const Text('Kişi Ekle'),
@@ -312,28 +312,28 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: KnkColors.accent,
-                        side: BorderSide(color: KnkColors.accent.withOpacity(0.6)),
+                        foregroundColor: PhotonColors.accent,
+                        side: BorderSide(color: PhotonColors.accent.withOpacity(0.6)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                       ),
                       onPressed: () => showModalBottomSheet(
                         context: context,
-                        backgroundColor: KnkColors.panel,
+                        backgroundColor: PhotonColors.panel,
                         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
                         builder: (_) => SafeArea(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ListTile(
-                                leading: Icon(Icons.group_add, color: KnkColors.accent),
-                                title: Text('Yeni Grup Oluştur', style: TextStyle(color: KnkColors.text)),
+                                leading: Icon(Icons.group_add, color: PhotonColors.accent),
+                                title: Text('Yeni Grup Oluştur', style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openCreateGroup(); },
                               ),
                               ListTile(
-                                leading: Icon(Icons.login, color: KnkColors.accent),
-                                title: Text('Gruba Katıl', style: TextStyle(color: KnkColors.text)),
+                                leading: Icon(Icons.login, color: PhotonColors.accent),
+                                title: Text('Gruba Katıl', style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openJoinGroup(); },
                               ),
                             ],
@@ -353,8 +353,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 left: 16, right: 16, bottom: 86,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: KnkColors.text)),
+                  decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
                 ),
               ),
           ],
@@ -376,8 +376,8 @@ class _ProfileStrip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KnkColors.panel,
-        border: Border.all(color: KnkColors.line),
+        color: PhotonColors.panel,
+        border: Border.all(color: PhotonColors.line),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -391,11 +391,11 @@ class _ProfileStrip extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+                Text(name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
                 if (statusMsg.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(statusMsg, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(statusMsg, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 const SizedBox(height: 6),
                 GestureDetector(
@@ -403,17 +403,17 @@ class _ProfileStrip extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: KnkColors.accent.withOpacity(0.08),
-                      border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
+                      color: PhotonColors.accent.withOpacity(0.08),
+                      border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('KODUM  ', style: TextStyle(color: KnkColors.textDim, fontSize: 9, letterSpacing: 1.2)),
-                        Text(code, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
+                        Text('KODUM  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                        Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
                         const SizedBox(width: 4),
-                        Icon(Icons.copy, size: 11, color: KnkColors.accent.withOpacity(0.6)),
+                        Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
                       ],
                     ),
                   ),
@@ -422,7 +422,7 @@ class _ProfileStrip extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined, color: KnkColors.textDim, size: 20),
+            icon: Icon(Icons.settings_outlined, color: PhotonColors.textDim, size: 20),
             onPressed: onTap,
             tooltip: 'Ayarlar',
           ),
@@ -444,8 +444,8 @@ class _PulseAiCard extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: KnkColors.accent.withOpacity(0.07),
-        border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
+        color: PhotonColors.accent.withOpacity(0.07),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -454,18 +454,18 @@ class _PulseAiCard extends StatelessWidget {
             width: 40, height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.15),
+              color: PhotonColors.accent.withOpacity(0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
+              border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
             ),
             child: const Text('⚡', style: TextStyle(fontSize: 20)),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Pulse AI', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
-            Text('Yapay zeka asistanın · Sor, sohbet et', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+            Text('Pulse AI', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
+            Text('Yapay zeka asistanın · Sor, sohbet et', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
           ])),
-          Icon(Icons.chevron_right, color: KnkColors.accent, size: 20),
+          Icon(Icons.chevron_right, color: PhotonColors.accent, size: 20),
         ],
       ),
     ),
@@ -484,30 +484,30 @@ class _GroupRow extends StatelessWidget {
     child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
       child: Row(children: [
         Container(width: 46, height: 46, alignment: Alignment.center,
-            decoration: BoxDecoration(color: KnkColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.group, color: KnkColors.accent, size: 22)),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.group, color: PhotonColors.accent, size: 22)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
           const SizedBox(height: 2),
           Text(group.isOwner ? 'Sahip · Kod: ${group.groupCode}' : 'Üye · Kod: ${group.groupCode}',
-              style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
           if (group.description.isNotEmpty) ...[
             const SizedBox(height: 2),
-            Text(group.description, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ])),
         if (pendingCount > 0)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(color: KnkColors.accent2, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(12)),
             child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
         const SizedBox(width: 6),
-        Icon(Icons.chevron_right, color: KnkColors.textDim),
+        Icon(Icons.chevron_right, color: PhotonColors.textDim),
       ]),
     ),
   );
@@ -522,15 +522,15 @@ class _SectionTitle extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 10, top: 4),
     child: Row(
       children: [
-        Container(width: 3, height: 14, decoration: BoxDecoration(color: KnkColors.accent, borderRadius: BorderRadius.circular(2))),
+        Container(width: 3, height: 14, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 8),
-        Text(text.toUpperCase(), style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+        Text(text.toUpperCase(), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
         if (count != null) ...[
           const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(color: KnkColors.line, borderRadius: BorderRadius.circular(10)),
-            child: Text('$count', style: TextStyle(color: KnkColors.textDim, fontSize: 10, fontWeight: FontWeight.w600)),
+            decoration: BoxDecoration(color: PhotonColors.line, borderRadius: BorderRadius.circular(10)),
+            child: Text('$count', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, fontWeight: FontWeight.w600)),
           ),
         ],
       ],
@@ -544,15 +544,15 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
-    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
+    decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
     child: Column(children: [
-      Text('＋', style: TextStyle(color: KnkColors.accent2, fontSize: 28)),
+      Text('＋', style: TextStyle(color: PhotonColors.accent2, fontSize: 28)),
       const SizedBox(height: 8),
-      Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
+      Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
       const SizedBox(height: 6),
-      Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+      Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
-      ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
+      ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
     ]),
   );
 }
@@ -565,23 +565,23 @@ class _RequestRow extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
+    decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
       _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
         const SizedBox(height: 2),
-        Text('Kod: ${contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+        Text('Kod: ${contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
       ])),
       Column(children: [
         SizedBox(height: 30, child: ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: KnkColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          style: ElevatedButton.styleFrom(backgroundColor: PhotonColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           onPressed: onAccept, child: const Text('Kabul et'),
         )),
         const SizedBox(height: 4),
         SizedBox(height: 26, child: OutlinedButton(
-          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.textDim, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
           onPressed: onDecline, child: const Text('Sil'),
         )),
       ]),
@@ -600,19 +600,19 @@ class _ContactRow extends StatelessWidget {
     onLongPress: () {
       showModalBottomSheet(
         context: context,
-        backgroundColor: KnkColors.panel,
+        backgroundColor: PhotonColors.panel,
         builder: (_) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.block, color: KnkColors.danger),
-                title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: KnkColors.danger)),
+                leading: Icon(Icons.block, color: PhotonColors.danger),
+                title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () { Navigator.pop(context); onBlock(); },
               ),
               ListTile(
-                leading: Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-                title: Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+                leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
+                title: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim)),
                 onTap: () => Navigator.pop(context),
               ),
             ],
@@ -626,7 +626,7 @@ class _ContactRow extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
           Stack(children: [
             _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: true),
@@ -635,24 +635,24 @@ class _ContactRow extends StatelessWidget {
               child: Container(
                 width: 12, height: 12,
                 decoration: BoxDecoration(
-                  color: isOnline ? const Color(0xFF4CAF50) : KnkColors.textDim,
+                  color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim,
                   shape: BoxShape.circle,
-                  border: Border.all(color: KnkColors.bg, width: 2),
+                  border: Border.all(color: PhotonColors.bg, width: 2),
                 ),
               ),
             ),
           ]),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
             const SizedBox(height: 2),
             Text(
               isOnline ? 'Çevrimiçi' : (contact.statusMsg.isNotEmpty ? contact.statusMsg : 'Çevrimdışı'),
-              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : KnkColors.textDim, fontSize: 11),
+              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ])),
-          Icon(Icons.chevron_right, color: KnkColors.textDim, size: 18),
+          Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 18),
         ]),
       ),
     ),
@@ -666,17 +666,17 @@ class _PendingOutRow extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 8),
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+    decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
     child: Row(children: [
       _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
         const SizedBox(height: 2),
         Row(children: [
-          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
           const SizedBox(width: 6),
-          Text('Davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+          Text('Davet gönderildi · onay bekleniyor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
         ]),
       ])),
     ]),
@@ -700,7 +700,7 @@ class _AvatarWidget extends StatelessWidget {
           width: size, height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5), width: 2) : null,
+            border: on ? Border.all(color: PhotonColors.accent.withOpacity(0.5), width: 2) : null,
             image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover, alignment: Alignment.topCenter),
           ),
         );
@@ -710,11 +710,11 @@ class _AvatarWidget extends StatelessWidget {
     return Container(
       width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: KnkColors.line,
+        color: PhotonColors.line,
         borderRadius: BorderRadius.circular(size / 4),
-        border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5)) : null,
+        border: on ? Border.all(color: PhotonColors.accent.withOpacity(0.5)) : null,
       ),
-      child: Text(initials, style: TextStyle(color: on ? KnkColors.accent : KnkColors.textDim, fontWeight: FontWeight.w700, fontSize: size * 0.32)),
+      child: Text(initials, style: TextStyle(color: on ? PhotonColors.accent : PhotonColors.textDim, fontWeight: FontWeight.w700, fontSize: size * 0.32)),
     );
   }
 }

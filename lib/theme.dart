@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-class KnkTheme extends ChangeNotifier {
-  static final KnkTheme instance = KnkTheme._();
-  KnkTheme._();
+class PhotonTheme extends ChangeNotifier {
+  static final PhotonTheme instance = PhotonTheme._();
+  PhotonTheme._();
   bool _isDark = true;
   bool get isDark => _isDark;
   void setDark(bool v) { _isDark = v; notifyListeners(); }
   void toggle() { _isDark = !_isDark; notifyListeners(); }
 }
 
-class KnkColors {
-  static bool get _d => KnkTheme.instance.isDark;
+class PhotonColors {
+  static bool get _d => PhotonTheme.instance.isDark;
   static Color get bg => _d ? const Color(0xFF0B0E0F) : const Color(0xFFF0F4F2);
   static Color get panel => _d ? const Color(0xFF11161A) : const Color(0xFFFFFFFF);
   static Color get panelAlt => _d ? const Color(0xFF161D22) : const Color(0xFFE8EFED);
@@ -22,59 +22,59 @@ class KnkColors {
   static Color get danger => const Color(0xFFE0594B);
 }
 
-ThemeData get knkTheme => ThemeData(
+ThemeData get photonTheme => ThemeData(
   useMaterial3: true,
-  scaffoldBackgroundColor: KnkColors.bg,
+  scaffoldBackgroundColor: PhotonColors.bg,
   fontFamily: 'monospace',
   colorScheme: ColorScheme.dark(
-    primary: KnkColors.accent,
-    secondary: KnkColors.accent2,
-    error: KnkColors.danger,
-    surface: KnkColors.panel,
+    primary: PhotonColors.accent,
+    secondary: PhotonColors.accent2,
+    error: PhotonColors.danger,
+    surface: PhotonColors.panel,
   ),
   appBarTheme: AppBarTheme(
-    backgroundColor: KnkColors.panel,
+    backgroundColor: PhotonColors.panel,
     elevation: 0,
     centerTitle: true,
     titleTextStyle: const TextStyle(color: Color(0xFFE7F3EF), fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.5),
   ),
 );
 
-ThemeData get knkLightTheme => ThemeData(
+ThemeData get photonLightTheme => ThemeData(
   useMaterial3: true,
-  scaffoldBackgroundColor: KnkColors.bg,
+  scaffoldBackgroundColor: PhotonColors.bg,
   fontFamily: 'monospace',
   colorScheme: ColorScheme.light(
-    primary: KnkColors.accent,
-    secondary: KnkColors.accent2,
-    error: KnkColors.danger,
-    surface: KnkColors.panel,
+    primary: PhotonColors.accent,
+    secondary: PhotonColors.accent2,
+    error: PhotonColors.danger,
+    surface: PhotonColors.panel,
   ),
   appBarTheme: AppBarTheme(
-    backgroundColor: KnkColors.panel,
+    backgroundColor: PhotonColors.panel,
     elevation: 0,
     centerTitle: true,
-    titleTextStyle: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.5),
+    titleTextStyle: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.5),
   ),
 );
 
-InputDecoration knkInputDecoration(String hint) {
+InputDecoration photonInputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: KnkColors.textDim),
+    hintStyle: TextStyle(color: PhotonColors.textDim),
     filled: true,
-    fillColor: KnkColors.panel,
+    fillColor: PhotonColors.panel,
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.line)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: KnkColors.accent)),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.accent)),
   );
 }
 
-ButtonStyle knkPrimaryButtonStyle() {
+ButtonStyle photonPrimaryButtonStyle() {
   return ElevatedButton.styleFrom(
-    backgroundColor: KnkColors.accent,
-    disabledBackgroundColor: KnkColors.accent.withOpacity(0.35),
+    backgroundColor: PhotonColors.accent,
+    disabledBackgroundColor: PhotonColors.accent.withOpacity(0.35),
     foregroundColor: const Color(0xFF06251A),
     padding: const EdgeInsets.symmetric(vertical: 14),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -82,19 +82,19 @@ ButtonStyle knkPrimaryButtonStyle() {
   );
 }
 
-ButtonStyle knkGhostButtonStyle() {
+ButtonStyle photonGhostButtonStyle() {
   return OutlinedButton.styleFrom(
-    foregroundColor: KnkColors.textDim,
-    side: BorderSide(color: KnkColors.line),
+    foregroundColor: PhotonColors.textDim,
+    side: BorderSide(color: PhotonColors.line),
     padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     textStyle: const TextStyle(fontSize: 13),
   );
 }
 
-ButtonStyle knkDangerButtonStyle() {
+ButtonStyle photonDangerButtonStyle() {
   return ElevatedButton.styleFrom(
-    backgroundColor: KnkColors.danger,
+    backgroundColor: PhotonColors.danger,
     foregroundColor: Colors.white,
     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

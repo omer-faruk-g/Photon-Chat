@@ -131,44 +131,44 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     final hasApk = _apkUrl() != null;
 
     return AlertDialog(
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       title: Row(children: [
         const Text('🚀 ', style: TextStyle(fontSize: 18)),
-        Expanded(child: Text('Güncelleme Mevcut', style: TextStyle(color: KnkColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
+        Expanded(child: Text('Güncelleme Mevcut', style: TextStyle(color: PhotonColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
       ]),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(widget.currentVersion, style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
-            Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 14, color: KnkColors.accent)),
-            Text(widget.newVersion, style: TextStyle(color: KnkColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(widget.currentVersion, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 14, color: PhotonColors.accent)),
+            Text(widget.newVersion, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
           ]),
           if (widget.releaseNotes.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: KnkColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: KnkColors.line)),
+              decoration: BoxDecoration(color: PhotonColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
               child: Text(
                 widget.releaseNotes.length > 300 ? '${widget.releaseNotes.substring(0, 300)}…' : widget.releaseNotes,
-                style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.5),
+                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.5),
               ),
             ),
           ],
           if (_downloading) ...[
             const SizedBox(height: 14),
-            LinearProgressIndicator(value: _progress, backgroundColor: KnkColors.line, color: KnkColors.accent),
+            LinearProgressIndicator(value: _progress, backgroundColor: PhotonColors.line, color: PhotonColors.accent),
             const SizedBox(height: 6),
             Text(
               _progress != null ? '%${(_progress! * 100).toStringAsFixed(0)} indiriliyor…' : 'Hazırlanıyor…',
-              style: TextStyle(color: KnkColors.textDim, fontSize: 11),
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
             ),
           ],
           if (_error != null) ...[
             const SizedBox(height: 10),
-            Text(_error!, style: TextStyle(color: KnkColors.danger, fontSize: 11)),
+            Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 11)),
           ],
         ],
       ),
@@ -177,17 +177,17 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           : [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Sonra', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+                child: Text('Sonra', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
               ),
               if (isAndroid && hasApk)
                 ElevatedButton(
-                  style: knkPrimaryButtonStyle(),
+                  style: photonPrimaryButtonStyle(),
                   onPressed: _downloadAndInstall,
                   child: const Text('Güncelle'),
                 )
               else
                 ElevatedButton(
-                  style: knkPrimaryButtonStyle(),
+                  style: photonPrimaryButtonStyle(),
                   onPressed: _openBrowser,
                   child: const Text('İndir'),
                 ),

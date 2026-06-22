@@ -107,11 +107,11 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
           if (_frames.isNotEmpty && !_encoding && !_scanning)
             TextButton(
               onPressed: _createAndSend,
-              child: Text('Gönder', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700)),
+              child: Text('Gönder', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: Column(
         children: [
           // Hata mesajı
@@ -119,8 +119,8 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: KnkColors.danger.withOpacity(0.12),
-              child: Text(_error!, style: TextStyle(color: KnkColors.danger, fontSize: 13)),
+              color: PhotonColors.danger.withOpacity(0.12),
+              child: Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
             ),
 
           // Kare listesi
@@ -129,7 +129,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                 ? Center(
                     child: Text('Galeriden fotoğraf ekle\n(en fazla 8 kare)',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.7)),
+                        style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.7)),
                   )
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
@@ -174,19 +174,19 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
           Container(
             padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).viewInsets.bottom + 12),
             decoration: BoxDecoration(
-              color: KnkColors.panel,
-              border: Border(top: BorderSide(color: KnkColors.line)),
+              color: PhotonColors.panel,
+              border: Border(top: BorderSide(color: PhotonColors.line)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: _captionCtrl,
-                  style: TextStyle(color: KnkColors.text, fontSize: 14),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   maxLength: 100,
                   decoration: InputDecoration(
                     hintText: 'Başlık (isteğe bağlı)',
-                    hintStyle: TextStyle(color: KnkColors.textDim),
+                    hintStyle: TextStyle(color: PhotonColors.textDim),
                     counterText: '',
                     border: InputBorder.none,
                   ),
@@ -197,8 +197,8 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: KnkColors.text,
-                          side: BorderSide(color: KnkColors.line),
+                          foregroundColor: PhotonColors.text,
+                          side: BorderSide(color: PhotonColors.line),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
@@ -213,7 +213,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton.icon(
-                          style: knkPrimaryButtonStyle(),
+                          style: photonPrimaryButtonStyle(),
                           onPressed: (_encoding || _scanning) ? null : _createAndSend,
                           icon: _encoding
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))

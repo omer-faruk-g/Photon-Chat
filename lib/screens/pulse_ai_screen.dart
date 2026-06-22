@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 import '../message_guard.dart';
 
@@ -37,7 +37,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
     setState(() => _messages.add({'role': 'user', 'content': text}));
     _scrollToBottom();
 
-    final reply = await KnkApi.chatWithPulseAI(widget.myServerUrl, List.from(_messages));
+    final reply = await PhotonApi.chatWithPulseAI(widget.myServerUrl, List.from(_messages));
 
     setState(() {
       _messages.add({'role': 'assistant', 'content': reply});
@@ -64,9 +64,9 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
             width: 28, height: 28,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.15),
+              color: PhotonColors.accent.withOpacity(0.15),
               shape: BoxShape.circle,
-              border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
+              border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
             ),
             child: Text('⚡', style: TextStyle(fontSize: 14)),
           ),
@@ -74,7 +74,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
           Text('Pulse AI'),
         ]),
       ),
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: Column(
         children: [
           Expanded(
@@ -89,19 +89,19 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                             width: 64, height: 64,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: KnkColors.accent.withOpacity(0.1),
+                              color: PhotonColors.accent.withOpacity(0.1),
                               shape: BoxShape.circle,
-                              border: Border.all(color: KnkColors.accent.withOpacity(0.3)),
+                              border: Border.all(color: PhotonColors.accent.withOpacity(0.3)),
                             ),
                             child: Text('⚡', style: TextStyle(fontSize: 30)),
                           ),
                           const SizedBox(height: 16),
-                          Text('Pulse AI', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
+                          Text('Pulse AI', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
                           const SizedBox(height: 8),
                           Text(
                             'Kelime anlamı mı merak ediyorsun? Bir şey mi sormak istiyorsun? Sohbet etmek mi istiyorsun? Buradayım.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7),
+                            style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.7),
                           ),
                         ],
                       ),
@@ -121,8 +121,8 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
                           decoration: BoxDecoration(
-                            color: isUser ? KnkColors.accent : KnkColors.panel,
-                            border: isUser ? null : Border.all(color: KnkColors.line),
+                            color: isUser ? PhotonColors.accent : PhotonColors.panel,
+                            border: isUser ? null : Border.all(color: PhotonColors.line),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(14),
                               topRight: const Radius.circular(14),
@@ -136,12 +136,12 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                               if (!isUser)
                                 Padding(
                                   padding: EdgeInsets.only(bottom: 4),
-                                  child: Text('⚡ Pulse AI', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                                  child: Text('⚡ Pulse AI', style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                                 ),
                               SelectableText(
                                 m['content'] ?? '',
                                 style: TextStyle(
-                                  color: isUser ? const Color(0xFF06251A) : KnkColors.text,
+                                  color: isUser ? const Color(0xFF06251A) : PhotonColors.text,
                                   fontSize: 14,
                                   height: 1.55,
                                 ),
@@ -157,37 +157,37 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
             Padding(
               padding: EdgeInsets.symmetric(vertical: 10),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.accent)),
+                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)),
                 SizedBox(width: 10),
-                Text('Pulse AI yazıyor…', style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
+                Text('Pulse AI yazıyor…', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
               ]),
             ),
           if (_inputError != null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.danger.withOpacity(0.1),
-              child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12)),
+              color: PhotonColors.danger.withOpacity(0.1),
+              child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
             ),
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             decoration: BoxDecoration(
-              color: KnkColors.panel,
-              border: Border(top: BorderSide(color: KnkColors.line)),
+              color: PhotonColors.panel,
+              border: Border(top: BorderSide(color: PhotonColors.line)),
             ),
             child: Row(children: [
               Expanded(
                 child: TextField(
                   controller: _ctrl,
                   enabled: !_loading,
-                  style: TextStyle(color: KnkColors.text, fontSize: 14),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Pulse AI\'e bir şey sor…',
-                    hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 13),
+                    hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(999)),
-                    disabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
+                    enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(999)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(999)),
+                    disabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(999)),
                   ),
                   maxLines: 4, minLines: 1,
                   onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
@@ -200,10 +200,10 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                 child: Container(
                   width: 42, height: 42,
                   decoration: BoxDecoration(
-                    color: _loading ? KnkColors.line : KnkColors.accent,
+                    color: _loading ? PhotonColors.line : PhotonColors.accent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.arrow_upward, color: _loading ? KnkColors.textDim : const Color(0xFF06251A), size: 20),
+                  child: Icon(Icons.arrow_upward, color: _loading ? PhotonColors.textDim : const Color(0xFF06251A), size: 20),
                 ),
               ),
             ]),

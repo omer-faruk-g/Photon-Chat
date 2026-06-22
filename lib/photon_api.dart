@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 const String bridgeUrl = 'https://photon-chat.onrender.com';
 
-class KnkApi {
+class PhotonApi {
   static Uri _u(String serverUrl, String path) {
     final base = serverUrl.endsWith('/') ? serverUrl.substring(0, serverUrl.length - 1) : serverUrl;
     return Uri.parse('$base$path');

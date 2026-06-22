@@ -60,7 +60,7 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -72,7 +72,7 @@ class _GuideScreenState extends State<GuideScreen> {
                     height: 3,
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
-                      color: i <= _page ? KnkColors.accent : KnkColors.line,
+                      color: i <= _page ? PhotonColors.accent : PhotonColors.line,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -83,7 +83,7 @@ class _GuideScreenState extends State<GuideScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _skip,
-                child: Text('Atla', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+                child: Text('Atla', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
               ),
             ),
             Expanded(
@@ -99,7 +99,7 @@ class _GuideScreenState extends State<GuideScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: knkPrimaryButtonStyle(),
+                  style: photonPrimaryButtonStyle(),
                   onPressed: _next,
                   child: Text(
                     _page == _pages.length - 1 ? 'Hadi Başlayalım →' : 'Devam →',
@@ -140,30 +140,30 @@ class _PageContent extends StatelessWidget {
             width: 72, height: 72,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.1),
+              color: PhotonColors.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: KnkColors.accent.withOpacity(0.25)),
+              border: Border.all(color: PhotonColors.accent.withOpacity(0.25)),
             ),
             child: Text(page.icon, style: const TextStyle(fontSize: 34)),
           ),
           const SizedBox(height: 24),
-          Text(page.title, style: TextStyle(color: KnkColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
+          Text(page.title, style: TextStyle(color: PhotonColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
           const SizedBox(height: 18),
-          Text(page.body, style: TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.8)),
+          Text(page.body, style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.8)),
           if (page.highlight != null) ...[
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: KnkColors.accent.withOpacity(0.08),
-                border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
+                color: PhotonColors.accent.withOpacity(0.08),
+                border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 page.highlight!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: KnkColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
+                style: TextStyle(color: PhotonColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
               ),
             ),
           ],
@@ -173,8 +173,8 @@ class _PageContent extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: KnkColors.panelAlt,
-                border: Border.all(color: KnkColors.line),
+                color: PhotonColors.panelAlt,
+                border: Border.all(color: PhotonColors.line),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -184,7 +184,7 @@ class _PageContent extends StatelessWidget {
                   Expanded(
                     child: Text(
                       page.tip!,
-                      style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6),
+                      style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6),
                     ),
                   ),
                 ],

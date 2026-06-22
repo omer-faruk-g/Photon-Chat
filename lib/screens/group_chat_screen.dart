@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
@@ -83,12 +83,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (text.isEmpty) return;
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
-          leading: Icon(Icons.translate, color: KnkColors.accent),
-          title: Text('Çevir', style: TextStyle(color: KnkColors.text)),
+          leading: Icon(Icons.translate, color: PhotonColors.accent),
+          title: Text('Çevir', style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
             _translateMessage(msgId, text);
@@ -102,7 +102,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       await OfflineQueue.instance.flush();
       if (mounted) setState(() {});
-      final msgs = await KnkApi.getGroupMessages(widget.myServerUrl, widget.group.groupId);
+      final msgs = await PhotonApi.getGroupMessages(widget.myServerUrl, widget.group.groupId);
       msgs.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
       if (mounted) setState(() => _messages = msgs);
     });
@@ -110,27 +110,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollJoinRequests() {
     _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      final reqs = await KnkApi.getGroupJoinRequests(widget.myServerUrl, widget.group.groupId);
+      final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, widget.group.groupId);
       if (mounted) setState(() => _pendingJoins = reqs);
     });
   }
 
   void _pollMutedMembers() {
     _muteTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      final muted = await KnkApi.getMutedMembers(widget.myServerUrl, widget.group.groupId);
+      final muted = await PhotonApi.getMutedMembers(widget.myServerUrl, widget.group.groupId);
       if (mounted) setState(() => _mutedMembers = muted);
     });
-    KnkApi.getMutedMembers(widget.myServerUrl, widget.group.groupId).then((muted) {
+    PhotonApi.getMutedMembers(widget.myServerUrl, widget.group.groupId).then((muted) {
       if (mounted) setState(() => _mutedMembers = muted);
     });
   }
 
   void _pollAnnouncements() {
     _annTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      final anns = await KnkApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId);
+      final anns = await PhotonApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId);
       if (mounted) setState(() => _announcements = anns);
     });
-    KnkApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId).then((a) {
+    PhotonApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId).then((a) {
       if (mounted) setState(() => _announcements = a);
     });
   }
@@ -149,7 +149,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     memberUrls.add(widget.myServerUrl);
     final ts = DateTime.now().millisecondsSinceEpoch;
     try {
-      await KnkApi.sendGroupMessage(memberUrls, widget.group.groupId,
+      await PhotonApi.sendGroupMessage(memberUrls, widget.group.groupId,
         from: widget.identity.fipId, fromName: widget.displayName,
         text: text, ts: ts,
       );
@@ -174,7 +174,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _vote(Map<String, dynamic> pollMsg, int optionIndex) async {
     final msgIdVal = pollMsg['msgId'] as String? ?? '';
-    await KnkApi.voteOnPoll(widget.myServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
+    await PhotonApi.voteOnPoll(widget.myServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
     setState(() {
       if (pollMsg['votes'] == null) pollMsg['votes'] = {};
       (pollMsg['votes'] as Map)[widget.identity.fipId] = optionIndex;
@@ -182,7 +182,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _acceptMember(Map<String, dynamic> req) async {
-    await KnkApi.acceptGroupMember(widget.myServerUrl, widget.group.groupId,
+    await PhotonApi.acceptGroupMember(widget.myServerUrl, widget.group.groupId,
       fipId: req['fromFipId'] as String,
       name: req['fromName'] as String? ?? 'Bilinmeyen',
       serverUrl: req['fromServerUrl'] as String? ?? '',
@@ -191,27 +191,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _rejectMember(Map<String, dynamic> req) async {
-    await KnkApi.rejectGroupMember(widget.myServerUrl, widget.group.groupId, req['fromFipId'] as String);
+    await PhotonApi.rejectGroupMember(widget.myServerUrl, widget.group.groupId, req['fromFipId'] as String);
     setState(() => _pendingJoins.remove(req));
   }
 
   Future<void> _muteMember(GroupMember member) async {
-    await KnkApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
-    await KnkApi.sendNotification(member.serverUrl, member.fipId,
+    await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+    await PhotonApi.sendNotification(member.serverUrl, member.fipId,
         'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
     if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
     if (mounted) _showToast('${member.name} susturuldu.');
   }
 
   Future<void> _unmuteMember(GroupMember member) async {
-    await KnkApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+    await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
     if (mounted) setState(() => _mutedMembers.remove(member.fipId));
     if (mounted) _showToast('${member.name} susturma kaldırıldı.');
   }
 
   Future<void> _kickMember(GroupMember member) async {
-    await KnkApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
-    await KnkApi.sendNotification(member.serverUrl, member.fipId,
+    await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+    await PhotonApi.sendNotification(member.serverUrl, member.fipId,
         'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
     if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
     if (mounted) _showToast('${member.name} gruptan atıldı.');
@@ -225,17 +225,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showJoinRequests() {
     showModalBottomSheet(
-      context: context, backgroundColor: KnkColors.panel,
+      context: context, backgroundColor: PhotonColors.panel,
       builder: (_) => StatefulBuilder(
         builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
-          Text('Katılma İstekleri', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+          Text('Katılma İstekleri', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 16),
-          if (_pendingJoins.isEmpty) Text('Bekleyen istek yok.', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+          if (_pendingJoins.isEmpty) Text('Bekleyen istek yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
           ..._pendingJoins.map((req) => ListTile(
-            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: TextStyle(color: KnkColors.text, fontSize: 14)),
+            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(icon: Icon(Icons.check, color: KnkColors.accent), onPressed: () { _acceptMember(req); set(() {}); }),
-              IconButton(icon: Icon(Icons.close, color: KnkColors.danger), onPressed: () { _rejectMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () { _acceptMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () { _rejectMember(req); set(() {}); }),
             ]),
           )),
         ]),
@@ -247,15 +247,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final isMuted = _mutedMembers.contains(member.fipId);
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: KnkColors.accent),
+              leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
               title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur',
-                  style: TextStyle(color: KnkColors.text)),
+                  style: TextStyle(color: PhotonColors.text)),
               onTap: () {
                 Navigator.pop(context);
                 if (isMuted) {
@@ -266,16 +266,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.person_remove, color: KnkColors.danger),
-              title: Text('${member.name} kullanıcısını gruptan at', style: TextStyle(color: KnkColors.danger)),
+              leading: Icon(Icons.person_remove, color: PhotonColors.danger),
+              title: Text('${member.name} kullanıcısını gruptan at', style: TextStyle(color: PhotonColors.danger)),
               onTap: () {
                 Navigator.pop(context);
                 _kickMember(member);
               },
             ),
             ListTile(
-              leading: Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-              title: Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+              leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
+              title: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim)),
               onTap: () => Navigator.pop(context),
             ),
           ],
@@ -286,24 +286,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showInfo() {
     showModalBottomSheet(
-      context: context, backgroundColor: KnkColors.panel,
+      context: context, backgroundColor: PhotonColors.panel,
       builder: (_) => ListView(padding: const EdgeInsets.all(20), children: [
-        Text(widget.group.name, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        Text(widget.group.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
         if (widget.group.description.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Text(widget.group.description, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.5)),
+          Text(widget.group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.5)),
         ],
         const SizedBox(height: 6),
         if (widget.group.isOwner) ...[
-          Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+          Text('GRUP ADRESİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
           const SizedBox(height: 4),
           GestureDetector(
             onTap: () => Clipboard.setData(ClipboardData(text: widget.group.address)),
-            child: Text(widget.group.address, style: TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace')),
+            child: Text(widget.group.address, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace')),
           ),
           const SizedBox(height: 16),
         ],
-        Text('ÜYELER', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+        Text('ÜYELER', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
         const SizedBox(height: 8),
         ...widget.group.members.map((m) {
           final isMuted = _mutedMembers.contains(m.fipId);
@@ -311,15 +311,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           return ListTile(
             contentPadding: EdgeInsets.zero,
             title: Row(children: [
-              Text(m.name, style: TextStyle(color: KnkColors.text, fontSize: 13)),
+              Text(m.name, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
               if (isOwner) const SizedBox(width: 6),
-              if (isOwner) Text('(sahip)', style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
+              if (isOwner) Text('(sahip)', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
               if (isMuted) const SizedBox(width: 6),
-              if (isMuted) Icon(Icons.volume_off, color: KnkColors.textDim, size: 13),
+              if (isMuted) Icon(Icons.volume_off, color: PhotonColors.textDim, size: 13),
             ]),
             trailing: widget.group.isOwner && !isOwner
                 ? IconButton(
-                    icon: Icon(Icons.more_vert, color: KnkColors.textDim, size: 18),
+                    icon: Icon(Icons.more_vert, color: PhotonColors.textDim, size: 18),
                     onPressed: () {
                       Navigator.pop(context);
                       _showMemberMenu(m);
@@ -336,7 +336,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final link = 'photon://${widget.group.address}';
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(
         child: Padding(
@@ -345,23 +345,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Davet Linki', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+              Text('Davet Linki', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: KnkColors.bg,
-                  border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
+                  color: PhotonColors.bg,
+                  border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(link, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
+                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
               ),
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    style: knkPrimaryButtonStyle(),
+                    style: photonPrimaryButtonStyle(),
                     icon: const Icon(Icons.copy, size: 16),
                     label: const Text('Kopyala'),
                     onPressed: () {
@@ -375,8 +375,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: KnkColors.accent,
-                      side: BorderSide(color: KnkColors.accent),
+                      foregroundColor: PhotonColors.accent,
+                      side: BorderSide(color: PhotonColors.accent),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -400,30 +400,30 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final initial = fromName.isNotEmpty ? fromName[0].toUpperCase() : '?';
     return CircleAvatar(
       radius: 14,
-      backgroundColor: KnkColors.accent.withOpacity(0.2),
-      child: Text(initial, style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+      backgroundColor: PhotonColors.accent.withOpacity(0.2),
+      child: Text(initial, style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 
   void _showAnnounceDialog() {
     final ctrl = TextEditingController();
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: KnkColors.panel,
-      title: Text('Duyuru Gönder', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+      backgroundColor: PhotonColors.panel,
+      title: Text('Duyuru Gönder', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
       content: TextField(
         controller: ctrl, autofocus: true,
-        style: TextStyle(color: KnkColors.text),
+        style: TextStyle(color: PhotonColors.text),
         maxLines: 3,
-        decoration: InputDecoration(hintText: 'Duyuru metni…', hintStyle: TextStyle(color: KnkColors.textDim), filled: true, fillColor: KnkColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line))),
+        decoration: InputDecoration(hintText: 'Duyuru metni…', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
         ElevatedButton(
-          style: knkPrimaryButtonStyle(),
+          style: photonPrimaryButtonStyle(),
           onPressed: () async {
             Navigator.pop(ctx);
             if (ctrl.text.trim().isEmpty) return;
-            await KnkApi.sendGroupAnnouncement(widget.myServerUrl, widget.group.groupId,
+            await PhotonApi.sendGroupAnnouncement(widget.myServerUrl, widget.group.groupId,
               from: widget.identity.fipId, fromName: widget.displayName, text: ctrl.text.trim());
             _showToast('Duyuru gönderildi.');
           },
@@ -444,19 +444,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         return AlertDialog(
-          backgroundColor: KnkColors.panel,
-          title: Text('Anket Oluştur', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+          backgroundColor: PhotonColors.panel,
+          title: Text('Anket Oluştur', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
                 controller: questionCtrl,
                 autofocus: true,
-                style: TextStyle(color: KnkColors.text),
+                style: TextStyle(color: PhotonColors.text),
                 decoration: InputDecoration(
                   hintText: 'Soru…',
-                  hintStyle: TextStyle(color: KnkColors.textDim),
-                  filled: true, fillColor: KnkColors.bg,
-                  border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)),
+                  hintStyle: TextStyle(color: PhotonColors.textDim),
+                  filled: true, fillColor: PhotonColors.bg,
+                  border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
                 ),
               ),
               const SizedBox(height: 12),
@@ -466,12 +466,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: optCtrls[i],
-                      style: TextStyle(color: KnkColors.text),
+                      style: TextStyle(color: PhotonColors.text),
                       decoration: InputDecoration(
                         labelText: 'Seçenek ${i + 1}${i < 2 ? "" : " (opsiyonel)"}',
-                        labelStyle: TextStyle(color: KnkColors.textDim),
-                        filled: true, fillColor: KnkColors.bg,
-                        border: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line)),
+                        labelStyle: TextStyle(color: PhotonColors.textDim),
+                        filled: true, fillColor: PhotonColors.bg,
+                        border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
                       ),
                     ),
                   ),
@@ -479,28 +479,28 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     const SizedBox(width: 6),
                     GestureDetector(
                       onTap: () => ss(() { optCtrls[i].dispose(); optCtrls.removeAt(i); }),
-                      child: Icon(Icons.remove_circle_outline, color: KnkColors.danger, size: 22),
+                      child: Icon(Icons.remove_circle_outline, color: PhotonColors.danger, size: 22),
                     ),
                   ],
                 ]),
               )),
               TextButton.icon(
                 onPressed: () => ss(() => optCtrls.add(TextEditingController())),
-                icon: Icon(Icons.add, color: KnkColors.accent, size: 18),
-                label: Text('Seçenek Ekle', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
+                icon: Icon(Icons.add, color: PhotonColors.accent, size: 18),
+                label: Text('Seçenek Ekle', style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
               ),
             ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
             ElevatedButton(
-              style: knkPrimaryButtonStyle(),
+              style: photonPrimaryButtonStyle(),
               onPressed: () async {
                 Navigator.pop(ctx);
                 final opts = optCtrls.map((c) => c.text.trim()).where((o) => o.isNotEmpty).toList();
                 if (questionCtrl.text.trim().isEmpty || opts.length < 2) return;
                 final memberUrls = widget.group.members.map((m) => m.serverUrl).toList()..add(widget.myServerUrl);
-                await KnkApi.sendGroupPoll(memberUrls, widget.group.groupId,
+                await PhotonApi.sendGroupPoll(memberUrls, widget.group.groupId,
                   from: widget.identity.fipId, fromName: widget.displayName,
                   question: questionCtrl.text.trim(), options: opts, ts: DateTime.now().millisecondsSinceEpoch);
                 _showToast('Anket gönderildi.');
@@ -522,17 +522,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(12)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.poll, color: KnkColors.accent, size: 14),
+          Icon(Icons.poll, color: PhotonColors.accent, size: 14),
           const SizedBox(width: 6),
-          Text('ANKET', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          Text('ANKET', style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
           const SizedBox(width: 6),
-          Text(m['fromName'] as String? ?? '', style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
+          Text(m['fromName'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
         ]),
         const SizedBox(height: 8),
-        Text(question, style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(question, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
         const SizedBox(height: 8),
         ...options.asMap().entries.map((entry) {
           final optionVotes = votes.values.where((v) => v == entry.key).length;
@@ -546,9 +546,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 Container(
                   height: 36,
                   decoration: BoxDecoration(
-                    color: isSelected ? KnkColors.accent.withOpacity(0.15) : KnkColors.panelAlt,
+                    color: isSelected ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: isSelected ? KnkColors.accent : KnkColors.line),
+                    border: Border.all(color: isSelected ? PhotonColors.accent : PhotonColors.line),
                   ),
                 ),
                 if (totalVotes > 0)
@@ -557,7 +557,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     child: Container(
                       height: 36,
                       decoration: BoxDecoration(
-                        color: KnkColors.accent.withOpacity(0.1),
+                        color: PhotonColors.accent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
@@ -566,8 +566,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   height: 36,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(children: [
-                    Expanded(child: Text(entry.value, style: TextStyle(color: KnkColors.text, fontSize: 13))),
-                    Text('${(pct * 100).toStringAsFixed(0)}%  $optionVotes', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+                    Expanded(child: Text(entry.value, style: TextStyle(color: PhotonColors.text, fontSize: 13))),
+                    Text('${(pct * 100).toStringAsFixed(0)}%  $optionVotes', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                   ]),
                 ),
               ]),
@@ -575,7 +575,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           );
         }).toList(),
         const SizedBox(height: 4),
-        Text('$totalVotes oy kullandı', style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
+        Text('$totalVotes oy kullandı', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
       ]),
     );
   }
@@ -596,37 +596,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             Text(widget.group.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             if (widget.group.description.isNotEmpty)
-              Text(widget.group.description, style: TextStyle(fontSize: 11, color: KnkColors.textDim, fontWeight: FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(widget.group.description, style: TextStyle(fontSize: 11, color: PhotonColors.textDim, fontWeight: FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
         actions: [
           PopupMenuButton<String>(
-            color: KnkColors.panel,
-            icon: Icon(Icons.more_vert, color: KnkColors.text),
+            color: PhotonColors.panel,
+            icon: Icon(Icons.more_vert, color: PhotonColors.text),
             onSelected: (v) {
               if (v == 'announce') _showAnnounceDialog();
               if (v == 'poll') _showPollDialog();
               if (v == 'invite') _showInviteLink();
             },
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: KnkColors.accent, size: 16), SizedBox(width: 8), Text('Davet Linki', style: TextStyle(color: KnkColors.text))])),
+              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text('Davet Linki', style: TextStyle(color: PhotonColors.text))])),
               if (widget.group.isOwner) ...[
-                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: KnkColors.accent2, size: 16), SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: KnkColors.text))])),
-                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: KnkColors.accent, size: 16), SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: KnkColors.text))])),
+                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: PhotonColors.text))])),
               ],
             ],
           ),
           if (widget.group.isOwner && _pendingJoins.isNotEmpty)
             Stack(children: [
-              IconButton(icon: Icon(Icons.person_add, color: KnkColors.text), onPressed: _showJoinRequests),
-              Positioned(top: 8, right: 8, child: Container(width: 8, height: 8, decoration: BoxDecoration(color: KnkColors.accent2, shape: BoxShape.circle))),
+              IconButton(icon: Icon(Icons.person_add, color: PhotonColors.text), onPressed: _showJoinRequests),
+              Positioned(top: 8, right: 8, child: Container(width: 8, height: 8, decoration: BoxDecoration(color: PhotonColors.accent2, shape: BoxShape.circle))),
             ])
           else if (widget.group.isOwner)
-            IconButton(icon: Icon(Icons.person_add, color: KnkColors.textDim), onPressed: _showJoinRequests),
-          IconButton(icon: Icon(Icons.info_outline, color: KnkColors.text), onPressed: _showInfo),
+            IconButton(icon: Icon(Icons.person_add, color: PhotonColors.textDim), onPressed: _showJoinRequests),
+          IconButton(icon: Icon(Icons.info_outline, color: PhotonColors.text), onPressed: _showInfo),
         ],
       ),
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: Stack(
         children: [
           ChatWallpaper.buildBackground(),
@@ -638,18 +638,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   onTap: () => setState(() => _annExpanded = !_annExpanded),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(color: KnkColors.accent2.withOpacity(0.1), border: Border(bottom: BorderSide(color: KnkColors.accent2.withOpacity(0.3)))),
+                    decoration: BoxDecoration(color: PhotonColors.accent2.withOpacity(0.1), border: Border(bottom: BorderSide(color: PhotonColors.accent2.withOpacity(0.3)))),
                     child: Row(children: [
-                      Icon(Icons.campaign, color: KnkColors.accent2, size: 16),
+                      Icon(Icons.campaign, color: PhotonColors.accent2, size: 16),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
                         _annExpanded
                           ? _announcements.map((a) => '${a['fromName']}: ${a['text']}').join('\n')
                           : _announcements.last['text'] as String,
-                        style: TextStyle(color: KnkColors.text, fontSize: 12),
+                        style: TextStyle(color: PhotonColors.text, fontSize: 12),
                         maxLines: _annExpanded ? null : 1, overflow: _annExpanded ? null : TextOverflow.ellipsis,
                       )),
-                      Icon(_annExpanded ? Icons.expand_less : Icons.expand_more, color: KnkColors.accent2, size: 16),
+                      Icon(_annExpanded ? Icons.expand_less : Icons.expand_more, color: PhotonColors.accent2, size: 16),
                     ]),
                   ),
                 ),
@@ -668,14 +668,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                           decoration: BoxDecoration(
-                            color: KnkColors.accent.withOpacity(0.12),
-                            border: Border.all(color: KnkColors.accent.withOpacity(0.2)),
+                            color: PhotonColors.accent.withOpacity(0.12),
+                            border: Border.all(color: PhotonColors.accent.withOpacity(0.2)),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text(q.text, style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                            Text(q.text, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                             const SizedBox(height: 2),
-                            Icon(Icons.access_time, color: KnkColors.textDim, size: 11),
+                            Icon(Icons.access_time, color: PhotonColors.textDim, size: 11),
                           ]),
                         ),
                       );
@@ -718,26 +718,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                           decoration: BoxDecoration(
-                            color: isMe ? KnkColors.accent.withOpacity(0.18) : KnkColors.panel,
-                            border: Border.all(color: isMe ? KnkColors.accent.withOpacity(0.3) : KnkColors.line),
+                            color: isMe ? PhotonColors.accent.withOpacity(0.18) : PhotonColors.panel,
+                            border: Border.all(color: isMe ? PhotonColors.accent.withOpacity(0.3) : PhotonColors.line),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                            if (!isMe) Text(fromName, style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-                            Text(displayText, style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                            if (!isMe) Text(fromName, style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                            Text(displayText, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                             if (_translating.contains(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
-                                child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+                                child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
                               ),
                             if (_translations.containsKey(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text('çeviri', style: TextStyle(color: KnkColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                                  Text('çeviri', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
                                   const SizedBox(height: 2),
                                   Text(_translations[msgId]!,
-                                    style: TextStyle(color: KnkColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                                    style: TextStyle(color: PhotonColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
                                 ]),
                               ),
                           ]),
@@ -753,23 +753,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: KnkColors.danger.withOpacity(0.1),
-                  child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12)),
+                  color: PhotonColors.danger.withOpacity(0.1),
+                  child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
                 ),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                decoration: BoxDecoration(border: Border(top: BorderSide(color: KnkColors.line))),
+                decoration: BoxDecoration(border: Border(top: BorderSide(color: PhotonColors.line))),
                 child: Row(children: [
                   Expanded(
                     child: TextField(
                       controller: _msgCtrl,
-                      style: TextStyle(color: KnkColors.text, fontSize: 14),
+                      style: TextStyle(color: PhotonColors.text, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Mesaj yaz…',
-                        hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 13),
+                        hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(20)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(20)),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(20)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(20)),
                       ),
                       minLines: 1, maxLines: 4,
                       onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
@@ -781,7 +781,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     onTap: _send,
                     child: Container(
                       width: 42, height: 42,
-                      decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle),
                       child: const Icon(Icons.send, color: Color(0xFF06251A), size: 18),
                     ),
                   ),
@@ -794,8 +794,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               left: 16, right: 16, bottom: 84,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                child: Text(_toastMsg!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: KnkColors.text)),
+                decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+                child: Text(_toastMsg!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
               ),
             ),
         ],

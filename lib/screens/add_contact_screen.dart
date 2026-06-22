@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'qr_scan_screen.dart';
 import '../fip.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../local_store.dart';
 import '../theme.dart';
 
@@ -32,14 +32,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
   void _showMyQr() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('BENİM QR KODUM', style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+            Text('BENİM QR KODUM', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -48,11 +48,11 @@ class _AddContactScreenState extends State<AddContactScreen> {
             ),
             const SizedBox(height: 16),
             Text(widget.identity.code,
-              style: TextStyle(color: KnkColors.accent, fontSize: 28, fontFamily: 'monospace', letterSpacing: 10, fontWeight: FontWeight.bold)),
+              style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontFamily: 'monospace', letterSpacing: 10, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text('Arkadaşın bu kodu veya QR\'ı tarayarak seni ekleyebilir.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
             const SizedBox(height: 16),
           ],
         ),
@@ -76,7 +76,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
     setState(() { _sending = true; _error = null; });
 
     // Bridge'den koda karşılık gelen sunucuyu bul
-    final lookup = await KnkApi.lookupByCodeFromBridge(code);
+    final lookup = await PhotonApi.lookupByCodeFromBridge(code);
     if (lookup == null) {
       setState(() {
         _sending = false;
@@ -89,7 +89,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
     final targetFipId = lookup['fipId'] as String;
     final targetName = (lookup['name'] as String?) ?? 'Bilinmeyen';
 
-    await KnkApi.sendFriendRequest(
+    await PhotonApi.sendFriendRequest(
       toServerUrl: targetServerUrl,
       toFipId: targetFipId,
       fromFipId: widget.identity.fipId,
@@ -136,8 +136,8 @@ class _AddContactScreenState extends State<AddContactScreen> {
           margin: const EdgeInsets.only(top: 24),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: KnkColors.panel,
-            border: Border.all(color: KnkColors.line),
+            color: PhotonColors.panel,
+            border: Border.all(color: PhotonColors.line),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -145,7 +145,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             children: [
               Text(
                 'ARKADAŞİNİN 5 HANELİ KODU',
-                style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5),
+                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -154,7 +154,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                 keyboardType: TextInputType.number,
                 maxLength: 5,
                 style: TextStyle(
-                  color: KnkColors.accent,
+                  color: PhotonColors.accent,
                   fontSize: 22,
                   fontFamily: 'monospace',
                   letterSpacing: 8,
@@ -165,10 +165,10 @@ class _AddContactScreenState extends State<AddContactScreen> {
                   hintStyle: TextStyle(color: Color(0xFF5C6E6B), fontSize: 22, letterSpacing: 8),
                   counterText: '',
                   filled: true,
-                  fillColor: KnkColors.bg,
+                  fillColor: PhotonColors.bg,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: KnkColors.line),
+                    borderSide: BorderSide(color: PhotonColors.line),
                   ),
                 ),
                 autocorrect: false,
@@ -179,18 +179,18 @@ class _AddContactScreenState extends State<AddContactScreen> {
                 'Arkadaşının profilindeki 5 haneli kodu gir. '
                 'Davet isteği otomatik olarak onun sunucusuna gönderilir.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6),
+                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: KnkColors.danger, fontSize: 12)),
+                Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
               ],
               const SizedBox(height: 18),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      style: knkGhostButtonStyle(),
+                      style: photonGhostButtonStyle(),
                       onPressed: () => Navigator.pop(context),
                       child: Text('Vazgeç'),
                     ),
@@ -198,7 +198,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      style: knkPrimaryButtonStyle(),
+                      style: photonPrimaryButtonStyle(),
                       onPressed: (_addrCtrl.text.trim().length == 5 && !_sending) ? _send : null,
                       child: _sending
                           ? const SizedBox(

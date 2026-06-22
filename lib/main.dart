@@ -32,7 +32,7 @@ void _bgDispatcher() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final isDark = await LocalStore.loadThemeDark();
-  KnkTheme.instance.setDark(isDark);
+  PhotonTheme.instance.setDark(isDark);
   await AppLang.loadLang();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
@@ -47,19 +47,19 @@ void main() async {
       constraints: Constraints(networkType: NetworkType.connected),
     );
   }
-  runApp(const KnkApp());
+  runApp(const PhotonApp());
 }
 
-class KnkApp extends StatelessWidget {
-  const KnkApp({super.key});
+class PhotonApp extends StatelessWidget {
+  const PhotonApp({super.key});
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([KnkTheme.instance, AppLang.instance]),
+      listenable: Listenable.merge([PhotonTheme.instance, AppLang.instance]),
       builder: (context, _) => MaterialApp(
         title: 'Photon Chat',
         debugShowCheckedModeBanner: false,
-        theme: KnkTheme.instance.isDark ? knkTheme : knkLightTheme,
+        theme: PhotonTheme.instance.isDark ? photonTheme : photonLightTheme,
         home: RootGate(key: rootGateKey),
       ),
     );

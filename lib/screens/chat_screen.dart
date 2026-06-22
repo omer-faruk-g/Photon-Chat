@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../fip.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../local_store.dart';
 import '../e2e.dart';
 import '../theme.dart';
@@ -124,8 +124,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: Text('Görsel Gönder', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        backgroundColor: PhotonColors.panel,
+        title: Text('Görsel Gönder', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -133,19 +133,19 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(height: 14),
           Row(children: [
-            Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: KnkColors.danger),
+            Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: PhotonColors.danger),
             const SizedBox(width: 4),
-            Expanded(child: Text('Hassas / +18 içerik olarak işaretle', style: TextStyle(color: KnkColors.text, fontSize: 12))),
+            Expanded(child: Text('Hassas / +18 içerik olarak işaretle', style: TextStyle(color: PhotonColors.text, fontSize: 12))),
           ]),
           if (markNsfw)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('⚠️ Karşı tarafa siyah blok olarak gönderilir ve uyarı mesajı iletilir.', style: TextStyle(color: KnkColors.danger, fontSize: 11, height: 1.5)),
+              child: Text('⚠️ Karşı tarafa siyah blok olarak gönderilir ve uyarı mesajı iletilir.', style: TextStyle(color: PhotonColors.danger, fontSize: 11, height: 1.5)),
             ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('İptal', style: TextStyle(color: KnkColors.textDim))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Gönder', style: TextStyle(color: KnkColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Gönder', style: TextStyle(color: PhotonColors.accent))),
         ],
       )),
     );
@@ -153,13 +153,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = markNsfw ? '[Hassas Görsel]' : '[Fotoğraf]';
-    await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
-    await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
 
     if (markNsfw) {
       final warnTs = ts + 1;
       final warnText = '⚠️ Sistem uyarısı: Önceki mesajda hassas/+18 içerik tespit edildi.';
-      await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+      await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
     }
   }
 
@@ -173,8 +173,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = caption.isNotEmpty ? caption : '[GIF]';
 
-    await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
-    await KnkApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
   }
 
   void _startListening() async {
@@ -208,7 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _initE2E() async {
     try {
-      final info = await KnkApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
+      final info = await PhotonApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
       final pubKey = info?['publicKey'] as String?;
       if (pubKey != null && pubKey.isNotEmpty) {
         final key = await deriveSharedKey(pubKey);
@@ -223,13 +223,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _markRead() async {
-    await KnkApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+    await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
   }
 
   void _startReadPoll() {
     Timer.periodic(const Duration(seconds: 3), (t) async {
       if (!_alive) { t.cancel(); return; }
-      final status = await KnkApi.getReadStatus(widget.contact.serverUrl, _chatKey);
+      final status = await PhotonApi.getReadStatus(widget.contact.serverUrl, _chatKey);
       if (_alive && mounted) setState(() => _readStatus = status);
     });
   }
@@ -248,8 +248,8 @@ class _ChatScreenState extends State<ChatScreen> {
     while (_alive) {
       await OfflineQueue.instance.flush();
       if (mounted) setState(() {});
-      final raw = await KnkApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
-      final reactions = await KnkApi.getChatReactions(widget.myServerUrl, _chatKey);
+      final raw = await PhotonApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
+      final reactions = await PhotonApi.getChatReactions(widget.myServerUrl, _chatKey);
       final msgs = <_DisplayMessage>[];
       for (final m in raw) {
         String text = m['text'] as String? ?? '';
@@ -301,14 +301,14 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() => _messages = merged);
         _scrollToBottom();
       }
-      await KnkApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
       await Future.delayed(const Duration(seconds: 2));
     }
   }
 
   Future<void> _pollContactStatus() async {
     while (_alive) {
-      final active = await KnkApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
       if (_alive && mounted) {
         if (active != _contactActive) setState(() => _contactActive = active);
         if (active != _contactOnline) setState(() => _contactOnline = active);
@@ -319,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _startTypingPoll() {
     _typingPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      final typingList = await KnkApi.getTyping(widget.myServerUrl, _chatKey);
+      final typingList = await PhotonApi.getTyping(widget.myServerUrl, _chatKey);
       final contactTyping = typingList.any((t) => t['fipId'] == widget.contact.fipId);
       if (mounted && contactTyping != _contactTyping) setState(() => _contactTyping = contactTyping);
     });
@@ -329,7 +329,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_inputError != null) setState(() => _inputError = null);
     _typingDebounce?.cancel();
     _typingDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (value.isNotEmpty) KnkApi.sendTyping(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      if (value.isNotEmpty) PhotonApi.sendTyping(widget.myServerUrl, _chatKey, widget.identity.fipId);
     });
   }
 
@@ -349,8 +349,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_editingMsgId != null) {
       final msgId = _editingMsgId!;
       setState(() { _editingMsgId = null; _draftCtrl.clear(); });
-      await KnkApi.editMessage(widget.myServerUrl, _chatKey, msgId, raw);
-      await KnkApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, raw);
+      await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, raw);
+      await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, raw);
       return;
     }
 
@@ -360,7 +360,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _inputError = null);
 
     if (!_contactActive) {
-      final active = await KnkApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
       if (!active) { if (mounted) { setState(() => _contactActive = false); _showDeactivatedDialog(); } return; }
       setState(() => _contactActive = true);
     }
@@ -377,7 +377,7 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() { _replyToMsg = null; });
 
     try {
-      final (ok, myMsgId) = await KnkApi.sendMessage(
+      final (ok, myMsgId) = await PhotonApi.sendMessage(
           receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
           from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
       if (!ok) throw const SocketException('Server unreachable');
@@ -389,7 +389,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
       _scrollToBottom();
 
-      final (deliveredToContact, _) = await KnkApi.sendMessage(
+      final (deliveredToContact, _) = await PhotonApi.sendMessage(
           receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
           from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
           toFipId: widget.contact.fipId, senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId);
@@ -411,8 +411,8 @@ class _ChatScreenState extends State<ChatScreen> {
         final msgId = myMsgId;
         Future.delayed(Duration(seconds: _disappearSeconds!), () async {
           if (!mounted) return;
-          await KnkApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
-          await KnkApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
+          await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
+          await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
           if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
         });
       }
@@ -501,8 +501,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                   decoration: BoxDecoration(
-                    color: m.deleted ? KnkColors.panelAlt : (mine ? KnkColors.accent : KnkColors.panel),
-                    border: (mine && !m.deleted) ? null : Border.all(color: KnkColors.line),
+                    color: m.deleted ? PhotonColors.panelAlt : (mine ? PhotonColors.accent : PhotonColors.panel),
+                    border: (mine && !m.deleted) ? null : Border.all(color: PhotonColors.line),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
                       bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
@@ -514,12 +514,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         padding: const EdgeInsets.all(8),
                         margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
-                          color: mine ? const Color(0xFF06251A).withOpacity(0.3) : KnkColors.panelAlt,
+                          color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border(left: BorderSide(color: KnkColors.accent, width: 3)),
+                          border: Border(left: BorderSide(color: PhotonColors.accent, width: 3)),
                         ),
                         child: Text(m.replyTo!['text'] as String? ?? '',
-                          style: TextStyle(color: mine ? const Color(0xFF06251A) : KnkColors.textDim, fontSize: 11),
+                          style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.textDim, fontSize: 11),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
                     if (m.imageData != null && !m.deleted)
@@ -527,32 +527,32 @@ class _ChatScreenState extends State<ChatScreen> {
                     else
                     Text(displayText,
                       style: TextStyle(
-                        color: m.deleted ? KnkColors.textDim : (mine ? const Color(0xFF06251A) : KnkColors.text),
+                        color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
                         fontSize: 13.5, height: 1.45,
                         fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
                       )),
                     if (_translating.contains(m.msgId))
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: KnkColors.textDim)),
+                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
                       ),
                     if (_translations.containsKey(m.msgId))
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('çeviri', style: TextStyle(color: KnkColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                          Text('çeviri', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
                           const SizedBox(height: 2),
                           Text(_translations[m.msgId]!,
                             style: TextStyle(
-                              color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.8),
+                              color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.8),
                               fontSize: 13, height: 1.4, fontStyle: FontStyle.italic,
                             )),
                         ]),
                       ),
                     Row(mainAxisSize: MainAxisSize.min, children: [
                       if (m.edited && !m.deleted)
-                        Text('d\u00FCzenlendi \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.5), fontSize: 9)),
-                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : KnkColors.text).withOpacity(0.6), fontSize: 9.5)),
+                        Text('d\u00FCzenlendi \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.5), fontSize: 9)),
+                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 9.5)),
                       if (mine && !m.deleted) ...[
                         const SizedBox(width: 4),
                         Text(
@@ -572,12 +572,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Wrap(spacing: 4, runSpacing: 4,
                       children: m.reactions.entries.map((e) => GestureDetector(
                         onTap: () {
-                          KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
-                          KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                          PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                          PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: KnkColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: KnkColors.line)),
+                          decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
                           child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
                         ),
                       )).toList(),
@@ -601,7 +601,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
-          color: KnkColors.accent.withOpacity(0.5),
+          color: PhotonColors.accent.withOpacity(0.5),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
             bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(2),
@@ -622,7 +622,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _onLongPressMessage(_DisplayMessage m) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
+      backgroundColor: PhotonColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Emoji reaction row
@@ -631,17 +631,17 @@ class _ChatScreenState extends State<ChatScreen> {
             children: ['👍','❤️','😂','😮','😢','😡'].map((emoji) => GestureDetector(
               onTap: () {
                 Navigator.pop(context);
-                KnkApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
-                KnkApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
               },
               child: Text(emoji, style: const TextStyle(fontSize: 30)),
             )).toList(),
           ),
         ),
-        Divider(color: KnkColors.line, height: 1),
+        Divider(color: PhotonColors.line, height: 1),
         ListTile(
-          leading: Icon(Icons.reply, color: KnkColors.accent),
-          title: Text('Yanıtla', style: TextStyle(color: KnkColors.text)),
+          leading: Icon(Icons.reply, color: PhotonColors.accent),
+          title: Text('Yanıtla', style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
             setState(() => _replyToMsg = {'msgId': m.msgId, 'from': m.from, 'text': m.text});
@@ -649,8 +649,8 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.forward, color: KnkColors.accent),
-            title: Text('İlet', style: TextStyle(color: KnkColors.text)),
+            leading: Icon(Icons.forward, color: PhotonColors.accent),
+            title: Text('İlet', style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               _forwardMessage(m);
@@ -658,8 +658,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.copy, color: KnkColors.accent),
-            title: Text('Kopyala', style: TextStyle(color: KnkColors.text)),
+            leading: Icon(Icons.copy, color: PhotonColors.accent),
+            title: Text('Kopyala', style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               Clipboard.setData(ClipboardData(text: m.text));
@@ -667,8 +667,8 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.translate, color: KnkColors.accent),
-            title: Text('Çevir', style: TextStyle(color: KnkColors.text)),
+            leading: Icon(Icons.translate, color: PhotonColors.accent),
+            title: Text('Çevir', style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               _translateMessage(m.msgId, m.text);
@@ -676,10 +676,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.push_pin, color: KnkColors.accent),
+            leading: Icon(Icons.push_pin, color: PhotonColors.accent),
             title: Text(
               _pinnedMessage?['msgId'] == m.msgId ? 'Sabitlemeyi Kaldır' : 'Sabitle',
-              style: TextStyle(color: KnkColors.text),
+              style: TextStyle(color: PhotonColors.text),
             ),
             onTap: () async {
               Navigator.pop(context);
@@ -695,17 +695,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (m.from == widget.identity.fipId && !m.deleted) ...[
           ListTile(
-            leading: Icon(Icons.edit, color: KnkColors.accent),
-            title: Text('Düzenle', style: TextStyle(color: KnkColors.text)),
+            leading: Icon(Icons.edit, color: PhotonColors.accent),
+            title: Text('Düzenle', style: TextStyle(color: PhotonColors.text)),
             onTap: () { Navigator.pop(context); setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; }); },
           ),
           ListTile(
-            leading: Icon(Icons.delete_outline, color: KnkColors.danger),
-            title: Text('Sil', style: TextStyle(color: KnkColors.danger)),
+            leading: Icon(Icons.delete_outline, color: PhotonColors.danger),
+            title: Text('Sil', style: TextStyle(color: PhotonColors.danger)),
             onTap: () async {
               Navigator.pop(context);
-              await KnkApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
-              await KnkApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
+              await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
+              await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
             },
           ),
         ],
@@ -718,35 +718,35 @@ class _ChatScreenState extends State<ChatScreen> {
       final active = list.where((c) => c.status == 'on').toList();
       showModalBottomSheet(
         context: context,
-        backgroundColor: KnkColors.panel,
+        backgroundColor: PhotonColors.panel,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
         builder: (_) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Kime ilet?', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text('Kime ilet?', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
-            Divider(color: KnkColors.line, height: 1),
+            Divider(color: PhotonColors.line, height: 1),
             if (active.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Aktif kişin yok.', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+                child: Text('Aktif kişin yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
               ),
             ...active.map((c) => ListTile(
               leading: CircleAvatar(
-                backgroundColor: KnkColors.accent.withOpacity(0.15),
-                child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700)),
+                backgroundColor: PhotonColors.accent.withOpacity(0.15),
+                child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
               ),
-              title: Text(c.name, style: TextStyle(color: KnkColors.text, fontSize: 14)),
-              subtitle: Text('Kod: ${c.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              title: Text(c.name, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+              subtitle: Text('Kod: ${c.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               onTap: () async {
                 Navigator.pop(context);
                 final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
                 final ts = DateTime.now().millisecondsSinceEpoch;
                 final fwdText = '↗️ İletildi:\n${m.text}';
-                await KnkApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, senderName: _myDisplayName);
-                await KnkApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
+                await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, senderName: _myDisplayName);
+                await PhotonApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} kişisine iletildi'), duration: const Duration(seconds: 2)));
               },
             )),
@@ -786,15 +786,15 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: Text('Kaybolan Mesajlar', style: TextStyle(color: KnkColors.text, fontSize: 15)),
+        backgroundColor: PhotonColors.panel,
+        title: Text('Kaybolan Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: options.entries.map((e) => RadioListTile<int?>(
-            title: Text(e.key, style: TextStyle(color: KnkColors.text, fontSize: 13)),
+            title: Text(e.key, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
             value: e.value,
             groupValue: _disappearSeconds,
-            activeColor: KnkColors.accent,
+            activeColor: PhotonColors.accent,
             onChanged: (v) async {
               Navigator.pop(ctx);
               await LocalStore.saveDisappearDuration(_chatKey, v);
@@ -819,10 +819,10 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: Text('Kişi artık aktif değil', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: Text('Bu kişi hesabını bu cihazdan kaldırdı.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Tamam', style: TextStyle(color: KnkColors.accent)))],
+        backgroundColor: PhotonColors.panel,
+        title: Text('Kişi artık aktif değil', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Text('Bu kişi hesabını bu cihazdan kaldırdı.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Tamam', style: TextStyle(color: PhotonColors.accent)))],
       ),
     );
   }
@@ -885,7 +885,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
       );
     } catch (_) {
-      return Text('[Görsel yüklenemedi]', style: TextStyle(color: KnkColors.textDim, fontSize: 12));
+      return Text('[Görsel yüklenemedi]', style: TextStyle(color: PhotonColors.textDim, fontSize: 12));
     }
   }
 
@@ -898,8 +898,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     return CircleAvatar(
       radius: size / 2,
-      backgroundColor: KnkColors.accent.withOpacity(0.2),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: KnkColors.accent, fontSize: size * 0.4, fontWeight: FontWeight.bold)),
+      backgroundColor: PhotonColors.accent.withOpacity(0.2),
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: size * 0.4, fontWeight: FontWeight.bold)),
     );
   }
 
@@ -915,7 +915,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               _contactOnline ? 'Çevrimiçi' : _formatLastSeen(widget.contact.lastSeen),
               style: TextStyle(
-                color: _contactOnline ? Colors.green : KnkColors.textDim,
+                color: _contactOnline ? Colors.green : PhotonColors.textDim,
                 fontSize: 10,
               ),
             ),
@@ -923,7 +923,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ]),
         actions: [
           IconButton(
-            icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? KnkColors.accent : KnkColors.textDim),
+            icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
             onPressed: _showDisappearDialog,
             tooltip: 'Kaybolan Mesajlar',
           ),
@@ -936,13 +936,13 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: PhotonColors.line))),
             child: Row(children: [
-              Container(width: 7, height: 7, decoration: BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle)),
               const SizedBox(width: 6),
-              Text('FIP · ${widget.contact.code}', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
-              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: KnkColors.accent, size: 11)],
-              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty, color: KnkColors.accent, size: 11)],
+              Text('FIP · ${widget.contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1)),
+              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: PhotonColors.accent, size: 11)],
+              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty, color: PhotonColors.accent, size: 11)],
             ]),
           ),
           // Pinned message banner
@@ -950,13 +950,13 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.accent.withOpacity(0.08),
+              color: PhotonColors.accent.withOpacity(0.08),
               child: Row(children: [
-                Icon(Icons.push_pin, color: KnkColors.accent, size: 14),
+                Icon(Icons.push_pin, color: PhotonColors.accent, size: 14),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   _pinnedMessage!['text'] as String? ?? '',
-                  style: TextStyle(color: KnkColors.text, fontSize: 12),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 12),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 )),
                 GestureDetector(
@@ -964,68 +964,68 @@ class _ChatScreenState extends State<ChatScreen> {
                     await LocalStore.savePinnedMessage(_chatKey, null);
                     if (mounted) setState(() => _pinnedMessage = null);
                   },
-                  child: Icon(Icons.close, color: KnkColors.textDim, size: 16),
+                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
                 ),
               ]),
             ),
           if (_isBlocked)
-            _banner(Icons.block, 'Bu kişiyi engellediniz.', KnkColors.danger)
+            _banner(Icons.block, 'Bu kişiyi engellediniz.', PhotonColors.danger)
           else if (!_contactActive)
-            _banner(Icons.info_outline, '${widget.contact.name} hesabını kaldırdı.', KnkColors.danger),
+            _banner(Icons.info_outline, '${widget.contact.name} hesabını kaldırdı.', PhotonColors.danger),
           if (_contactTyping && !_isBlocked)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text('${widget.contact.name} yazıyor…', style: TextStyle(color: KnkColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
+              child: Text('${widget.contact.name} yazıyor…', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
             ),
           if (_editingMsgId != null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.accent.withOpacity(0.1),
+              color: PhotonColors.accent.withOpacity(0.1),
               child: Row(children: [
-                Icon(Icons.edit, color: KnkColors.accent, size: 14),
+                Icon(Icons.edit, color: PhotonColors.accent, size: 14),
                 const SizedBox(width: 8),
-                Text('Düzenleme modu', style: TextStyle(color: KnkColors.accent, fontSize: 12)),
+                Text('Düzenleme modu', style: TextStyle(color: PhotonColors.accent, fontSize: 12)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => setState(() { _editingMsgId = null; _draftCtrl.clear(); }),
-                  child: Icon(Icons.close, color: KnkColors.textDim, size: 16),
+                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
                 ),
               ]),
             ),
           Expanded(
             child: _isBlocked
-                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6))))
+                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6))))
                 : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
-                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
+                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6))))
                     : _buildMessageList(),
           ),
           if (_inputError != null)
-            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: KnkColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: KnkColors.danger, fontSize: 12))),
+            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: PhotonColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12))),
           // Reply banner
           if (_replyToMsg != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.accent.withOpacity(0.1),
+              color: PhotonColors.accent.withOpacity(0.1),
               child: Row(children: [
-                Container(width: 3, height: 36, decoration: BoxDecoration(color: KnkColors.accent, borderRadius: BorderRadius.circular(2))),
+                Container(width: 3, height: 36, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(width: 8),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_replyToMsg!['from'] == widget.identity.fipId ? 'Sen' : widget.contact.name,
-                    style: TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
-                  Text(_replyToMsg!['text'] as String, style: TextStyle(color: KnkColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(_replyToMsg!['text'] as String, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ])),
-                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: KnkColors.textDim, size: 16)),
+                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: PhotonColors.textDim, size: 16)),
               ]),
             ),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: KnkColors.panel, border: Border(top: BorderSide(color: KnkColors.line))),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
             child: Row(children: [
               if (!_isBlocked)
                 IconButton(
-                  icon: Icon(Icons.photo_outlined, color: KnkColors.textDim),
+                  icon: Icon(Icons.photo_outlined, color: PhotonColors.textDim),
                   tooltip: 'Fotoğraf Gönder',
                   onPressed: _pickAndSendImage,
                   padding: EdgeInsets.zero,
@@ -1033,7 +1033,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               if (!_isBlocked)
                 IconButton(
-                  icon: Icon(Icons.gif_box_outlined, color: KnkColors.textDim),
+                  icon: Icon(Icons.gif_box_outlined, color: PhotonColors.textDim),
                   tooltip: 'GIF Oluştur',
                   onPressed: _openGifCreator,
                   padding: EdgeInsets.zero,
@@ -1042,14 +1042,14 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: TextField(
                   controller: _draftCtrl,
-                  style: TextStyle(color: KnkColors.text, fontSize: 14),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   enabled: !_isBlocked,
                   decoration: InputDecoration(
                     hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_editingMsgId != null ? 'Mesajı düzenle…' : (_isListening ? '🎙 Dinliyor…' : (_contactActive ? 'Mesaj yaz…' : 'Kişi artık aktif değil…'))),
-                    hintStyle: TextStyle(color: _isListening ? KnkColors.accent : KnkColors.textDim),
-                    filled: true, fillColor: KnkColors.bg,
+                    hintStyle: TextStyle(color: _isListening ? PhotonColors.accent : PhotonColors.textDim),
+                    filled: true, fillColor: PhotonColors.bg,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: KnkColors.line)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: PhotonColors.line)),
                   ),
                   onChanged: _onTextChanged,
                   onSubmitted: (_) => _send(),
@@ -1063,13 +1063,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: Container(
                     width: 38, height: 38, alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: _isListening ? KnkColors.danger : KnkColors.panelAlt,
+                      color: _isListening ? PhotonColors.danger : PhotonColors.panelAlt,
                       shape: BoxShape.circle,
-                      border: Border.all(color: _isListening ? KnkColors.danger : KnkColors.line),
+                      border: Border.all(color: _isListening ? PhotonColors.danger : PhotonColors.line),
                     ),
                     child: Icon(
                       _isListening ? Icons.stop : Icons.mic,
-                      color: _isListening ? Colors.white : KnkColors.textDim,
+                      color: _isListening ? Colors.white : PhotonColors.textDim,
                       size: 18,
                     ),
                   ),
@@ -1081,12 +1081,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Container(
                   width: 40, height: 40, alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: (_isBlocked || !_contactActive) ? KnkColors.line : KnkColors.accent,
+                    color: (_isBlocked || !_contactActive) ? PhotonColors.line : PhotonColors.accent,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     _editingMsgId != null ? Icons.check : Icons.arrow_upward,
-                    color: (_isBlocked || !_contactActive) ? KnkColors.textDim : const Color(0xFF06251A),
+                    color: (_isBlocked || !_contactActive) ? PhotonColors.textDim : const Color(0xFF06251A),
                   ),
                 ),
               ),

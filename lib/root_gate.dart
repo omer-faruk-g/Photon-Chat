@@ -10,7 +10,7 @@ import 'onboarding_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'app_keys.dart';
 import 'update_checker.dart';
-import 'knk_api.dart';
+import 'photon_api.dart';
 import 'notification_service.dart';
 
 class RootGate extends StatefulWidget {
@@ -45,7 +45,7 @@ class RootGateState extends State<RootGate> {
       final serverUrl = _myServerUrl;
       final fipId = _identity?.fipId;
       if (serverUrl == null || fipId == null) return;
-      final notifs = await KnkApi.getNotifications(serverUrl, fipId);
+      final notifs = await PhotonApi.getNotifications(serverUrl, fipId);
       for (final n in notifs) {
         final title = n['title'] as String? ?? '';
         final body = n['body'] as String? ?? '';
@@ -59,10 +59,10 @@ class RootGateState extends State<RootGate> {
   void _startKeepAlive(String serverUrl) {
     _keepAliveTimer?.cancel();
     // İlk ping hemen
-    KnkApi.pingServer(serverUrl);
+    PhotonApi.pingServer(serverUrl);
     // Sonra her 10 dakikada bir ping — Render sunucusu uyumasın
     _keepAliveTimer = Timer.periodic(const Duration(minutes: 10), (_) {
-      KnkApi.pingServer(serverUrl);
+      PhotonApi.pingServer(serverUrl);
     });
   }
 
@@ -93,8 +93,8 @@ class RootGateState extends State<RootGate> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        backgroundColor: KnkColors.bg,
-        body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: KnkColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
+        backgroundColor: PhotonColors.bg,
+        body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: PhotonColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
       );
     }
 

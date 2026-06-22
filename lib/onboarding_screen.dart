@@ -48,7 +48,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final preview = _preview!;
     return Scaffold(
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 32, 20, 40),
@@ -75,13 +75,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         fontWeight: FontWeight.w800,
                         fontSize: 28,
                         letterSpacing: 4,
-                        color: KnkColors.accent,
+                        color: PhotonColors.accent,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'FIP tabanlı kimlik · sunucusuz rehber · numarasız',
-                      style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 0.5),
+                      style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 0.5),
                     ),
                   ],
                 ),
@@ -94,18 +94,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 24),
               Text('Görünen ad (sadece arkadaşların görür)',
-                  style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1)),
+                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1)),
               const SizedBox(height: 8),
               TextField(
                 controller: _nameCtrl,
                 maxLength: 20,
-                style: TextStyle(color: KnkColors.text, fontSize: 15),
-                decoration: knkInputDecoration('örn. Photon'),
+                style: TextStyle(color: PhotonColors.text, fontSize: 15),
+                decoration: photonInputDecoration('örn. Photon'),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
-                style: knkPrimaryButtonStyle(),
+                style: photonPrimaryButtonStyle(),
                 onPressed: _nameCtrl.text.trim().isEmpty ? null : _create,
                 child: const Text('Kimliği bu cihazda oluştur'),
               ),
@@ -113,7 +113,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text(
                 'Bu işlem internet hesabı, telefon numarası ya da e-posta gerektirmez. '
                 'FIP bloğun ve eşleşme kodun bu cihazda saklanır.',
-                style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6),
+                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
               ),
               if (_created != null) ...[
                 const SizedBox(height: 24),
@@ -121,29 +121,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: KnkColors.panel,
-                    border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
+                    color: PhotonColors.panel,
+                    border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('SENİN KODUN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                    Text('SENİN KODUN', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                     const SizedBox(height: 8),
                     Text(
                       _created!.code,
-                      style: TextStyle(color: KnkColors.accent, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6, fontFamily: 'monospace'),
+                      style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6, fontFamily: 'monospace'),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Bu kodu arkadaşlarınla paylaş',
-                      style: TextStyle(color: KnkColors.textDim, fontSize: 11),
+                      style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: KnkColors.text,
-                          side: BorderSide(color: KnkColors.line),
+                          foregroundColor: PhotonColors.text,
+                          side: BorderSide(color: PhotonColors.line),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
@@ -176,8 +176,8 @@ class FipCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KnkColors.panel,
-        border: Border.all(color: KnkColors.line),
+        color: PhotonColors.panel,
+        border: Border.all(color: PhotonColors.line),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -187,13 +187,13 @@ class FipCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title,
-                  style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
               if (onRegen != null)
                 GestureDetector(
                   onTap: onRegen,
                   child: Text('yeniden üret',
                       style: TextStyle(
-                          color: KnkColors.accent2,
+                          color: PhotonColors.accent2,
                           fontSize: 11,
                           decoration: TextDecoration.underline)),
                 ),
@@ -202,8 +202,8 @@ class FipCard extends StatelessWidget {
           const SizedBox(height: 10),
           Container(
             decoration: BoxDecoration(
-              color: KnkColors.bg,
-              border: Border.all(color: KnkColors.line),
+              color: PhotonColors.bg,
+              border: Border.all(color: PhotonColors.line),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -220,7 +220,7 @@ class FipCard extends StatelessWidget {
                         width: 22,
                         child: Text((i + 1).toString().padLeft(2, '0'),
                             style: TextStyle(
-                                color: KnkColors.accent2, fontSize: 11, fontFamily: 'monospace')),
+                                color: PhotonColors.accent2, fontSize: 11, fontFamily: 'monospace')),
                       ),
                       Expanded(
                         child: Text(
@@ -244,11 +244,11 @@ class FipCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('EŞLEŞME KODU',
-                  style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
               Text(
                 fip.code,
                 style: TextStyle(
-                  color: KnkColors.accent,
+                  color: PhotonColors.accent,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 4,

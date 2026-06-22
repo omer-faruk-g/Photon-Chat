@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -33,7 +33,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await KnkApi.createGroup(
+      final data = await PhotonApi.createGroup(
         widget.myServerUrl,
         ownerFipId: widget.identity.fipId,
         ownerName: widget.displayName,
@@ -62,7 +62,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Grup Oluştur')),
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: _created == null ? _buildForm() : _buildSuccess(),
@@ -73,18 +73,18 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildForm() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+      Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
       const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
-        style: TextStyle(color: KnkColors.text),
+        style: TextStyle(color: PhotonColors.text),
         decoration: InputDecoration(
           labelText: 'Grup Adı',
-          labelStyle: TextStyle(color: KnkColors.textDim),
-          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+          labelStyle: TextStyle(color: PhotonColors.textDim),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
           errorText: _error,
-          errorStyle: TextStyle(color: KnkColors.danger),
+          errorStyle: TextStyle(color: PhotonColors.danger),
         ),
       ),
       const SizedBox(height: 14),
@@ -92,22 +92,22 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         controller: _descCtrl,
         maxLength: 120,
         maxLines: 2,
-        style: TextStyle(color: KnkColors.text, fontSize: 13),
+        style: TextStyle(color: PhotonColors.text, fontSize: 13),
         decoration: InputDecoration(
           labelText: 'Grup Açıklaması (isteğe bağlı)',
-          labelStyle: TextStyle(color: KnkColors.textDim),
+          labelStyle: TextStyle(color: PhotonColors.textDim),
           hintText: 'Kısa bir tanım yazabilirsin…',
-          hintStyle: TextStyle(color: KnkColors.textDim, fontSize: 12),
-          counterStyle: TextStyle(color: KnkColors.textDim, fontSize: 10),
-          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+          counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
         ),
       ),
       const SizedBox(height: 8),
       SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          style: knkPrimaryButtonStyle(),
+          style: photonPrimaryButtonStyle(),
           onPressed: _loading ? null : _create,
           child: _loading
               ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
@@ -122,23 +122,23 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         const SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+            Text('GRUP ADRESİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
             const SizedBox(height: 8),
-            Text(g.address, style: TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
+            Text(g.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
           ]),
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.copy, size: 16),
             label: const Text('Adresi Kopyala'),
             onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),
@@ -148,7 +148,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            style: knkPrimaryButtonStyle(),
+            style: photonPrimaryButtonStyle(),
             onPressed: () => Navigator.pop(context, g),
             child: const Text('Tamam'),
           ),

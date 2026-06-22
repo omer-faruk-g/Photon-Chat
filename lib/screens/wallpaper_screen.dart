@@ -67,10 +67,10 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
         final bytes = base64Decode(_selectedValue);
         content = Image.memory(bytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity);
       } catch (_) {
-        content = Container(color: KnkColors.bg);
+        content = Container(color: PhotonColors.bg);
       }
     } else {
-      content = Container(color: KnkColors.bg);
+      content = Container(color: PhotonColors.bg);
     }
     return Container(
       height: 200,
@@ -78,7 +78,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KnkColors.line),
+        border: Border.all(color: PhotonColors.line),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -102,11 +102,11 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KnkColors.bg,
+      backgroundColor: PhotonColors.bg,
       appBar: AppBar(
         title: const Text('Sohbet Duvar Kağıdı'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: KnkColors.text),
+          icon: Icon(Icons.arrow_back, color: PhotonColors.text),
           onPressed: () => Navigator.pop(context, true),
         ),
       ),
@@ -122,21 +122,21 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: KnkColors.panel,
+                  color: PhotonColors.panel,
                   border: Border.all(
-                    color: _selectedType == 'none' ? KnkColors.accent : KnkColors.line,
+                    color: _selectedType == 'none' ? PhotonColors.accent : PhotonColors.line,
                     width: _selectedType == 'none' ? 2 : 1,
                   ),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.block, color: KnkColors.textDim, size: 20),
+                    Icon(Icons.block, color: PhotonColors.textDim, size: 20),
                     const SizedBox(width: 12),
-                    Text('Varsayilan', style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                    Text('Varsayilan', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                     const Spacer(),
                     if (_selectedType == 'none')
-                      Icon(Icons.check_circle, color: KnkColors.accent, size: 20),
+                      Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),
                   ],
                 ),
               ),
@@ -148,7 +148,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
           // Color grid
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Renkler', style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.2)),
+            child: Text('Renkler', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
           ),
           const SizedBox(height: 10),
           Padding(
@@ -172,7 +172,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(10),
-                      border: isSelected ? Border.all(color: KnkColors.accent, width: 3) : null,
+                      border: isSelected ? Border.all(color: PhotonColors.accent, width: 3) : null,
                     ),
                     child: isSelected
                         ? Center(child: Icon(Icons.check, color: Colors.white, size: 20))
@@ -193,18 +193,18 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: KnkColors.panel,
-                  border: Border.all(color: KnkColors.line),
+                  color: PhotonColors.panel,
+                  border: Border.all(color: PhotonColors.line),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.photo_library, color: KnkColors.accent, size: 20),
+                    Icon(Icons.photo_library, color: PhotonColors.accent, size: 20),
                     const SizedBox(width: 12),
-                    Text('Galeriden Sec', style: TextStyle(color: KnkColors.text, fontSize: 14)),
+                    Text('Galeriden Sec', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                     const Spacer(),
                     if (_selectedType == 'image')
-                      Icon(Icons.check_circle, color: KnkColors.accent, size: 20),
+                      Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),
                   ],
                 ),
               ),
