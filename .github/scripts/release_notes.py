@@ -118,10 +118,20 @@ CHANGELOGS = {
         "- 🛡️ Avatar NSFW filtresi — uygunsuz profil fotoğrafı ayarlanamaz\n"
         "- ⛔ Küfür + görsel filtresi aynı anda çalışır — uygunsuz içerik hiç oluşturulmaz"
     ),
+    'v3.0.4': (
+        "### ✨ v3.0.4 Yenilikleri\n"
+        "- 📊 Anket sistemi — istediğin kadar seçenek ekle/kaldır\n"
+        "- ➕ Dinamik seçenek ekleme — anket oluştururken sınırsız seçenek"
+    ),
+    'v3.0.5': (
+        "### ✨ v3.0.5 Yenilikleri\n"
+        "- 🏷️ Uygulama adı Photon Chat olarak güncellendi — tüm KNK referansları kaldırıldı\n"
+        "- 🎨 Tüm sınıf ve tema isimleri Photon adıyla yeniden düzenlendi"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5'}
 
 
 def make_body(tag):
