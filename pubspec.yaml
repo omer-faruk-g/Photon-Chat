@@ -29,7 +29,6 @@ dependencies:
   image: ^4.0.0
   geolocator: ^14.0.0
   flutter_tts: ^4.0.0
-  record: ^5.0.0
   permission_handler: ^11.0.0
 
 dev_dependencies:

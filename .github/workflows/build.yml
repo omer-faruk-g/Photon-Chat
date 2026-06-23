@@ -28,7 +28,7 @@ jobs:
         run: |
           rm -rf $ANDROID_HOME/platforms/android-35
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35"
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.1.8937393"
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;28.2.13676358"
       - name: Generate Android platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
@@ -50,13 +50,13 @@ jobs:
               c = open(sf).read()
               c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.0.20"', c)
               c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.0.20"', c)
-              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.7.3"', c)
-              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.7.3"', c)
+              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.9.1"', c)
+              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.9.1"', c)
               open(sf, 'w').write(c)
 
           for bf in app_build_files:
               c = open(bf).read()
-              c = re.sub(r'ndkVersion\s*=?\s*flutter\.ndkVersion', 'ndkVersion = "25.1.8937393"', c)
+              c = re.sub(r'ndkVersion\s*=?\s*flutter\.ndkVersion', 'ndkVersion = "28.2.13676358"', c)
               c = re.sub(r'compileSdk\s*=?\s*flutter\.compileSdkVersion', 'compileSdk = 36', c)
               c = re.sub(r'targetSdk\s*=?\s*flutter\.targetSdkVersion', 'targetSdk = 36', c)
               # coreLibraryDesugaring — Groovy veya KTS syntax
@@ -81,7 +81,7 @@ jobs:
                   else:
                       f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
           PYEOF
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
