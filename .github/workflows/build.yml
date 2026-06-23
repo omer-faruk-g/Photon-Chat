@@ -48,8 +48,8 @@ jobs:
 
           for sf in settings_files:
               c = open(sf).read()
-              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.0.20"', c)
-              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.0.20"', c)
+              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.2.20"', c)
+              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.2.20"', c)
               c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.9.1"', c)
               c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.9.1"', c)
               open(sf, 'w').write(c)
