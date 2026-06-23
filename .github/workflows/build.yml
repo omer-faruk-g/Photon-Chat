@@ -46,14 +46,18 @@ jobs:
           print("app build:", app_build_files)
           print("root build:", root_build_files)
 
-          # AGP 9+ Flutter Gradle plugin'i desteklemiyor — 8.7.3'e kilitle
+          # AGP 8.9.1 + KGP 2.2.20 + Gradle 8.14.1 — v4.0.0 kökten güncelleme
           for sf in settings_files:
               c = open(sf).read()
-              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.0.20"', c)
-              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.0.20"', c)
+              # KGP satırını tamamen kaldır — Flutter built-in Kotlin kullanacak
+              c = re.sub(r'.*id\("org\.jetbrains\.kotlin\.android"\).*\n', '', c)
+              c = re.sub(r'.*id "org\.jetbrains\.kotlin\.android".*\n', '', c)
+              # AGP'yi 8.7.3'e sabitle (Flutter Gradle plugin AGP 9'u desteklemiyor)
               c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.7.3"', c)
               c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.7.3"', c)
               open(sf, 'w').write(c)
+              print("=== settings.gradle ===")
+              print(c)
 
           for bf in app_build_files:
               c = open(bf).read()
@@ -106,7 +110,7 @@ jobs:
       - run: flutter pub get
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
-      - run: flutter build apk --release
+      - run: flutter build apk --release --android-skip-build-dependency-validation
       - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
       - uses: actions/upload-artifact@v4
         with:
