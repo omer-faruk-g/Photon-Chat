@@ -46,7 +46,14 @@ jobs:
           print("app build:", app_build_files)
           print("root build:", root_build_files)
 
-          # settings.gradle — Flutter 3.44.3 varsayılan KGP/AGP kullanılır, override yok
+          # AGP 9+ Flutter Gradle plugin'i desteklemiyor — 8.7.3'e kilitle
+          for sf in settings_files:
+              c = open(sf).read()
+              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.0.20"', c)
+              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.0.20"', c)
+              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.7.3"', c)
+              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.7.3"', c)
+              open(sf, 'w').write(c)
 
           for bf in app_build_files:
               c = open(bf).read()
@@ -75,6 +82,7 @@ jobs:
                   else:
                       f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
           PYEOF
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
