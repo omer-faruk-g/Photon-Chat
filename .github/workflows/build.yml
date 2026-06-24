@@ -46,15 +46,15 @@ jobs:
           print("app build:", app_build_files)
           print("root build:", root_build_files)
 
-          # AGP 8.9.1 + KGP 2.2.20 + Gradle 8.14.1 — v4.0.0 kökten güncelleme
+          # AGP 8.9.1 (AndroidX 1.18+ gerektiriyor) + KGP kaldır = Flutter built-in Kotlin
           for sf in settings_files:
               c = open(sf).read()
-              # KGP satırını tamamen kaldır — Flutter built-in Kotlin kullanacak
+              # KGP satırını tamamen kaldır — Flutter 3.44.3 built-in Kotlin yönetir
               c = re.sub(r'.*id\("org\.jetbrains\.kotlin\.android"\).*\n', '', c)
               c = re.sub(r'.*id "org\.jetbrains\.kotlin\.android".*\n', '', c)
-              # AGP'yi 8.7.3'e sabitle (Flutter Gradle plugin AGP 9'u desteklemiyor)
-              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.7.3"', c)
-              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.7.3"', c)
+              # AGP 8.9.1 — AGP 9+ Flutter Gradle plugin'i desteklemiyor
+              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.9.1"', c)
+              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.9.1"', c)
               open(sf, 'w').write(c)
               print("=== settings.gradle ===")
               print(c)
@@ -86,7 +86,7 @@ jobs:
                   else:
                       f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
           PYEOF
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
