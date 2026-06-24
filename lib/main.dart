@@ -43,7 +43,7 @@ void main() async {
       'photon_keep_alive',
       'photon_keep_alive',
       frequency: const Duration(minutes: 15),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       constraints: Constraints(networkType: NetworkType.connected),
     );
   }
