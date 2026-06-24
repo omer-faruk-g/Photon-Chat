@@ -46,12 +46,12 @@ jobs:
           print("app build:", app_build_files)
           print("root build:", root_build_files)
 
-          # AGP 8.9.1 (AndroidX 1.18+ gerektiriyor) + KGP kaldır = Flutter built-in Kotlin
+          # AGP 8.9.1 + KGP 2.2.20 — stdlib 2.2.20 uyumu için KGP pinle
           for sf in settings_files:
               c = open(sf).read()
-              # KGP satırını tamamen kaldır — Flutter 3.44.3 built-in Kotlin yönetir
-              c = re.sub(r'.*id\("org\.jetbrains\.kotlin\.android"\).*\n', '', c)
-              c = re.sub(r'.*id "org\.jetbrains\.kotlin\.android".*\n', '', c)
+              # KGP 2.2.20 — AGP 8.9.1'in çektiği stdlib 2.2.20 ile uyumlu
+              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.2.20"', c)
+              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.2.20"', c)
               # AGP 8.9.1 — AGP 9+ Flutter Gradle plugin'i desteklemiyor
               c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.9.1"', c)
               c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.9.1"', c)
