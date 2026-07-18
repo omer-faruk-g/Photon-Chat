@@ -8,10 +8,12 @@ import 'guide_screen.dart';
 import 'server_setup_screen.dart';
 import 'onboarding_screen.dart';
 import 'screens/contacts_screen.dart';
+import 'screens/device_link_screen.dart';
 import 'app_keys.dart';
 import 'update_checker.dart';
 import 'photon_api.dart';
 import 'notification_service.dart';
+import 'device_manager.dart';
 
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
@@ -27,6 +29,9 @@ class RootGateState extends State<RootGate> {
   String _displayName = '';
   Timer? _notifTimer;
   Timer? _keepAliveTimer;
+  bool _deviceLinkMode = false;
+  String? _deviceLinkServerUrl;
+  String? _deviceLinkOwnerFip;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -58,9 +63,7 @@ class RootGateState extends State<RootGate> {
 
   void _startKeepAlive(String serverUrl) {
     _keepAliveTimer?.cancel();
-    // İlk ping hemen
     PhotonApi.pingServer(serverUrl);
-    // Sonra her 10 dakikada bir ping — Render sunucusu uyumasın
     _keepAliveTimer = Timer.periodic(const Duration(minutes: 10), (_) {
       PhotonApi.pingServer(serverUrl);
     });
@@ -105,15 +108,68 @@ class RootGateState extends State<RootGate> {
       });
     }
 
+    if (_deviceLinkMode && _deviceLinkServerUrl != null && _deviceLinkOwnerFip != null && _identity != null) {
+      return DeviceLinkScreen(
+        serverUrl: _deviceLinkServerUrl!,
+        ownerFipId: _deviceLinkOwnerFip!,
+        identity: _identity!,
+        displayName: _displayName,
+        onLinked: () async {
+          await LocalStore.saveMyServerUrl(_deviceLinkServerUrl!);
+          _startKeepAlive(_deviceLinkServerUrl!);
+          setState(() {
+            _myServerUrl = _deviceLinkServerUrl;
+            _deviceLinkMode = false;
+          });
+        },
+        onFake: () async {
+          await LocalStore.saveMyServerUrl(_deviceLinkServerUrl!);
+          await DeviceManager.saveDeviceRole('fake');
+          setState(() {
+            _myServerUrl = _deviceLinkServerUrl;
+            _deviceLinkMode = false;
+          });
+        },
+      );
+    }
+
     if (_myServerUrl == null) {
-      return ServerSetupScreen(onDone: (url) async {
-        await LocalStore.saveMyServerUrl(url);
-        _startKeepAlive(url);
-        setState(() => _myServerUrl = url);
-      });
+      return ServerSetupScreen(
+        onDone: (url) async {
+          await LocalStore.saveMyServerUrl(url);
+          _startKeepAlive(url);
+          setState(() => _myServerUrl = url);
+        },
+        onDeviceLink: (url, ownerFipId) {
+          if (_identity == null) {
+            setState(() {
+              _deviceLinkServerUrl = url;
+              _deviceLinkOwnerFip = ownerFipId;
+            });
+          } else {
+            setState(() {
+              _deviceLinkMode = true;
+              _deviceLinkServerUrl = url;
+              _deviceLinkOwnerFip = ownerFipId;
+            });
+          }
+        },
+      );
     }
 
     if (_identity == null) {
+      if (_deviceLinkServerUrl != null && _deviceLinkOwnerFip != null) {
+        return OnboardingScreen(
+          myServerUrl: _myServerUrl!,
+          onCreated: (fip, name) {
+            setState(() {
+              _identity = fip;
+              _displayName = name;
+              _deviceLinkMode = true;
+            });
+          },
+        );
+      }
       return OnboardingScreen(
         myServerUrl: _myServerUrl!,
         onCreated: (fip, name) => setState(() { _identity = fip; _displayName = name; }),
@@ -123,4 +179,3 @@ class RootGateState extends State<RootGate> {
     return ContactsScreen(identity: _identity!, displayName: _displayName, myServerUrl: _myServerUrl!);
   }
 }
-

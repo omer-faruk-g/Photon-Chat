@@ -135,10 +135,20 @@ CHANGELOGS = {
         "- 📝 Bio — profile max 100 karakterlik kısa tanıtım ekle\n"
         "- 🎙 Ses cinsiyeti ayarı — Erkek veya Kadın sesi seç (Ayarlar'dan)"
     ),
+    'v5.0.0': (
+        "### 🚀 v5.0.0 Yenilikleri\n"
+        "- 📱 Cihazlar arası hesap eşleştirme — aynı servera ikinci cihazdan bağlan\n"
+        "- 🔑 9/12/15 haneli doğrulama kodu sistemi (3 deneme hakkı)\n"
+        "- 👁️ Yan cihaz izleme — ana cihazdan tüm aktiviteleri gör\n"
+        "- 🚫 Cihaz atma — atılan cihaz bir daha servera bağlanamaz (kalıcı ban)\n"
+        "- 🕵️ FAKE tespit — yanlış kod girenleri otomatik FAKE olarak işaretle\n"
+        "- 🛡️ FAKE yönetimi — fake hesapları izle, banla veya MOD yetkisi ver\n"
+        "- 🔒 Protokol seviyesinde koruma — banlanan cihaz aynı servera asla erişemez"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0'}
 
 
 def make_body(tag):

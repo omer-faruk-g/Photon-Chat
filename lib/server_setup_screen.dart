@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'theme.dart';
+import 'device_manager.dart';
 
 class ServerSetupScreen extends StatefulWidget {
   final void Function(String url) onDone;
-  const ServerSetupScreen({super.key, required this.onDone});
+  final void Function(String url, String ownerFipId)? onDeviceLink;
+  const ServerSetupScreen({super.key, required this.onDone, this.onDeviceLink});
   @override
   State<ServerSetupScreen> createState() => _ServerSetupScreenState();
 }
@@ -22,7 +25,18 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     try {
       final r = await http.get(Uri.parse('$url/lookup/00000')).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200 || r.statusCode == 404) {
-        widget.onDone(url);
+        final banned = await DeviceManager.isServerBanned(url, '');
+        if (banned) {
+          setState(() => _error = 'Bu sunucuya erişiminiz kalıcı olarak yasaklanmış.');
+          return;
+        }
+
+        final presenceCheck = await _checkExistingPresence(url);
+        if (presenceCheck != null && widget.onDeviceLink != null) {
+          widget.onDeviceLink!(url, presenceCheck);
+        } else {
+          widget.onDone(url);
+        }
       } else {
         setState(() => _error = 'Sunucu yanıt vermedi (${r.statusCode})');
       }
@@ -31,6 +45,18 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<String?> _checkExistingPresence(String url) async {
+    try {
+      final r = await http.get(Uri.parse('$url/presence/owner')).timeout(const Duration(seconds: 5));
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final ownerFipId = data['fipId'] as String?;
+        if (ownerFipId != null && ownerFipId.isNotEmpty) return ownerFipId;
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override

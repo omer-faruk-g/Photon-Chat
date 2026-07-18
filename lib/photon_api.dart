@@ -408,6 +408,94 @@ class PhotonApi {
     }
   }
 
+  // --- Device Linking ---
+
+  static Future<void> sendDeviceLinkRequest(String serverUrl, String ownerFipId, {
+    required String requesterFipId, required String requesterName,
+  }) async {
+    try {
+      await http.post(_u(serverUrl, '/device-link/$ownerFipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'requesterFipId': requesterFipId, 'requesterName': requesterName, 'ts': DateTime.now().millisecondsSinceEpoch}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getDeviceLinkRequests(String serverUrl, String fipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/device-link/$fipId'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<void> respondDeviceLink(String serverUrl, String ownerFipId, {
+    required String requesterFipId, required String status, String code = '',
+  }) async {
+    try {
+      await http.post(_u(serverUrl, '/device-link/$ownerFipId/respond'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'requesterFipId': requesterFipId, 'status': status, 'code': code}));
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>?> getDeviceLinkStatus(String serverUrl, String requesterFipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/device-link-status/$requesterFipId'));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> submitDeviceLinkCode(String serverUrl, String ownerFipId, {
+    required String requesterFipId, required String code,
+  }) async {
+    try {
+      await http.post(_u(serverUrl, '/device-link/$ownerFipId/verify'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'requesterFipId': requesterFipId, 'code': code}));
+    } catch (_) {}
+  }
+
+  static Future<void> logDeviceActivity(String serverUrl, String ownerFipId, {
+    required String deviceId, required String action, String detail = '',
+  }) async {
+    try {
+      await http.post(_u(serverUrl, '/device-activity/$ownerFipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'deviceId': deviceId, 'action': action, 'detail': detail, 'ts': DateTime.now().millisecondsSinceEpoch}));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getDeviceActivities(String serverUrl, String ownerFipId, String deviceId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/device-activity/$ownerFipId/$deviceId'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<void> kickDevice(String serverUrl, String ownerFipId, String deviceId) async {
+    try {
+      await http.delete(_u(serverUrl, '/device-link/$ownerFipId/$deviceId'));
+    } catch (_) {}
+  }
+
+  static Future<void> banDeviceOnServer(String serverUrl, String ownerFipId, String bannedFipId) async {
+    try {
+      await http.post(_u(serverUrl, '/device-ban/$ownerFipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'bannedFipId': bannedFipId}));
+    } catch (_) {}
+  }
+
+  static Future<List<String>> getBannedDevices(String serverUrl, String ownerFipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/device-ban/$ownerFipId'));
+      if (r.statusCode == 200) return List<String>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
   // --- Pulse AI ---
 
   /// [messages] format: [{'role':'user','content':'...'}, {'role':'assistant','content':'...'}, ...]

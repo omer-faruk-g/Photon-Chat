@@ -10,7 +10,9 @@ import '../theme.dart';
 import '../chat_wallpaper.dart';
 import '../nsfw_scanner.dart';
 import 'wallpaper_screen.dart';
+import 'devices_screen.dart';
 import '../i18n.dart';
+import '../device_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -411,6 +413,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ]),
           ),
+
+          // Cihaz Yönetimi
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DevicesScreen(identity: widget.identity, myServerUrl: widget.myServerUrl))),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.devices, color: PhotonColors.accent, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Cihaz Yönetimi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Yan cihazlar, fake hesaplar ve bağlantı istekleri', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                ])),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
 
           // Sohbet Duvar Kağıdı
           GestureDetector(
