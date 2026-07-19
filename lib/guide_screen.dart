@@ -21,8 +21,8 @@ class _GuideScreenState extends State<GuideScreen> {
     _GuidePage(
       icon: '🌐',
       title: 'Kendi Sunucunu Kur (Bir Kez)',
-      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nrender.com üzerinde ücretsiz kendi sunucunu çalıştır. Bu kurulumu yalnızca bir kez yapman yeterli — sonraki açılışlarda tekrar sorulmaz.',
-      tip: 'render.com → New Web Service → ücretsiz plan',
+      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nrender.com üzerinde ücretsiz kendi sunucunu çalıştır. Bu kurulumu yalnızca bir kez yapman yeterli — sonraki açılışlarda tekrar sorulmaz.\n\nAdımlar:\n1. render.com → New → Web Service\n2. GitHub reposunu bağla\n3. Root Directory: server\n4. Build Command: npm install\n5. Start Command: node index.js\n6. Plan: Free → Deploy',
+      tip: 'Root Directory mutlaka "server" olmalı!',
     ),
     _GuidePage(
       icon: '🔢',

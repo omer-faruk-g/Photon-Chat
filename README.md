@@ -28,9 +28,13 @@ Photon Chat, kimliğinizi açığa çıkarmadan anlık mesajlaşmanızı sağlay
 Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsiz sunucusunu çalıştırır.
 
 1. [render.com](https://render.com) — ücretsiz hesap aç
-2. **New → Web Service** → bu repoyu bağla
-3. Root Directory: `server` | Plan: **Free** | Deploy bas
-4. Birkaç dakika sonra sana `https://xxxx.onrender.com` adresi verilir — bunu kaydet
+2. **New → Web Service** tıkla → GitHub reposunu bağla (`omer-faruk-g/Photon-Chat`)
+3. Ayarları şöyle yap:
+   - **Root Directory:** `server`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node index.js`
+   - **Plan:** Free
+4. **Deploy** bas — birkaç dakika sonra `https://xxxx.onrender.com` adresi verilir, bunu kaydet
 
 ### 2 — Uygulamayı Aç
 
