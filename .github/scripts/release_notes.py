@@ -184,6 +184,38 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v6.4.0': (
+        "### 🛡️ v6.4.0 — 5 Ajan Paralel Denetim (25+ Bug Fix)\n\n"
+        "**Grup sohbeti:**\n"
+        "- 🐛 Anket oyu 2sn sonra kayboluyordu — merge logic düzeltildi\n"
+        "- 🐛 Grup açılırken mesajlar 2sn boş geliyordu — anlık yükleme\n"
+        "- 🐛 Üye katılma isteği kabul/red anlık yansımıyordu — düzeltildi\n"
+        "- 🐛 Ekrandan çıkılınca toast crash olabiliyordu — güvenli\n\n"
+        "**1-1 sohbet:**\n"
+        "- 🐛 Mesaj düzenleme E2E şifrelemeyi bozuyordu — düzeltildi\n"
+        "- 🐛 Otomatik scroll kullanıcının okumasını engelliyor — yeni mesajda scroll\n"
+        "- 🐛 STT ve sesli mesaj birbirini bozuyordu — mutual exclusion\n"
+        "- 🐛 Okundu göstergesi timer sızıntısı — düzeltildi\n\n"
+        "**Ayarlar/Onboarding:**\n"
+        "- 🐛 Bildirim sesi önizlemesi kapatınca durmuyordu — güvenli durdurma\n"
+        "- 🐛 Sunucu URL doğrulama yoktu — http/https + host kontrolü\n"
+        "- 🐛 Kimlik oluştururken hata handling yoktu — try/catch + spinner\n"
+        "- 🐛 Rehberde son sayfada çift buton vardı — kaldırıldı\n"
+        "- 🐛 TextEditingController sızıntıları — dispose eklendi\n\n"
+        "**Uygulama kilidi:**\n"
+        "- 🐛 3 yanlış PIN sonrası lockout yoktu — 30sn kilit (2x katlanan)\n\n"
+        "**Duvar kağıdı:**\n"
+        "- 🐛 Önizleme metni gerçek duvar kağıdının üstüne biniyordu — düzeltildi\n\n"
+        "**Kişiler & hikayeler:**\n"
+        "- 🐛 Yıldızlı mesajlar açılırken boş mesaj gösteriyordu — spinner\n"
+        "- 🐛 Kişi ekle ağ hatası sessizce takılıyordu — hata bildirimi\n"
+        "- 🐛 Hikaye viewer başlangıç indeksini yok sayıyordu — düzeltildi\n\n"
+        "**Bildirimler:**\n"
+        "- 🐛 Aynı bildirim 10sn'de bir tekrarlanıyordu — 30sn dedupe\n\n"
+        "**Gizlilik:**\n"
+        "- 🔐 Hesabı sil artık TÜM veriyi (PIN, wallpaper, bio, avatar, vs.) siliyor\n"
+        "- 🔐 Yeni kullanıcı öncekinin ayarlarını miras almıyor artık"
+    ),
     'v6.3.0': (
         "### 🎯 v6.3.0 — Anket, Yazı Boyutu ve Kararlılık\n\n"
         "**Kritik düzeltmeler:**\n"
@@ -198,8 +230,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0'}
 
 
 def make_body(tag):

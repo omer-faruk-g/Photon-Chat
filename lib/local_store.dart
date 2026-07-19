@@ -226,17 +226,11 @@ class LocalStore {
 
   static Future<void> wipeIdentity() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kIdentityKey);
-    await prefs.remove(_kContactsKey);
-    await prefs.remove(_kDisplayNameKey);
-    await prefs.remove(_kMyServerUrlKey);
-    await prefs.remove(_kGroupsKey);
-    await prefs.remove(_kGuideSeenKey);
-    await prefs.remove(_kBlockListKey);
-    await prefs.remove(_kStatusMsgKey);
-    await prefs.remove(_kAvatarKey);
-    await prefs.remove(_kBioKey);
-    await prefs.remove(_kStarredMsgsKey);
-    await prefs.remove(_kStoriesKey);
+    // Clear every knk_-prefixed key — includes theme, STT, voice gender, notif sound,
+    // font size, quick replies, wallpaper, app lock, per-chat disappear/pinned, etc.
+    // Prevents next re-onboarding from inheriting previous account's settings/state.
+    for (final k in prefs.getKeys().where((k) => k.startsWith('knk_')).toList()) {
+      await prefs.remove(k);
+    }
   }
 }
