@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../fip.dart';
 import '../local_store.dart';
+import '../font_size.dart';
 import '../photon_api.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
@@ -48,9 +49,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final _speech = SpeechToText();
   bool _isRecordingVoice = false;
   String _voiceGender = 'male';
-  String _fontSize = 'orta';
-
-  double get _msgFontSize => _fontSize == 'kucuk' ? 12.0 : _fontSize == 'buyuk' ? 16.0 : 13.5;
+  double get _msgFontSize => FontSizeNotifier.instance.msgFontSize;
+  void _onFontChanged() { if (mounted) setState(() {}); }
 
   bool get _isCurrentUserMod {
     return widget.group.members.any((m) => m.fipId == widget.identity.fipId && m.isMod);
@@ -62,7 +62,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void initState() {
     super.initState();
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
-    LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
+    FontSizeNotifier.instance.addListener(_onFontChanged);
     _initTts();
     _pollMessages();
     _pollAnnouncements();
@@ -82,6 +82,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _annTimer?.cancel();
     _msgCtrl.dispose();
     _scroll.dispose();
+    FontSizeNotifier.instance.removeListener(_onFontChanged);
     super.dispose();
   }
 

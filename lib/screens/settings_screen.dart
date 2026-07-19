@@ -17,6 +17,7 @@ import '../sound_picker.dart';
 import '../quick_replies.dart';
 import '../app_lock.dart';
 import 'lock_screen.dart';
+import '../font_size.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../device_manager.dart';
 
@@ -338,7 +339,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () async {
-          await LocalStore.saveFontSize(value);
+          await FontSizeNotifier.instance.setSize(value);
           setState(() => _fontSize = value);
         },
         child: Container(
@@ -609,6 +610,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 _buildFontSizeChip('buyuk', 'Büyük'),
               ]),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: PhotonColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('ÖNIZLEME', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Mesajlarınız bu boyutta görünür.',
+                    style: TextStyle(color: PhotonColors.text, fontSize: FontSizeNotifier.instance.msgFontSize, height: 1.4),
+                  ),
+                ]),
+              ),
             ]),
           ),
           const SizedBox(height: 16),

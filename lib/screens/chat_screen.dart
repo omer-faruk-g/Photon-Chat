@@ -11,6 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../fip.dart';
 import '../photon_api.dart';
 import '../local_store.dart';
+import '../font_size.dart';
 import '../e2e.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
@@ -92,9 +93,8 @@ class _ChatScreenState extends State<ChatScreen> {
   // Feature: Quick replies
   List<String> _quickReplies = [];
   bool _showQuickReplies = false;
-  String _fontSize = 'orta';
-
-  double get _msgFontSize => _fontSize == 'kucuk' ? 12.0 : _fontSize == 'buyuk' ? 16.0 : 13.5;
+  double get _msgFontSize => FontSizeNotifier.instance.msgFontSize;
+  void _onFontChanged() { if (mounted) setState(() {}); }
 
   @override
   void initState() {
@@ -113,8 +113,8 @@ class _ChatScreenState extends State<ChatScreen> {
     LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
     _initStt();
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
-    LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
     QuickReplies.load().then((v) { if (mounted) setState(() => _quickReplies = v); });
+    FontSizeNotifier.instance.addListener(_onFontChanged);
     _initTts();
   }
 
@@ -371,6 +371,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _typingPollTimer?.cancel();
     _draftCtrl.dispose();
     _scrollCtrl.dispose();
+    FontSizeNotifier.instance.removeListener(_onFontChanged);
     super.dispose();
   }
 

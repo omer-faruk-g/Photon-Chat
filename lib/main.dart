@@ -13,6 +13,7 @@ import 'chat_wallpaper.dart';
 import 'offline_queue.dart';
 import 'app_lock.dart';
 import 'screens/lock_screen.dart';
+import 'font_size.dart';
 
 @pragma('vm:entry-point')
 void _bgDispatcher() {
@@ -36,6 +37,7 @@ void main() async {
   final isDark = await LocalStore.loadThemeDark();
   PhotonTheme.instance.setDark(isDark);
   await AppLang.loadLang();
+  await FontSizeNotifier.instance.load();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
   if (Platform.isAndroid) {
@@ -57,7 +59,7 @@ class PhotonApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([PhotonTheme.instance, AppLang.instance]),
+      listenable: Listenable.merge([PhotonTheme.instance, AppLang.instance, FontSizeNotifier.instance]),
       builder: (context, _) => MaterialApp(
         title: 'Photon Chat',
         debugShowCheckedModeBanner: false,
