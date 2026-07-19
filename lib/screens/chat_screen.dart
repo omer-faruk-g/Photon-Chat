@@ -272,6 +272,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final warnTs = ts + 1;
       final warnText = '⚠️ Sistem uyarısı: Önceki mesajda hassas/+18 içerik tespit edildi.';
       await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+      // Also mirror the warning to my own server so the sender sees it in their own poll.
+      await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
     }
   }
 
@@ -460,7 +462,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_inputError != null) setState(() => _inputError = null);
     _typingDebounce?.cancel();
     _typingDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (value.isNotEmpty) PhotonApi.sendTyping(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      // Typing lives on the RECEIVER's server so the peer can poll their own server for it.
+      if (value.isNotEmpty) PhotonApi.sendTyping(widget.contact.serverUrl, _chatKey, widget.identity.fipId);
     });
   }
 
@@ -1378,14 +1381,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: Icon(Icons.location_on, color: PhotonColors.textDim),
                   tooltip: 'Konum Paylaş',
                   onPressed: _shareLocation,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              if (!_isBlocked)
-                IconButton(
-                  icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
-                  tooltip: 'Dosya Gönder',
-                  onPressed: _pickAndSendFile,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),

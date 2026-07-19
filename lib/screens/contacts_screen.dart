@@ -92,6 +92,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         c.avatar = (profile['avatar'] as String?) ?? '';
         c.statusMsg = (profile['statusMsg'] as String?) ?? '';
         c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
+        c.bio = (profile['bio'] as String?) ?? '';
       }
     }
     await LocalStore.saveContacts(_contacts);
@@ -297,52 +298,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
               children: [
                 // Hikayeler
                 StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
-                const SizedBox(height: 16),
-
-                // Hikayeler
-                SizedBox(
-                  height: 90,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _stories.length + 1,
-                      itemBuilder: (_, i) {
-                        if (i == 0) {
-                          return GestureDetector(
-                            onTap: () => _createStory(),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                Container(
-                                  width: 56, height: 56,
-                                  decoration: BoxDecoration(shape: BoxShape.circle, color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line, width: 2)),
-                                  child: Icon(Icons.add, color: PhotonColors.accent, size: 24),
-                                ),
-                                const SizedBox(height: 4),
-                                Text('Hikaye Ekle', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
-                              ]),
-                            ),
-                          );
-                        }
-                        final s = _stories[i - 1];
-                        return GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StoriesScreen(stories: _stories, initialIndex: i - 1))),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Column(mainAxisSize: MainAxisSize.min, children: [
-                              Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: PhotonColors.accent, width: 2)),
-                                child: CircleAvatar(radius: 26, backgroundColor: PhotonColors.panelAlt,
-                                  child: Text(s.authorName.isNotEmpty ? s.authorName[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold))),
-                              ),
-                              const SizedBox(height: 4),
-                              SizedBox(width: 60, child: Text(s.authorName, style: TextStyle(color: PhotonColors.textDim, fontSize: 10), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            ]),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                 const SizedBox(height: 12),
 
                 // Profil şeridi

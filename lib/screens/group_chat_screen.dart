@@ -373,6 +373,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     await PhotonApi.sendNotification(member.serverUrl, member.fipId,
         'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
     if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
+    // Persist member removal to disk.
+    final storedGroups = await LocalStore.loadGroups();
+    final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
+    if (sIdx != -1) {
+      storedGroups[sIdx].members = List.of(widget.group.members);
+      await LocalStore.saveGroups(storedGroups);
+    }
     if (mounted) _showToast('${member.name} gruptan atıldı.');
   }
 
@@ -421,7 +428,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   if (idx != -1) {
                     final updated = GroupMember(fipId: member.fipId, name: member.name, serverUrl: member.serverUrl, isMod: !member.isMod);
                     setState(() => widget.group.members[idx] = updated);
-                    await LocalStore.saveGroups(await LocalStore.loadGroups());
+                    // Persist by replacing this group in the stored list — otherwise loading+saving loses the mutation.
+                    final storedGroups = await LocalStore.loadGroups();
+                    final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
+                    if (sIdx != -1) {
+                      storedGroups[sIdx].members = List.of(widget.group.members);
+                    } else {
+                      storedGroups.add(widget.group);
+                    }
+                    await LocalStore.saveGroups(storedGroups);
                     _showToast(member.isMod ? '${member.name} moderatorlukten alindi.' : '${member.name} moderator yapildi.');
                   }
                 },
