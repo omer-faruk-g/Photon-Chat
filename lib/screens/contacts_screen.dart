@@ -212,17 +212,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               if (ctrl.text.trim().isEmpty) return;
-              final story = StoryItem(
-                id: '${DateTime.now().millisecondsSinceEpoch}',
-                authorFipId: widget.identity.fipId,
-                authorName: widget.displayName,
-                type: 'text',
-                content: ctrl.text.trim(),
-                ts: DateTime.now().millisecondsSinceEpoch,
-                expiresAt: DateTime.now().millisecondsSinceEpoch + 86400000,
-                bgColor: colors[selectedColor].toRadixString(16),
-              );
-              await StoryManager.postStory(story);
+              await StoryManager.postStory(serverUrl: widget.myServerUrl, fipId: widget.identity.fipId, authorName: widget.displayName, type: 'text', content: ctrl.text.trim());
               final stories = await StoryManager.loadStories();
               if (mounted) setState(() => _stories = stories);
             },

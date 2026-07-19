@@ -10,11 +10,12 @@ class StoryItem {
   final String content;
   final int ts;
   final int expiresAt;
+  final String? bgColor;
 
-  StoryItem({required this.id, required this.authorFipId, required this.authorName, required this.type, required this.content, required this.ts, required this.expiresAt});
+  StoryItem({required this.id, required this.authorFipId, required this.authorName, required this.type, required this.content, required this.ts, required this.expiresAt, this.bgColor});
 
-  Map<String, dynamic> toJson() => {'id': id, 'authorFipId': authorFipId, 'authorName': authorName, 'type': type, 'content': content, 'ts': ts, 'expiresAt': expiresAt};
-  factory StoryItem.fromJson(Map<String, dynamic> j) => StoryItem(id: j['id'], authorFipId: j['authorFipId'], authorName: j['authorName'], type: j['type'], content: j['content'], ts: j['ts'], expiresAt: j['expiresAt']);
+  Map<String, dynamic> toJson() => {'id': id, 'authorFipId': authorFipId, 'authorName': authorName, 'type': type, 'content': content, 'ts': ts, 'expiresAt': expiresAt, if (bgColor != null) 'bgColor': bgColor};
+  factory StoryItem.fromJson(Map<String, dynamic> j) => StoryItem(id: j['id'], authorFipId: j['authorFipId'], authorName: j['authorName'], type: j['type'], content: j['content'], ts: j['ts'], expiresAt: j['expiresAt'], bgColor: j['bgColor']);
 
   bool get isExpired => DateTime.now().millisecondsSinceEpoch > expiresAt;
 }

@@ -165,6 +165,18 @@ class _StoriesRowState extends State<StoriesRow> {
   }
 }
 
+class StoriesScreen extends StatelessWidget {
+  final List<StoryItem> stories;
+  final int initialIndex;
+  const StoriesScreen({super.key, required this.stories, this.initialIndex = 0});
+  @override
+  Widget build(BuildContext context) {
+    final story = stories.isNotEmpty ? stories[initialIndex.clamp(0, stories.length - 1)] : null;
+    if (story == null) return const Scaffold(body: Center(child: Text('Hikaye bulunamadi')));
+    return _StoryViewerScreen(stories: stories, authorName: story.authorName);
+  }
+}
+
 class _StoryViewerScreen extends StatefulWidget {
   final List<StoryItem> stories;
   final String authorName;
