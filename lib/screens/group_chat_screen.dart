@@ -48,6 +48,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final _speech = SpeechToText();
   bool _isRecordingVoice = false;
   String _voiceGender = 'male';
+  String _fontSize = 'orta';
+
+  double get _msgFontSize => _fontSize == 'kucuk' ? 12.0 : _fontSize == 'buyuk' ? 16.0 : 13.5;
 
   bool get _isCurrentUserMod {
     return widget.group.members.any((m) => m.fipId == widget.identity.fipId && m.isMod);
@@ -59,6 +62,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void initState() {
     super.initState();
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
     _initTts();
     _pollMessages();
     _pollAnnouncements();
@@ -914,7 +918,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             else if (rawText.startsWith('[🎤SES:'))
                               _buildVoiceBubble(rawText, isMe)
                             else
-                            Text(displayText, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                            Text(displayText, style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
                             if (_translating.contains(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),

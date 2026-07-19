@@ -24,6 +24,9 @@ import 'package:cryptography/cryptography.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import '../quick_replies.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -86,6 +89,13 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isRecordingVoice = false;
   String _voiceGender = 'male';
 
+  // Feature: Quick replies
+  List<String> _quickReplies = [];
+  bool _showQuickReplies = false;
+  String _fontSize = 'orta';
+
+  double get _msgFontSize => _fontSize == 'kucuk' ? 12.0 : _fontSize == 'buyuk' ? 16.0 : 13.5;
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +113,8 @@ class _ChatScreenState extends State<ChatScreen> {
     LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
     _initStt();
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
+    QuickReplies.load().then((v) { if (mounted) setState(() => _quickReplies = v); });
     _initTts();
   }
 
@@ -118,6 +130,21 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _initTts() async {
     await _flutterTts.setLanguage('tr-TR');
     await _flutterTts.setSpeechRate(0.5);
+  }
+
+  Future<void> _exportChat() async {
+    if (_messages.isEmpty) return;
+    final buffer = StringBuffer();
+    for (final msg in _messages) {
+      final dt = DateTime.fromMillisecondsSinceEpoch(msg.ts);
+      final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+      final sender = msg.from == widget.identity.fipId ? _myDisplayName : widget.contact.name;
+      buffer.writeln('[$time] $sender: ${msg.text}');
+    }
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/chat_export_${DateTime.now().millisecondsSinceEpoch}.txt');
+    await file.writeAsString(buffer.toString());
+    await Share.shareXFiles([XFile(file.path)]);
   }
 
   Future<void> _shareLocation() async {
@@ -640,7 +667,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     Text(displayText,
                       style: TextStyle(
                         color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
-                        fontSize: 13.5, height: 1.45,
+                        fontSize: _msgFontSize, height: 1.45,
                         fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
                       )),
                     if (_translating.contains(m.msgId))
@@ -1195,6 +1222,11 @@ class _ChatScreenState extends State<ChatScreen> {
         ]),
         actions: [
           IconButton(
+            icon: Icon(Icons.file_download_outlined, color: PhotonColors.textDim),
+            onPressed: _exportChat,
+            tooltip: 'Sohbeti Dışa Aktar',
+          ),
+          IconButton(
             icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
             onPressed: _showDisappearDialog,
             tooltip: 'Kaybolan Mesajlar',
@@ -1275,6 +1307,28 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           if (_inputError != null)
             Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: PhotonColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12))),
+          // Quick replies bar
+          if (_showQuickReplies && _quickReplies.isNotEmpty)
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _quickReplies.map((r) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: ActionChip(
+                    label: Text(r, style: TextStyle(color: PhotonColors.text, fontSize: 12)),
+                    backgroundColor: PhotonColors.panelAlt,
+                    side: BorderSide(color: PhotonColors.line),
+                    onPressed: () {
+                      _draftCtrl.text = r;
+                      _send();
+                      setState(() => _showQuickReplies = false);
+                    },
+                  ),
+                )).toList(),
+              ),
+            ),
           // Reply banner
           if (_replyToMsg != null)
             Container(
@@ -1353,6 +1407,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       size: 18,
                     ),
                   ),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.flash_on, color: _showQuickReplies ? PhotonColors.accent : PhotonColors.textDim),
+                  tooltip: 'Hızlı Yanıtlar',
+                  onPressed: () => setState(() => _showQuickReplies = !_showQuickReplies),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),
               Expanded(
                 child: TextField(

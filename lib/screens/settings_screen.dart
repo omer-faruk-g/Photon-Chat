@@ -14,6 +14,7 @@ import 'devices_screen.dart';
 import 'starred_messages_screen.dart';
 import '../i18n.dart';
 import '../sound_picker.dart';
+import '../quick_replies.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../device_manager.dart';
 
@@ -40,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _savingBio = false;
   String _voiceGender = 'male';
   String _notifSound = 'Varsayilan';
+  String _fontSize = 'orta';
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     LocalStore.loadBio().then((v) { if (mounted) setState(() { _bio = v; _bioCtrl.text = v; }); });
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
     LocalStore.loadNotifSound().then((v) { if (mounted) setState(() => _notifSound = v); });
+    LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
     _load();
   }
 
@@ -111,6 +114,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bio = _bioCtrl.text.trim();
     await LocalStore.saveBio(bio);
     setState(() { _bio = bio; _savingBio = false; });
+  }
+
+  Future<void> _openQuickRepliesDialog() async {
+    List<String> replies = await QuickReplies.load();
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDlgState) {
+        return AlertDialog(
+          backgroundColor: PhotonColors.panel,
+          title: Text('Hızlı Yanıtlar', style: TextStyle(color: PhotonColors.text, fontSize: 16)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              if (replies.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text('Henüz hızlı yanıt eklenmemiş.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                )
+              else
+                ...replies.map((r) => ListTile(
+                  dense: true,
+                  title: Text(r, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete_outline, color: PhotonColors.danger, size: 18),
+                    onPressed: () async {
+                      await QuickReplies.remove(r);
+                      replies = await QuickReplies.load();
+                      setDlgState(() {});
+                    },
+                  ),
+                )),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Kapat', style: TextStyle(color: PhotonColors.textDim)),
+            ),
+            TextButton(
+              onPressed: () async {
+                final ctrl = TextEditingController();
+                final result = await showDialog<String>(
+                  context: ctx,
+                  builder: (c) => AlertDialog(
+                    backgroundColor: PhotonColors.panel,
+                    title: Text('Yeni Hızlı Yanıt', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+                    content: TextField(
+                      controller: ctrl,
+                      style: TextStyle(color: PhotonColors.text),
+                      decoration: InputDecoration(hintText: 'Mesaj yazın...', hintStyle: TextStyle(color: PhotonColors.textDim)),
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(c), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
+                      TextButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: Text('Ekle', style: TextStyle(color: PhotonColors.accent))),
+                    ],
+                  ),
+                );
+                if (result != null && result.isNotEmpty) {
+                  await QuickReplies.add(result);
+                  replies = await QuickReplies.load();
+                  setDlgState(() {});
+                }
+              },
+              child: Text('Ekle', style: TextStyle(color: PhotonColors.accent)),
+            ),
+          ],
+        );
+      }),
+    );
   }
 
   Future<void> _openSoundPicker() async {
@@ -253,6 +326,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       radius: 36,
       backgroundColor: PhotonColors.accent.withOpacity(0.2),
       child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildFontSizeChip(String value, String label) {
+    final isActive = _fontSize == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          await LocalStore.saveFontSize(value);
+          setState(() => _fontSize = value);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? PhotonColors.accent : PhotonColors.bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isActive ? PhotonColors.accent : PhotonColors.line),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isActive ? const Color(0xFF06251A) : PhotonColors.text,
+              fontSize: 12,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -451,7 +553,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
 
-          const SizedBox(height: 12),
+          // Yazı Boyutu
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('YAZI BOYUTU', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              const SizedBox(height: 10),
+              Row(children: [
+                _buildFontSizeChip('kucuk', 'Küçük'),
+                const SizedBox(width: 8),
+                _buildFontSizeChip('orta', 'Orta'),
+                const SizedBox(width: 8),
+                _buildFontSizeChip('buyuk', 'Büyük'),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
           // Sesli Mesaj (STT)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -581,6 +700,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Bildirim Sesi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text(_notifSound, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                ])),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Hızlı Yanıtlar
+          GestureDetector(
+            onTap: () => _openQuickRepliesDialog(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.flash_on, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Hızlı Yanıtlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Sık kullanılan mesajları yönet', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),

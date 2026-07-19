@@ -74,6 +74,10 @@ class LocalStore {
   static const _kStarredMsgsKey = 'knk_starred_msgs_v1';
   static const _kNotifSoundKey = 'knk_notif_sound_v1';
   static const _kStoriesKey = 'knk_stories_v1';
+  static const _kFontSizeKey = 'knk_font_size_v1';
+
+  static Future<String> loadFontSize() async => (await SharedPreferences.getInstance()).getString(_kFontSizeKey) ?? 'orta';
+  static Future<void> saveFontSize(String size) async => (await SharedPreferences.getInstance()).setString(_kFontSizeKey, size);
 
   static Future<bool> loadSttEnabled() async => (await SharedPreferences.getInstance()).getBool(_kSttEnabledKey) ?? false;
   static Future<void> saveSttEnabled(bool v) async => (await SharedPreferences.getInstance()).setBool(_kSttEnabledKey, v);
