@@ -233,5 +233,10 @@ class LocalStore {
     await prefs.remove(_kGroupsKey);
     await prefs.remove(_kGuideSeenKey);
     await prefs.remove(_kBlockListKey);
+    await prefs.remove(_kStatusMsgKey);
+    await prefs.remove(_kAvatarKey);
+    await prefs.remove(_kBioKey);
+    await prefs.remove(_kStarredMsgsKey);
+    await prefs.remove(_kStoriesKey);
   }
 }

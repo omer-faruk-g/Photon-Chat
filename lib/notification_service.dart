@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  // Dedupe: title+body -> last shown ts. Suppress identical notifs within window.
+  static final Map<String, int> _recent = {};
+  static const int _dedupeWindowMs = 30 * 1000;
 
   static Future<void> init() async {
     if (!Platform.isAndroid) return;
@@ -20,6 +23,15 @@ class NotificationService {
   static Future<void> show(String title, String body) async {
     if (!Platform.isAndroid) return;
     if (!_initialized) await init();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final key = '$title|$body';
+    final last = _recent[key];
+    if (last != null && (now - last) < _dedupeWindowMs) return;
+    _recent[key] = now;
+    // Garbage-collect stale keys so the map doesn't grow forever.
+    if (_recent.length > 64) {
+      _recent.removeWhere((_, ts) => (now - ts) > _dedupeWindowMs);
+    }
     final prefs = await SharedPreferences.getInstance();
     final soundUri = prefs.getString('knk_notif_sound_uri_v1') ?? 'default';
     final soundTitle = prefs.getString('knk_notif_sound_v1') ?? 'Varsayilan';

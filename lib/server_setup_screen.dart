@@ -20,18 +20,30 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
   Future<void> _test() async {
     final raw = _ctrl.text.trim();
     if (raw.isEmpty) { setState(() => _error = 'URL boş olamaz'); return; }
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      setState(() => _error = "URL 'https://' ile başlamalı");
+      return;
+    }
     final url = raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+    final parsed = Uri.tryParse(url);
+    if (parsed == null || parsed.host.isEmpty) {
+      setState(() => _error = 'Geçersiz URL biçimi');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final r = await http.get(Uri.parse('$url/lookup/00000')).timeout(const Duration(seconds: 10));
+      if (!mounted) return;
       if (r.statusCode == 200 || r.statusCode == 404) {
         final banned = await DeviceManager.isServerBanned(url, '');
+        if (!mounted) return;
         if (banned) {
           setState(() => _error = 'Bu sunucuya erişiminiz kalıcı olarak yasaklanmış.');
           return;
         }
 
         final presenceCheck = await _checkExistingPresence(url);
+        if (!mounted) return;
         if (presenceCheck != null && widget.onDeviceLink != null) {
           widget.onDeviceLink!(url, presenceCheck);
         } else {
@@ -41,10 +53,16 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
         setState(() => _error = 'Sunucu yanıt vermedi (${r.statusCode})');
       }
     } catch (e) {
-      setState(() => _error = 'Bağlantı hatası: $e');
+      if (mounted) setState(() => _error = 'Bağlantı hatası: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   Future<String?> _checkExistingPresence(String url) async {

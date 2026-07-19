@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app_lock.dart';
 import '../theme.dart';
@@ -18,6 +19,8 @@ class _LockScreenState extends State<LockScreen> {
   bool _loading = true;
   int _pinLen = 4;
   int _wrongTries = 0;
+  DateTime? _lockedUntil;
+  Timer? _lockoutTimer;
 
   @override
   void initState() {
@@ -28,16 +31,42 @@ class _LockScreenState extends State<LockScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _isLockedOut => _lockedUntil != null && _lockedUntil!.isAfter(DateTime.now());
+
   Future<void> _tryUnlock() async {
+    if (_isLockedOut) return;
     final value = _type == 'pin' ? _input : _pattern.join('-');
     final ok = await AppLock.verify(value);
     if (ok) {
+      _wrongTries = 0;
       widget.onUnlocked();
     } else {
       _wrongTries++;
+      if (_wrongTries >= 3) {
+        // 30-second lockout after 3 wrong attempts, doubles each further failure.
+        final extra = (_wrongTries - 3).clamp(0, 4);
+        final seconds = 30 * (1 << extra);
+        _lockedUntil = DateTime.now().add(Duration(seconds: seconds));
+        _lockoutTimer?.cancel();
+        _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+          if (!mounted) { t.cancel(); return; }
+          if (!_isLockedOut) {
+            t.cancel();
+            setState(() { _error = null; });
+          } else {
+            setState(() {}); // tick countdown
+          }
+        });
+      }
       setState(() {
-        _error = _wrongTries >= 3
-            ? 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'} ($_wrongTries denemesi).'
+        _error = _isLockedOut
+            ? '${_wrongTries} yanlış deneme — ${_lockedUntil!.difference(DateTime.now()).inSeconds}s bekleyin.'
             : 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'}. Tekrar deneyin.';
         _input = '';
         _pattern = [];
@@ -106,6 +135,7 @@ class _LockScreenState extends State<LockScreen> {
           if (k.isEmpty) return const SizedBox(width: 72, height: 56);
           return GestureDetector(
             onTap: () {
+              if (_isLockedOut) return;
               setState(() { _error = null; });
               if (k == '⌫') {
                 if (_input.isNotEmpty) setState(() => _input = _input.substring(0, _input.length - 1));
@@ -145,6 +175,7 @@ class _LockScreenState extends State<LockScreen> {
         _PatternGrid(
           selected: _pattern,
           onComplete: (p) {
+            if (_isLockedOut) return;
             setState(() { _pattern = p; _error = null; });
             _tryUnlock();
           },

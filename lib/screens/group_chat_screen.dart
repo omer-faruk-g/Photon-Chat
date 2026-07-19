@@ -257,26 +257,45 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _pollMessages() {
-    _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    Future<void> fetchOnce() async {
       await OfflineQueue.instance.flush();
-      if (mounted) setState(() {});
       final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
       // Merge: keep our locally optimistic messages that server hasn't returned yet.
       // A message is considered "same" if it has same ts and from.
       String keyOf(Map m) => '${m['ts']}_${m['from']}';
-      final serverKeys = msgs.map((m) => keyOf(m)).toSet();
+      final serverByKey = {for (final m in msgs) keyOf(m): m};
+      // Preserve local optimistic votes on poll bubbles: if server hasn't yet
+      // recorded a vote we optimistically applied, merge it back in so the
+      // voter doesn't see their choice flicker away.
+      for (final local in _messages) {
+        final k = keyOf(local);
+        final srv = serverByKey[k];
+        if (srv != null && local['type'] == 'poll' && srv['type'] == 'poll') {
+          final localVotes = Map<String, dynamic>.from(local['votes'] as Map? ?? {});
+          final srvVotes = Map<String, dynamic>.from(srv['votes'] as Map? ?? {});
+          for (final e in localVotes.entries) {
+            srvVotes.putIfAbsent(e.key, () => e.value);
+          }
+          srv['votes'] = srvVotes;
+        }
+      }
+      final serverKeys = serverByKey.keys.toSet();
       final localOnly = _messages.where((m) => !serverKeys.contains(keyOf(m))).toList();
       final merged = [...msgs, ...localOnly];
       merged.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
       if (mounted) setState(() => _messages = merged);
-    });
+    }
+    fetchOnce();
+    _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) => fetchOnce());
   }
 
   void _pollJoinRequests() {
-    _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    Future<void> fetchOnce() async {
       final reqs = await PhotonApi.getGroupJoinRequests(widget.group.ownerServerUrl, widget.group.groupId);
       if (mounted) setState(() => _pendingJoins = reqs);
-    });
+    }
+    fetchOnce();
+    _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) => fetchOnce());
   }
 
   void _pollMutedMembers() {
@@ -397,6 +416,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   String? _toastMsg;
   void _showToast(String msg) {
+    if (!mounted) return;
     setState(() => _toastMsg = msg);
     Future.delayed(const Duration(seconds: 3), () { if (mounted) setState(() => _toastMsg = null); });
   }
@@ -412,8 +432,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ..._pendingJoins.map((req) => ListTile(
             title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () { _acceptMember(req); set(() {}); }),
-              IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () { _rejectMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () async { await _acceptMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () async { await _rejectMember(req); set(() {}); }),
             ]),
           )),
         ]),

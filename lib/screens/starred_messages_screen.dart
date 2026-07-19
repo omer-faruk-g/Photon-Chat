@@ -10,11 +10,12 @@ class StarredMessagesScreen extends StatefulWidget {
 
 class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
   List<Map<String, dynamic>> _starred = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    LocalStore.loadStarredMessages().then((msgs) { if (mounted) setState(() => _starred = msgs); });
+    LocalStore.loadStarredMessages().then((msgs) { if (mounted) setState(() { _starred = msgs; _loading = false; }); });
   }
 
   String _formatTime(int ts) {
@@ -26,7 +27,9 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Yildizli Mesajlar')),
-      body: _starred.isEmpty
+      body: _loading
+          ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
+          : _starred.isEmpty
           ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Yildizli mesajin yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
           : ListView.builder(
               padding: const EdgeInsets.all(16),

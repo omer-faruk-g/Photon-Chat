@@ -58,6 +58,12 @@ class _GuideScreenState extends State<GuideScreen> {
   void _skip() => widget.onDone();
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PhotonColors.bg,
@@ -81,10 +87,12 @@ class _GuideScreenState extends State<GuideScreen> {
             ),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _skip,
-                child: Text('Atla', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
-              ),
+              child: _page == _pages.length - 1
+                  ? const SizedBox(height: 48)
+                  : TextButton(
+                      onPressed: _skip,
+                      child: Text('Atla', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                    ),
             ),
             Expanded(
               child: PageView.builder(

@@ -62,6 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Timer? _typingDebounce;
   Timer? _typingPollTimer;
+  Timer? _readPollTimer;
 
   // Locally sent messages keyed by msgId — merged into poll results so own messages always show
   final Map<String, _DisplayMessage> _sentCache = {};
@@ -177,6 +178,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _startVoiceMessage() async {
     if (_isRecordingVoice) return;
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+    }
     setState(() => _isRecordingVoice = true);
     try {
       if (!_sttAvailable) {
@@ -309,6 +314,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _startListening() async {
     if (!_sttAvailable) return;
+    if (_isRecordingVoice) return;
     if (_isListening) {
       await _speech.stop();
       if (mounted) setState(() => _isListening = false);
@@ -357,7 +363,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _startReadPoll() {
-    Timer.periodic(const Duration(seconds: 3), (t) async {
+    _readPollTimer?.cancel();
+    _readPollTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
       if (!_alive) { t.cancel(); return; }
       final status = await PhotonApi.getReadStatus(widget.contact.serverUrl, _chatKey);
       if (_alive && mounted) setState(() => _readStatus = status);
@@ -369,6 +376,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _alive = false;
     _typingDebounce?.cancel();
     _typingPollTimer?.cancel();
+    _readPollTimer?.cancel();
     _draftCtrl.dispose();
     _scrollCtrl.dispose();
     FontSizeNotifier.instance.removeListener(_onFontChanged);
@@ -431,9 +439,10 @@ class _ChatScreenState extends State<ChatScreen> {
         if (newCount > _prevMsgCount && _prevMsgCount > 0) {
           HapticFeedback.mediumImpact();
         }
+        final hadNew = newCount > _prevMsgCount;
         _prevMsgCount = newCount;
         setState(() => _messages = merged);
-        _scrollToBottom();
+        if (hadNew) _scrollToBottom();
       }
       await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
       await Future.delayed(const Duration(seconds: 2));
@@ -482,10 +491,17 @@ class _ChatScreenState extends State<ChatScreen> {
 
     // Düzenleme modu
     if (_editingMsgId != null) {
+      final editError = validateMessage(raw);
+      if (editError != null) { setState(() => _inputError = editError); return; }
+      final editText = sanitizeMessage(raw);
+      String editEncrypted = editText;
+      if (_sharedKey != null) {
+        try { editEncrypted = await e2eEncrypt(editText, _sharedKey!); } catch (_) {}
+      }
       final msgId = _editingMsgId!;
-      setState(() { _editingMsgId = null; _draftCtrl.clear(); });
-      await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, raw);
-      await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, raw);
+      setState(() { _editingMsgId = null; _draftCtrl.clear(); _inputError = null; _replyToMsg = null; });
+      await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted);
+      await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted);
       return;
     }
 

@@ -75,34 +75,38 @@ class _AddContactScreenState extends State<AddContactScreen> {
 
     setState(() { _sending = true; _error = null; });
 
-    // Bridge'den koda karşılık gelen sunucuyu bul
-    final lookup = await PhotonApi.lookupByCodeFromBridge(code);
-    if (lookup == null) {
-      setState(() {
-        _sending = false;
-        _error = 'Bu koda sahip aktif bir kullanıcı bulunamadı.';
-      });
-      return;
+    try {
+      // Bridge'den koda karşılık gelen sunucuyu bul
+      final lookup = await PhotonApi.lookupByCodeFromBridge(code);
+      if (lookup == null) {
+        if (mounted) setState(() {
+          _sending = false;
+          _error = 'Bu koda sahip aktif bir kullanıcı bulunamadı.';
+        });
+        return;
+      }
+
+      final targetServerUrl = lookup['serverUrl'] as String;
+      final targetFipId = lookup['fipId'] as String;
+      final targetName = (lookup['name'] as String?) ?? 'Bilinmeyen';
+
+      await PhotonApi.sendFriendRequest(
+        toServerUrl: targetServerUrl,
+        toFipId: targetFipId,
+        fromFipId: widget.identity.fipId,
+        fromCode: widget.identity.code,
+        fromName: widget.displayName,
+        fromServerUrl: widget.myServerUrl,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(
+        context,
+        Contact(fipId: targetFipId, name: targetName, code: code, serverUrl: targetServerUrl, status: 'pending_out'),
+      );
+    } catch (e) {
+      if (mounted) setState(() { _sending = false; _error = 'Davet gönderilemedi: $e'; });
     }
-
-    final targetServerUrl = lookup['serverUrl'] as String;
-    final targetFipId = lookup['fipId'] as String;
-    final targetName = (lookup['name'] as String?) ?? 'Bilinmeyen';
-
-    await PhotonApi.sendFriendRequest(
-      toServerUrl: targetServerUrl,
-      toFipId: targetFipId,
-      fromFipId: widget.identity.fipId,
-      fromCode: widget.identity.code,
-      fromName: widget.displayName,
-      fromServerUrl: widget.myServerUrl,
-    );
-
-    if (!mounted) return;
-    Navigator.pop(
-      context,
-      Contact(fipId: targetFipId, name: targetName, code: code, serverUrl: targetServerUrl, status: 'pending_out'),
-    );
   }
 
   @override

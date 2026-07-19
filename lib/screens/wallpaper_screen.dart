@@ -84,16 +84,17 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
       child: Stack(
         children: [
           Positioned.fill(child: content),
-          Center(
-            child: Text(
-              'Duvar Kağıdı Önizleme',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+          if (_selectedType == 'none')
+            Center(
+              child: Text(
+                'Duvar Kağıdı Önizleme',
+                style: TextStyle(
+                  color: PhotonColors.textDim,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

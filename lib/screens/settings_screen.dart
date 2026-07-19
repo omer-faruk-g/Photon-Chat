@@ -19,7 +19,6 @@ import '../app_lock.dart';
 import 'lock_screen.dart';
 import '../font_size.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../device_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -177,6 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 );
+                ctrl.dispose();
                 if (result != null && result.isNotEmpty) {
                   await QuickReplies.add(result);
                   replies = await QuickReplies.load();
@@ -194,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _openSoundPicker() async {
     final sounds = await SoundPicker.getNotificationSounds();
     if (!mounted) return;
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       backgroundColor: PhotonColors.panel,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
@@ -273,6 +273,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ]),
       ),
     );
+    // Ensure any preview sound is stopped on any dismissal path
+    // (back button, tap outside, drag down).
+    await SoundPicker.stopSound();
   }
 
   Future<void> _syncPresence() async {

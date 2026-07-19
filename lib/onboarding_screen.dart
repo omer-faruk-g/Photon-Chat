@@ -29,14 +29,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _preview = FipBlock.generate());
   }
 
+  bool _creating = false;
+
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty || _preview == null) return;
-    final fip = await LocalStore.createIdentity();
-    await LocalStore.saveDisplayName(name);
-    setState(() => _created = fip);
-    // Do NOT immediately advance — let the user see and copy their code.
-    // A "Devam" button below fires widget.onCreated.
+    if (name.isEmpty || _preview == null || _creating) return;
+    setState(() => _creating = true);
+    try {
+      final fip = await LocalStore.createIdentity();
+      await LocalStore.saveDisplayName(name);
+      if (!mounted) return;
+      setState(() => _created = fip);
+      // Do NOT immediately advance — let the user see and copy their code.
+      // A "Devam" button below fires widget.onCreated.
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kimlik oluşturulamadı: $e'), backgroundColor: PhotonColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
   }
 
   void _finish() {
@@ -112,8 +126,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 12),
               ElevatedButton(
                 style: photonPrimaryButtonStyle(),
-                onPressed: (_nameCtrl.text.trim().isEmpty || _created != null) ? null : _create,
-                child: const Text('Kimliği bu cihazda oluştur'),
+                onPressed: (_nameCtrl.text.trim().isEmpty || _created != null || _creating) ? null : _create,
+                child: _creating
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)))
+                    : const Text('Kimliği bu cihazda oluştur'),
               ),
               const SizedBox(height: 12),
               Text(

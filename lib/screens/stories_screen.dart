@@ -171,22 +171,23 @@ class StoriesScreen extends StatelessWidget {
   const StoriesScreen({super.key, required this.stories, this.initialIndex = 0});
   @override
   Widget build(BuildContext context) {
-    final story = stories.isNotEmpty ? stories[initialIndex.clamp(0, stories.length - 1)] : null;
-    if (story == null) return const Scaffold(body: Center(child: Text('Hikaye bulunamadi')));
-    return _StoryViewerScreen(stories: stories, authorName: story.authorName);
+    if (stories.isEmpty) return const Scaffold(body: Center(child: Text('Hikaye bulunamadi')));
+    final startIdx = initialIndex.clamp(0, stories.length - 1);
+    return _StoryViewerScreen(stories: stories, authorName: stories[startIdx].authorName, startIndex: startIdx);
   }
 }
 
 class _StoryViewerScreen extends StatefulWidget {
   final List<StoryItem> stories;
   final String authorName;
-  const _StoryViewerScreen({required this.stories, required this.authorName});
+  final int startIndex;
+  const _StoryViewerScreen({required this.stories, required this.authorName, this.startIndex = 0});
   @override
   State<_StoryViewerScreen> createState() => _StoryViewerScreenState();
 }
 
 class _StoryViewerScreenState extends State<_StoryViewerScreen> {
-  int _current = 0;
+  late int _current = widget.startIndex.clamp(0, widget.stories.length - 1);
   Timer? _timer;
 
   @override
