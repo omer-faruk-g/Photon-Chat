@@ -259,7 +259,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       await OfflineQueue.instance.flush();
       if (mounted) setState(() {});
-      final msgs = await PhotonApi.getGroupMessages(widget.myServerUrl, widget.group.groupId);
+      final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
       msgs.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
       if (mounted) setState(() => _messages = msgs);
     });
@@ -267,27 +267,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollJoinRequests() {
     _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, widget.group.groupId);
+      final reqs = await PhotonApi.getGroupJoinRequests(widget.group.ownerServerUrl, widget.group.groupId);
       if (mounted) setState(() => _pendingJoins = reqs);
     });
   }
 
   void _pollMutedMembers() {
     _muteTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      final muted = await PhotonApi.getMutedMembers(widget.myServerUrl, widget.group.groupId);
+      final muted = await PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId);
       if (mounted) setState(() => _mutedMembers = muted);
     });
-    PhotonApi.getMutedMembers(widget.myServerUrl, widget.group.groupId).then((muted) {
+    PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId).then((muted) {
       if (mounted) setState(() => _mutedMembers = muted);
     });
   }
 
   void _pollAnnouncements() {
     _annTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      final anns = await PhotonApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId);
+      final anns = await PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId);
       if (mounted) setState(() => _announcements = anns);
     });
-    PhotonApi.getGroupAnnouncements(widget.myServerUrl, widget.group.groupId).then((a) {
+    PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId).then((a) {
       if (mounted) setState(() => _announcements = a);
     });
   }
@@ -302,27 +302,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final text = sanitizeMessage(raw);
     setState(() => _inputError = null);
     _msgCtrl.clear();
-    final memberUrls = widget.group.members.map((m) => m.serverUrl).toList();
-    memberUrls.add(widget.myServerUrl);
+    final ownerUrls = [widget.group.ownerServerUrl];
     final ts = DateTime.now().millisecondsSinceEpoch;
+    if (mounted) setState(() => _messages = [..._messages, {
+      'from': widget.identity.fipId, 'fromName': widget.displayName, 'text': text, 'ts': ts,
+    }]);
     try {
-      await PhotonApi.sendGroupMessage(memberUrls, widget.group.groupId,
+      await PhotonApi.sendGroupMessage(ownerUrls, widget.group.groupId,
         from: widget.identity.fipId, fromName: widget.displayName,
         text: text, ts: ts,
       );
     } on SocketException {
       await OfflineQueue.instance.enqueue(QueuedMessage(
-        chatKey: widget.group.groupId, receiverServerUrl: widget.myServerUrl,
+        chatKey: widget.group.groupId, receiverServerUrl: widget.group.ownerServerUrl,
         from: widget.identity.fipId, text: text, ts: ts,
-        isGroup: true, groupMemberUrls: memberUrls,
+        isGroup: true, groupMemberUrls: ownerUrls,
         groupId: widget.group.groupId, fromName: widget.displayName,
       ));
       if (mounted) setState(() {});
     } on TimeoutException {
       await OfflineQueue.instance.enqueue(QueuedMessage(
-        chatKey: widget.group.groupId, receiverServerUrl: widget.myServerUrl,
+        chatKey: widget.group.groupId, receiverServerUrl: widget.group.ownerServerUrl,
         from: widget.identity.fipId, text: text, ts: ts,
-        isGroup: true, groupMemberUrls: memberUrls,
+        isGroup: true, groupMemberUrls: ownerUrls,
         groupId: widget.group.groupId, fromName: widget.displayName,
       ));
       if (mounted) setState(() {});
@@ -331,7 +333,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _vote(Map<String, dynamic> pollMsg, int optionIndex) async {
     final msgIdVal = pollMsg['msgId'] as String? ?? '';
-    await PhotonApi.voteOnPoll(widget.myServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
+    await PhotonApi.voteOnPoll(widget.group.ownerServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
     setState(() {
       if (pollMsg['votes'] == null) pollMsg['votes'] = {};
       (pollMsg['votes'] as Map)[widget.identity.fipId] = optionIndex;
@@ -339,7 +341,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _acceptMember(Map<String, dynamic> req) async {
-    await PhotonApi.acceptGroupMember(widget.myServerUrl, widget.group.groupId,
+    await PhotonApi.acceptGroupMember(widget.group.ownerServerUrl, widget.group.groupId,
       fipId: req['fromFipId'] as String,
       name: req['fromName'] as String? ?? 'Bilinmeyen',
       serverUrl: req['fromServerUrl'] as String? ?? '',
@@ -348,7 +350,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _rejectMember(Map<String, dynamic> req) async {
-    await PhotonApi.rejectGroupMember(widget.myServerUrl, widget.group.groupId, req['fromFipId'] as String);
+    await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, req['fromFipId'] as String);
     setState(() => _pendingJoins.remove(req));
   }
 
@@ -601,9 +603,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           style: photonPrimaryButtonStyle(),
           onPressed: () async {
             Navigator.pop(ctx);
-            if (ctrl.text.trim().isEmpty) return;
-            await PhotonApi.sendGroupAnnouncement(widget.myServerUrl, widget.group.groupId,
-              from: widget.identity.fipId, fromName: widget.displayName, text: ctrl.text.trim());
+            final text = ctrl.text.trim();
+            if (text.isEmpty) return;
+            final ts = DateTime.now().millisecondsSinceEpoch;
+            if (mounted) setState(() => _announcements = [..._announcements, {'from': widget.identity.fipId, 'fromName': widget.displayName, 'text': text, 'ts': ts}]);
+            await PhotonApi.sendGroupAnnouncement(widget.group.ownerServerUrl, widget.group.groupId,
+              from: widget.identity.fipId, fromName: widget.displayName, text: text);
             _showToast('Duyuru gönderildi.');
           },
           child: const Text('Gönder'),
@@ -677,11 +682,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               onPressed: () async {
                 Navigator.pop(ctx);
                 final opts = optCtrls.map((c) => c.text.trim()).where((o) => o.isNotEmpty).toList();
-                if (questionCtrl.text.trim().isEmpty || opts.length < 2) return;
-                final memberUrls = widget.group.members.map((m) => m.serverUrl).toList()..add(widget.myServerUrl);
-                await PhotonApi.sendGroupPoll(memberUrls, widget.group.groupId,
+                final question = questionCtrl.text.trim();
+                if (question.isEmpty || opts.length < 2) return;
+                final ts = DateTime.now().millisecondsSinceEpoch;
+                if (mounted) setState(() => _messages = [..._messages, {
+                  'from': widget.identity.fipId,
+                  'fromName': widget.displayName,
+                  'type': 'poll',
+                  'question': question,
+                  'options': opts,
+                  'votes': <String, int>{},
+                  'ts': ts,
+                }]);
+                await PhotonApi.sendGroupPoll([widget.group.ownerServerUrl], widget.group.groupId,
                   from: widget.identity.fipId, fromName: widget.displayName,
-                  question: questionCtrl.text.trim(), options: opts, ts: DateTime.now().millisecondsSinceEpoch);
+                  question: question, options: opts, ts: ts);
                 _showToast('Anket gönderildi.');
               },
               child: const Text('Oluştur'),
