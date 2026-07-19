@@ -261,8 +261,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       await OfflineQueue.instance.flush();
       if (mounted) setState(() {});
       final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
-      msgs.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
-      if (mounted) setState(() => _messages = msgs);
+      // Merge: keep our locally optimistic messages that server hasn't returned yet.
+      // A message is considered "same" if it has same ts and from.
+      String keyOf(Map m) => '${m['ts']}_${m['from']}';
+      final serverKeys = msgs.map((m) => keyOf(m)).toSet();
+      final localOnly = _messages.where((m) => !serverKeys.contains(keyOf(m))).toList();
+      final merged = [...msgs, ...localOnly];
+      merged.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
+      if (mounted) setState(() => _messages = merged);
     });
   }
 
@@ -284,9 +290,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _pollAnnouncements() {
+    String keyOf(Map m) => '${m['ts']}_${m['from']}';
     _annTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       final anns = await PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId);
-      if (mounted) setState(() => _announcements = anns);
+      final serverKeys = anns.map((m) => keyOf(m)).toSet();
+      final localOnly = _announcements.where((m) => !serverKeys.contains(keyOf(m))).toList();
+      final merged = [...anns, ...localOnly];
+      merged.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
+      if (mounted) setState(() => _announcements = merged);
     });
     PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId).then((a) {
       if (mounted) setState(() => _announcements = a);

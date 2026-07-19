@@ -6,6 +6,7 @@ import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
 import '../app_keys.dart';
+import '../i18n.dart';
 import 'add_contact_screen.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
@@ -324,7 +325,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                _SectionTitle('Kişiler', count: active.length),
+                _SectionTitle(AppLang.instance.t('contacts'), count: active.length),
                 if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty)
                   _EmptyState(onAdd: _openAddScreen),
                 ...active.map((c) => _ContactRow(
@@ -336,7 +337,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
                 const SizedBox(height: 24),
 
-                _SectionTitle('Gruplar', count: _groups.length),
+                _SectionTitle(AppLang.instance.t('groups'), count: _groups.length),
                 if (_groups.isEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
@@ -357,7 +358,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                       style: photonPrimaryButtonStyle(),
                       onPressed: _openAddScreen,
                       icon: const Icon(Icons.person_add, size: 16),
-                      label: const Text('Kişi Ekle'),
+                      label: Text(AppLang.instance.t('addContact')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -380,12 +381,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             children: [
                               ListTile(
                                 leading: Icon(Icons.group_add, color: PhotonColors.accent),
-                                title: Text('Yeni Grup Oluştur', style: TextStyle(color: PhotonColors.text)),
+                                title: Text(AppLang.instance.t('createGroup'), style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openCreateGroup(); },
                               ),
                               ListTile(
                                 leading: Icon(Icons.login, color: PhotonColors.accent),
-                                title: Text('Gruba Katıl', style: TextStyle(color: PhotonColors.text)),
+                                title: Text(AppLang.instance.t('joinGroup'), style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openJoinGroup(); },
                               ),
                             ],
@@ -604,7 +605,7 @@ class _EmptyState extends StatelessWidget {
       const SizedBox(height: 6),
       Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
-      ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
+      ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: Text(AppLang.instance.t('addContact'))),
     ]),
   );
 }
@@ -629,12 +630,12 @@ class _RequestRow extends StatelessWidget {
       Column(children: [
         SizedBox(height: 30, child: ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: PhotonColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onAccept, child: const Text('Kabul et'),
+          onPressed: onAccept, child: Text(AppLang.instance.t('accept')),
         )),
         const SizedBox(height: 4),
         SizedBox(height: 26, child: OutlinedButton(
           style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.textDim, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onDecline, child: const Text('Sil'),
+          onPressed: onDecline, child: Text(AppLang.instance.t('delete')),
         )),
       ]),
     ]),
@@ -669,7 +670,7 @@ class _ContactRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('BIO', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      Text(AppLang.instance.t('bioSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                       const SizedBox(height: 4),
                       Text(contact.bio, style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.5)),
                     ]),
@@ -717,7 +718,7 @@ class _ContactRow extends StatelessWidget {
             Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
             const SizedBox(height: 2),
             Text(
-              isOnline ? 'Çevrimiçi' : (contact.statusMsg.isNotEmpty ? contact.statusMsg : 'Çevrimdışı'),
+              isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
               style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),

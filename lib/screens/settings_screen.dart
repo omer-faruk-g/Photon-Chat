@@ -439,7 +439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final myAddress = '${widget.identity.code}@${widget.myServerUrl}';
     return Scaffold(
-      appBar: AppBar(title: const Text('Ayarlar')),
+      appBar: AppBar(title: Text(AppLang.instance.t('settings'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -469,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('DURUM MESAJI', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text(AppLang.instance.t('statusMessage'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               TextField(
                 controller: _statusCtrl,
@@ -489,7 +489,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ElevatedButton(
                   style: photonPrimaryButtonStyle(),
                   onPressed: _savingStatus ? null : _saveStatus,
-                  child: _savingStatus ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : const Text('Kaydet'),
+                  child: _savingStatus ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : Text(AppLang.instance.t('save')),
                 ),
               ),
             ]),
@@ -501,7 +501,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('BIO', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text(AppLang.instance.t('bioSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Focus(
                 onFocusChange: (hasFocus) { if (!hasFocus) _saveBio(); },
@@ -527,7 +527,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: ElevatedButton(
                   style: photonPrimaryButtonStyle(),
                   onPressed: _savingBio ? null : _saveBio,
-                  child: _savingBio ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : const Text('Kaydet'),
+                  child: _savingBio ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : Text(AppLang.instance.t('save')),
                 ),
               ),
             ]),
@@ -542,8 +542,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Icon(PhotonTheme.instance.isDark ? Icons.dark_mode : Icons.light_mode, color: PhotonColors.textDim, size: 18),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Tema', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(PhotonTheme.instance.isDark ? 'Karanlık mod' : 'Aydınlık mod', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(AppLang.instance.t('themeSection'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(PhotonTheme.instance.isDark ? AppLang.instance.t('darkMode') : AppLang.instance.t('lightMode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               ])),
               Switch(
                 value: PhotonTheme.instance.isDark,
@@ -566,7 +566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Icon(Icons.lock_outline, color: PhotonColors.textDim, size: 18),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Uygulama Kilidi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(AppLang.instance.t('appLockSection'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                 Text(_lockEnabled ? 'PIN veya desen ile korunuyor' : 'Kapalı', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               ])),
               if (_lockEnabled)

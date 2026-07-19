@@ -184,10 +184,22 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v6.3.0': (
+        "### 🎯 v6.3.0 — Anket, Yazı Boyutu ve Kararlılık\n\n"
+        "**Kritik düzeltmeler:**\n"
+        "- 🐛 Anket oluşturunca 1-2 saniye sonra kayboluyordu — merge logic ile düzeltildi (artık kalıcı)\n"
+        "- 🐛 Duyuru gönderince 5 saniye sonra kayboluyordu — aynı fix uygulandı\n"
+        "- 🐛 Yazı boyutu değişmiyordu — canlı güncelleme + önizleme eklendi\n\n"
+        "**Yazı boyutu artık:**\n"
+        "- 🔠 Ayarlarda seçince anında tüm açık sohbetlerde uygulanıyor\n"
+        "- 👁️ Ayarlar ekranında \"ÖRNEK MESAJ\" önizleme kartı gösteriliyor\n\n"
+        "**Dil desteği genişletildi:**\n"
+        "- 🌐 Kişiler ve Ayarlar ekranında 45+ dil desteği eklendi (kısmi)"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0'}
 
 
 def make_body(tag):
