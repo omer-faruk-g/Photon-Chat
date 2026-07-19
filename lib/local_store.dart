@@ -30,9 +30,10 @@ class GroupMember {
   final String fipId;
   final String name;
   final String serverUrl;
-  GroupMember({required this.fipId, required this.name, required this.serverUrl});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl};
-  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'], name: j['name'], serverUrl: (j['serverUrl'] as String?) ?? '');
+  final bool isMod;
+  GroupMember({required this.fipId, required this.name, required this.serverUrl, this.isMod = false});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl, 'isMod': isMod};
+  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'], name: j['name'], serverUrl: (j['serverUrl'] as String?) ?? '', isMod: (j['isMod'] as bool?) ?? false);
 }
 
 class Group {
@@ -70,6 +71,9 @@ class LocalStore {
   static const _kSttEnabledKey = 'knk_stt_enabled_v1';
   static const _kBioKey = 'knk_bio_v1';
   static const _kVoiceGenderKey = 'knk_voice_gender_v1';
+  static const _kStarredMsgsKey = 'knk_starred_msgs_v1';
+  static const _kNotifSoundKey = 'knk_notif_sound_v1';
+  static const _kStoriesKey = 'knk_stories_v1';
 
   static Future<bool> loadSttEnabled() async => (await SharedPreferences.getInstance()).getBool(_kSttEnabledKey) ?? false;
   static Future<void> saveSttEnabled(bool v) async => (await SharedPreferences.getInstance()).setBool(_kSttEnabledKey, v);
@@ -136,6 +140,47 @@ class LocalStore {
 
   static Future<bool> loadThemeDark() async => (await SharedPreferences.getInstance()).getBool(_kThemeDarkKey) ?? true;
   static Future<void> saveThemeDark(bool isDark) async => (await SharedPreferences.getInstance()).setBool(_kThemeDarkKey, isDark);
+
+  // --- Starred messages ---
+  static Future<List<Map<String, dynamic>>> loadStarredMessages() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_kStarredMsgsKey);
+    if (raw == null) return [];
+    return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+  }
+
+  static Future<void> _saveStarredMessages(List<Map<String, dynamic>> msgs) async =>
+      (await SharedPreferences.getInstance()).setString(_kStarredMsgsKey, jsonEncode(msgs));
+
+  static Future<void> starMessage(Map<String, dynamic> msg) async {
+    final msgs = await loadStarredMessages();
+    if (!msgs.any((m) => m['msgId'] == msg['msgId'])) {
+      msgs.add(msg);
+      await _saveStarredMessages(msgs);
+    }
+  }
+
+  static Future<void> unstarMessage(String msgId) async {
+    final msgs = await loadStarredMessages();
+    msgs.removeWhere((m) => m['msgId'] == msgId);
+    await _saveStarredMessages(msgs);
+  }
+
+  // --- Notification sound ---
+  static Future<String> loadNotifSound() async => (await SharedPreferences.getInstance()).getString(_kNotifSoundKey) ?? 'Varsayilan';
+  static Future<void> saveNotifSound(String sound) async => (await SharedPreferences.getInstance()).setString(_kNotifSoundKey, sound);
+
+  // --- Stories ---
+  static Future<List<Map<String, dynamic>>> loadStories() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_kStoriesKey);
+    if (raw == null) return [];
+    final list = List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    list.removeWhere((s) => (s['expiresAt'] as int) < now);
+    return list;
+  }
+
+  static Future<void> saveStories(List<Map<String, dynamic>> stories) async =>
+      (await SharedPreferences.getInstance()).setString(_kStoriesKey, jsonEncode(stories));
 
   static Future<void> blockUser(String fipId) async {
     final list = await loadBlockList();

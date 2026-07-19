@@ -145,10 +145,18 @@ CHANGELOGS = {
         "- 🛡️ FAKE yönetimi — fake hesapları izle, banla veya MOD yetkisi ver\n"
         "- 🔒 Protokol seviyesinde koruma — banlanan cihaz aynı servera asla erişemez"
     ),
+    'v6.0.0': (
+        "### 🚀 v6.0.0 Yenilikleri\n"
+        "- 📎 Dosya paylaşımı — PDF, ZIP, DOC ve daha fazlası (maks 50 MB)\n"
+        "- 🛡️ Grup moderatör rolü — MOD yetki ver/al, moderatörler mesaj silebilir\n"
+        "- 📖 Hikayeler / Durum — 24 saat sonra kaybolan metin ve görsel hikayeler\n"
+        "- ⭐ Mesaj yıldızlama — önemli mesajları kaydet ve sonra kolayca bul\n"
+        "- 🔔 Bildirim sesi özelleştirme — 6 farklı ses seçeneği"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
 
 
 def make_body(tag):

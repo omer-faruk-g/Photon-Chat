@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../fip.dart';
@@ -246,6 +248,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _pickAndSendFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+    if (result == null || result.files.single.bytes == null || !mounted) return;
+    final fileBytes = result.files.single.bytes!;
+    final fileSize = result.files.single.size;
+    if (fileSize > 50 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dosya çok büyük (maks 50 MB)')));
+      return;
+    }
+    final base64data = base64Encode(fileBytes);
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final fileName = result.files.single.name;
+    await PhotonApi.sendFileMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: fileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    await PhotonApi.sendFileMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: fileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+  }
+
   Future<void> _openGifCreator() async {
     final result = await Navigator.push<GifResult>(context, MaterialPageRoute(builder: (_) => const GifCreatorScreen()));
     if (result == null || !mounted) return;
@@ -362,6 +380,9 @@ class _ChatScreenState extends State<ChatScreen> {
           replyTo: replyTo,
           imageData: m['imageData'] as String?,
           isNsfw: m['nsfw'] == true,
+          fileData: m['fileData'] as String?,
+          fileName: m['fileName'] as String?,
+          fileSize: m['fileSize'] as int?,
         ));
       }
       if (_alive && mounted) {
@@ -607,6 +628,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     if (m.imageData != null && !m.deleted)
                       _buildImageBubble(m, mine)
+                    else if (m.fileData != null && !m.deleted)
+                      _buildFileBubble(m, mine)
+                    else if (!m.deleted && m.text.startsWith('[Dosya: '))
+                      _buildFileTextBubble(m, mine)
                     else if (!m.deleted && m.text.startsWith('[📍KONUM:'))
                       _buildLocationBubble(m.text, mine)
                     else if (!m.deleted && m.text.startsWith('[🎤SES:'))
@@ -777,6 +802,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 final pinData = {'msgId': m.msgId, 'text': m.text, 'from': m.from};
                 await LocalStore.savePinnedMessage(_chatKey, pinData);
                 if (mounted) setState(() => _pinnedMessage = pinData);
+              }
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.star_outline, color: PhotonColors.accent),
+            title: Text('Yıldızla', style: TextStyle(color: PhotonColors.text)),
+            onTap: () async {
+              Navigator.pop(context);
+              await LocalStore.starMessage({'msgId': m.msgId, 'from': m.from, 'text': m.text, 'ts': m.ts, 'senderName': m.from == widget.identity.fipId ? _myDisplayName : widget.contact.name});
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mesaj yıldızlandı ⭐')));
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.star, color: Colors.amber),
+            title: FutureBuilder<List<Map<String, dynamic>>>(
+              future: LocalStore.loadStarredMessages(),
+              builder: (ctx, snap) {
+                final isStarred = (snap.data ?? []).any((s) => s['msgId'] == m.msgId);
+                return Text(isStarred ? 'Yildizi Kaldir' : 'Yildizla', style: TextStyle(color: PhotonColors.text));
+              },
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              final starred = await LocalStore.loadStarredMessages();
+              final isStarred = starred.any((s) => s['msgId'] == m.msgId);
+              if (isStarred) {
+                await LocalStore.unstarMessage(m.msgId);
+              } else {
+                await LocalStore.starMessage({'msgId': m.msgId, 'from': m.from, 'text': m.text, 'ts': m.ts});
               }
             },
           ),
@@ -1042,6 +1098,69 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildFileBubble(_DisplayMessage m, bool mine) {
+    final name = m.fileName ?? 'dosya';
+    final size = m.fileSize ?? 0;
+    String sizeStr;
+    if (size < 1024) sizeStr = '$size B';
+    else if (size < 1024 * 1024) sizeStr = '${(size / 1024).toStringAsFixed(1)} KB';
+    else sizeStr = '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+        ])),
+        Icon(Icons.download, color: PhotonColors.accent, size: 20),
+      ]),
+    );
+  }
+
+  Widget _buildFileTextBubble(_DisplayMessage m, bool mine) {
+    // Parse "[Dosya: filename (size)]" pattern
+    final raw = m.text;
+    String name = 'dosya';
+    String sizeStr = '';
+    final match = RegExp(r'^\[Dosya: (.+?)(?:\s*\((.+?)\))?\]$').firstMatch(raw);
+    if (match != null) {
+      name = match.group(1) ?? 'dosya';
+      sizeStr = match.group(2) ?? '';
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          if (sizeStr.isNotEmpty)
+            Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+        ])),
+      ]),
+    );
+  }
+
   Widget _buildAvatar(String name, String avatar, {double size = 36}) {
     if (avatar.isNotEmpty) {
       try {
@@ -1186,6 +1305,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               if (!_isBlocked)
                 IconButton(
+                  icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
+                  tooltip: 'Dosya Gonder',
+                  onPressed: _pickAndSendFile,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
                   icon: Icon(Icons.gif_box_outlined, color: PhotonColors.textDim),
                   tooltip: 'GIF Oluştur',
                   onPressed: _openGifCreator,
@@ -1197,6 +1324,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: Icon(Icons.location_on, color: PhotonColors.textDim),
                   tooltip: 'Konum Paylaş',
                   onPressed: _shareLocation,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
+                  tooltip: 'Dosya Gönder',
+                  onPressed: _pickAndSendFile,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),
@@ -1298,5 +1433,8 @@ class _DisplayMessage {
   final Map<String, dynamic>? replyTo;
   final String? imageData;
   final bool isNsfw;
-  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo, this.imageData, this.isNsfw = false});
+  final String? fileData;
+  final String? fileName;
+  final int? fileSize;
+  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo, this.imageData, this.isNsfw = false, this.fileData, this.fileName, this.fileSize});
 }

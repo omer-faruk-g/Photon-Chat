@@ -11,7 +11,10 @@ import '../chat_wallpaper.dart';
 import '../nsfw_scanner.dart';
 import 'wallpaper_screen.dart';
 import 'devices_screen.dart';
+import 'starred_messages_screen.dart';
 import '../i18n.dart';
+import '../sound_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../device_manager.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -36,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _bioCtrl = TextEditingController();
   bool _savingBio = false;
   String _voiceGender = 'male';
+  String _notifSound = 'Varsayilan';
 
   @override
   void initState() {
@@ -43,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
     LocalStore.loadBio().then((v) { if (mounted) setState(() { _bio = v; _bioCtrl.text = v; }); });
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    LocalStore.loadNotifSound().then((v) { if (mounted) setState(() => _notifSound = v); });
     _load();
   }
 
@@ -106,6 +111,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bio = _bioCtrl.text.trim();
     await LocalStore.saveBio(bio);
     setState(() { _bio = bio; _savingBio = false; });
+  }
+
+  Future<void> _openSoundPicker() async {
+    final sounds = await SoundPicker.getNotificationSounds();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: PhotonColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (ctx, scrollCtrl) => Column(children: [
+          Padding(padding: const EdgeInsets.all(16), child: Row(children: [
+            Icon(Icons.notifications_active, color: PhotonColors.accent, size: 20),
+            const SizedBox(width: 10),
+            Text('Bildirim Sesi Sec', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+            const Spacer(),
+            GestureDetector(
+              onTap: () { SoundPicker.stopSound(); Navigator.pop(ctx); },
+              child: Icon(Icons.close, color: PhotonColors.textDim, size: 20),
+            ),
+          ])),
+          Divider(color: PhotonColors.line, height: 1),
+          // Varsayilan + Sessiz
+          ListTile(
+            leading: Icon('Varsayilan' == _notifSound ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: PhotonColors.accent),
+            title: Text('Varsayilan', style: TextStyle(color: PhotonColors.text)),
+            onTap: () async {
+              SoundPicker.stopSound();
+              Navigator.pop(ctx);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('knk_notif_sound_v1', 'Varsayilan');
+              await prefs.setString('knk_notif_sound_uri_v1', 'default');
+              setState(() => _notifSound = 'Varsayilan');
+            },
+          ),
+          ListTile(
+            leading: Icon('Sessiz' == _notifSound ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: PhotonColors.accent),
+            title: Text('Sessiz', style: TextStyle(color: PhotonColors.text)),
+            onTap: () async {
+              SoundPicker.stopSound();
+              Navigator.pop(ctx);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('knk_notif_sound_v1', 'Sessiz');
+              await prefs.setString('knk_notif_sound_uri_v1', 'silent');
+              setState(() => _notifSound = 'Sessiz');
+            },
+          ),
+          Divider(color: PhotonColors.line, height: 1),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text('CIHAZ SESLERI', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
+          Expanded(
+            child: ListView.builder(
+              controller: scrollCtrl,
+              itemCount: sounds.length,
+              itemBuilder: (_, i) {
+                final s = sounds[i];
+                final isSelected = _notifSound == s['title'];
+                return ListTile(
+                  leading: Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: PhotonColors.accent),
+                  title: Text(s['title'] ?? '', style: TextStyle(color: PhotonColors.text, fontSize: 13)),
+                  trailing: IconButton(
+                    icon: Icon(Icons.play_circle_outline, color: PhotonColors.accent, size: 22),
+                    onPressed: () => SoundPicker.playSound(s['uri'] ?? ''),
+                  ),
+                  onTap: () async {
+                    SoundPicker.stopSound();
+                    Navigator.pop(ctx);
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('knk_notif_sound_v1', s['title'] ?? 'Varsayilan');
+                    await prefs.setString('knk_notif_sound_uri_v1', s['uri'] ?? 'default');
+                    setState(() => _notifSound = s['title'] ?? 'Varsayilan');
+                  },
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 
   Future<void> _syncPresence() async {
@@ -455,6 +544,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ])),
                 _buildWallpaperPreview(),
                 const SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Yildizli Mesajlar
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StarredMessagesScreen())),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.star, color: Colors.amber, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Yildizli Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Yildizladigin mesajlari gor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                ])),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Bildirim Sesi
+          GestureDetector(
+            onTap: () => _openSoundPicker(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.notifications_active, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Bildirim Sesi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(_notifSound, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),
             ),

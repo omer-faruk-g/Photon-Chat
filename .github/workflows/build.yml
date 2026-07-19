@@ -93,17 +93,60 @@ jobs:
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
 
+          import android.media.RingtoneManager
+          import android.media.Ringtone
+          import android.net.Uri
           import android.os.Bundle
           import android.view.WindowManager
           import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+          import io.flutter.plugin.common.MethodChannel
 
           class MainActivity : FlutterActivity() {
+              private var currentRingtone: Ringtone? = null
+
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   window.setFlags(
                       WindowManager.LayoutParams.FLAG_SECURE,
                       WindowManager.LayoutParams.FLAG_SECURE
                   )
+              }
+
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.photonchat/sound_picker")
+                      .setMethodCallHandler { call, result ->
+                          when (call.method) {
+                              "getNotificationSounds" -> {
+                                  val sounds = mutableListOf<Map<String, String>>()
+                                  val mgr = RingtoneManager(this)
+                                  mgr.setType(RingtoneManager.TYPE_NOTIFICATION)
+                                  val cursor = mgr.cursor
+                                  while (cursor.moveToNext()) {
+                                      val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+                                      val uri = mgr.getRingtoneUri(cursor.position).toString()
+                                      sounds.add(mapOf("title" to title, "uri" to uri))
+                                  }
+                                  result.success(sounds)
+                              }
+                              "playSound" -> {
+                                  currentRingtone?.stop()
+                                  val uri = call.argument<String>("uri")
+                                  if (uri != null) {
+                                      currentRingtone = RingtoneManager.getRingtone(this, Uri.parse(uri))
+                                      currentRingtone?.play()
+                                  }
+                                  result.success(null)
+                              }
+                              "stopSound" -> {
+                                  currentRingtone?.stop()
+                                  currentRingtone = null
+                                  result.success(null)
+                              }
+                              else -> result.notImplemented()
+                          }
+                      }
               }
           }
           KOTLIN

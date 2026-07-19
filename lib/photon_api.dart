@@ -499,6 +499,46 @@ class PhotonApi {
   // --- Pulse AI ---
 
   /// [messages] format: [{'role':'user','content':'...'}, {'role':'assistant','content':'...'}, ...]
+  // --- File sharing ---
+
+  static Future<(bool, String?)> sendFileMessage({required String receiverServerUrl, required String chatKey, required String from, required String fileName, required String fileData, required int fileSize, required int ts, String? toFipId, String? senderName}) async {
+    try {
+      final body = <String, dynamic>{'from': from, 'text': '[Dosya: $fileName]', 'ts': ts, 'type': 'file', 'fileName': fileName, 'fileData': fileData, 'fileSize': fileSize};
+      if (toFipId != null) body['toFipId'] = toFipId;
+      if (senderName != null) body['fromName'] = senderName;
+      final r = await http.post(_u(receiverServerUrl, '/chat/$chatKey'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(body));
+      if (r.statusCode == 200) {
+        final respBody = jsonDecode(r.body) as Map<String, dynamic>;
+        return (true, respBody['msgId'] as String?);
+      }
+    } catch (_) {}
+    return (false, null);
+  }
+
+  // --- Stories ---
+
+  static Future<void> postStory(String serverUrl, String fipId, Map<String, dynamic> storyData) async {
+    try {
+      await http.post(_u(serverUrl, '/stories/$fipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(storyData));
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String, dynamic>>> getStories(String serverUrl, String fipId) async {
+    try {
+      final r = await http.get(_u(serverUrl, '/stories/$fipId'));
+      if (r.statusCode == 200) return List<Map<String, dynamic>>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<void> deleteStory(String serverUrl, String fipId, String storyId) async {
+    try { await http.delete(_u(serverUrl, '/stories/$fipId/$storyId')); } catch (_) {}
+  }
+
   static Future<String> chatWithPulseAI(String myServerUrl, List<Map<String, String>> messages) async {
     try {
       final r = await http.post(

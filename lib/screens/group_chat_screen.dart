@@ -49,6 +49,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _isRecordingVoice = false;
   String _voiceGender = 'male';
 
+  bool get _isCurrentUserMod {
+    return widget.group.members.any((m) => m.fipId == widget.identity.fipId && m.isMod);
+  }
+
+  bool get _isOwnerOrMod => widget.group.isOwner || _isCurrentUserMod;
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +64,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _pollAnnouncements();
     if (widget.group.isOwner) {
       _pollJoinRequests();
+    }
+    if (widget.group.isOwner || _isCurrentUserMod) {
       _pollMutedMembers();
     }
   }
@@ -397,6 +405,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.group.isOwner)
+              ListTile(
+                leading: Icon(member.isMod ? Icons.remove_moderator : Icons.shield, color: Colors.amber),
+                title: Text(member.isMod ? 'MOD Kaldır' : 'MOD Yap', style: TextStyle(color: PhotonColors.text)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final idx = widget.group.members.indexWhere((m) => m.fipId == member.fipId);
+                  if (idx != -1) {
+                    final updated = GroupMember(fipId: member.fipId, name: member.name, serverUrl: member.serverUrl, isMod: !member.isMod);
+                    setState(() => widget.group.members[idx] = updated);
+                    await LocalStore.saveGroups(await LocalStore.loadGroups());
+                    _showToast(member.isMod ? '${member.name} moderatorlukten alindi.' : '${member.name} moderator yapildi.');
+                  }
+                },
+              ),
             ListTile(
               leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
               title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur',
@@ -410,14 +433,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 }
               },
             ),
-            ListTile(
-              leading: Icon(Icons.person_remove, color: PhotonColors.danger),
-              title: Text('${member.name} kullanıcısını gruptan at', style: TextStyle(color: PhotonColors.danger)),
-              onTap: () {
-                Navigator.pop(context);
-                _kickMember(member);
-              },
-            ),
+            if (widget.group.isOwner)
+              ListTile(
+                leading: Icon(Icons.person_remove, color: PhotonColors.danger),
+                title: Text('${member.name} kullanıcısını gruptan at', style: TextStyle(color: PhotonColors.danger)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _kickMember(member);
+                },
+              ),
             ListTile(
               leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
               title: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim)),
@@ -459,10 +483,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               Text(m.name, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
               if (isOwner) const SizedBox(width: 6),
               if (isOwner) Text('(sahip)', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+              if (m.isMod && !isOwner) const SizedBox(width: 6),
+              if (m.isMod && !isOwner) Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+              ),
               if (isMuted) const SizedBox(width: 6),
               if (isMuted) Icon(Icons.volume_off, color: PhotonColors.textDim, size: 13),
             ]),
-            trailing: widget.group.isOwner && !isOwner
+            trailing: _isOwnerOrMod && !isOwner
                 ? IconButton(
                     icon: Icon(Icons.more_vert, color: PhotonColors.textDim, size: 18),
                     onPressed: () {
@@ -868,7 +898,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-                            if (!isMe) Text(fromName, style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                            if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(fromName, style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                              if (widget.group.members.any((gm) => gm.fipId == (m['from'] as String?) && gm.isMod)) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(3)),
+                                  child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 8, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ]),
                             if (rawText.startsWith('[📍KONUM:'))
                               _buildLocationBubble(rawText, isMe)
                             else if (rawText.startsWith('[🎤SES:'))

@@ -12,7 +12,9 @@ import 'settings_screen.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 import 'group_chat_screen.dart';
+import 'stories_screen.dart';
 import 'pulse_ai_screen.dart';
+import '../story_manager.dart';
 
 class ContactsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -34,6 +36,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _myStatusMsg = '';
   final Map<String, int> _groupPendingCounts = {};
   final Map<String, bool> _online = {};
+  List<StoryItem> _stories = [];
 
   @override
   void initState() { super.initState(); _init(); }
@@ -52,6 +55,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _myAvatar = avatar ?? '';
       _myStatusMsg = statusMsg ?? '';
     });
+    StoryManager.loadStories().then((s) { if (mounted) setState(() => _stories = s); });
     await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
     _sync();
     _groupSync();
@@ -176,6 +180,59 @@ class _ContactsScreenState extends State<ContactsScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => PulseAiScreen(myServerUrl: widget.myServerUrl)));
   }
 
+  void _createStory() {
+    final ctrl = TextEditingController();
+    final colors = [0xFF1A1A2E, 0xFF16213E, 0xFF0F3460, 0xFF533483, 0xFFE94560, 0xFF2B2D42];
+    int selectedColor = 0;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
+        backgroundColor: PhotonColors.panel,
+        title: Text('Hikaye Olustur', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: ctrl, autofocus: true, maxLines: 3, maxLength: 200,
+            style: TextStyle(color: PhotonColors.text),
+            decoration: InputDecoration(hintText: 'Ne dusunuyorsun?', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+          ),
+          const SizedBox(height: 12),
+          Text('Arka plan rengi', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(colors.length, (i) => GestureDetector(
+            onTap: () => ss(() => selectedColor = i),
+            child: Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(color: Color(colors[i]).withAlpha(255), shape: BoxShape.circle, border: Border.all(color: selectedColor == i ? PhotonColors.accent : Colors.transparent, width: 2)),
+            ),
+          ))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Iptal', style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              if (ctrl.text.trim().isEmpty) return;
+              final story = StoryItem(
+                id: '${DateTime.now().millisecondsSinceEpoch}',
+                authorFipId: widget.identity.fipId,
+                authorName: widget.displayName,
+                type: 'text',
+                content: ctrl.text.trim(),
+                ts: DateTime.now().millisecondsSinceEpoch,
+                expiresAt: DateTime.now().millisecondsSinceEpoch + 86400000,
+                bgColor: colors[selectedColor].toRadixString(16),
+              );
+              await StoryManager.postStory(story);
+              final stories = await StoryManager.loadStories();
+              if (mounted) setState(() => _stories = stories);
+            },
+            child: Text('Paylas', style: TextStyle(color: PhotonColors.accent)),
+          ),
+        ],
+      )),
+    );
+  }
+
   void _openSettings() async {
     final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl, displayName: widget.displayName)));
     if (deactivated == true && mounted) {
@@ -248,6 +305,56 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
               children: [
+                // Hikayeler
+                StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
+                const SizedBox(height: 16),
+
+                // Hikayeler
+                SizedBox(
+                  height: 90,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _stories.length + 1,
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          return GestureDetector(
+                            onTap: () => _createStory(),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                Container(
+                                  width: 56, height: 56,
+                                  decoration: BoxDecoration(shape: BoxShape.circle, color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line, width: 2)),
+                                  child: Icon(Icons.add, color: PhotonColors.accent, size: 24),
+                                ),
+                                const SizedBox(height: 4),
+                                Text('Hikaye Ekle', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+                              ]),
+                            ),
+                          );
+                        }
+                        final s = _stories[i - 1];
+                        return GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StoriesScreen(stories: _stories, initialIndex: i - 1))),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: PhotonColors.accent, width: 2)),
+                                child: CircleAvatar(radius: 26, backgroundColor: PhotonColors.panelAlt,
+                                  child: Text(s.authorName.isNotEmpty ? s.authorName[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold))),
+                              ),
+                              const SizedBox(height: 4),
+                              SizedBox(width: 60, child: Text(s.authorName, style: TextStyle(color: PhotonColors.textDim, fontSize: 10), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 12),
+
                 // Profil şeridi
                 _ProfileStrip(
                   name: widget.displayName,
