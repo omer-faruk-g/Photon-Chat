@@ -16,12 +16,15 @@ class _LockScreenState extends State<LockScreen> {
   List<int> _pattern = [];
   String? _error;
   bool _loading = true;
+  int _pinLen = 4;
+  int _wrongTries = 0;
 
   @override
   void initState() {
     super.initState();
-    AppLock.getType().then((t) {
-      if (mounted) setState(() { _type = t; _loading = false; });
+    AppLock.getType().then((t) async {
+      final len = await AppLock.getPinLength();
+      if (mounted) setState(() { _type = t; _pinLen = len; _loading = false; });
     });
   }
 
@@ -31,8 +34,11 @@ class _LockScreenState extends State<LockScreen> {
     if (ok) {
       widget.onUnlocked();
     } else {
+      _wrongTries++;
       setState(() {
-        _error = 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'}. Tekrar deneyin.';
+        _error = _wrongTries >= 3
+            ? 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'} ($_wrongTries denemesi).'
+            : 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'}. Tekrar deneyin.';
         _input = '';
         _pattern = [];
       });
@@ -104,8 +110,8 @@ class _LockScreenState extends State<LockScreen> {
               if (k == '⌫') {
                 if (_input.isNotEmpty) setState(() => _input = _input.substring(0, _input.length - 1));
               } else {
-                setState(() => _input += k);
-                if (_input.length >= 4) _tryUnlock();
+                if (_input.length < _pinLen) setState(() => _input += k);
+                if (_input.length >= _pinLen) _tryUnlock();
               }
             },
             child: Container(

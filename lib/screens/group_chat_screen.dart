@@ -854,7 +854,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       Expanded(child: Text(
                         _annExpanded
                           ? _announcements.map((a) => '${a['fromName']}: ${a['text']}').join('\n')
-                          : _announcements.last['text'] as String,
+                          : (_announcements.last['text'] as String? ?? ''),
                         style: TextStyle(color: PhotonColors.text, fontSize: 12),
                         maxLines: _annExpanded ? null : 1, overflow: _annExpanded ? null : TextOverflow.ellipsis,
                       )),

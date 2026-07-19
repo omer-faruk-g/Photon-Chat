@@ -837,16 +837,6 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.star_outline, color: PhotonColors.accent),
-            title: Text('Yıldızla', style: TextStyle(color: PhotonColors.text)),
-            onTap: () async {
-              Navigator.pop(context);
-              await LocalStore.starMessage({'msgId': m.msgId, 'from': m.from, 'text': m.text, 'ts': m.ts, 'senderName': m.from == widget.identity.fipId ? _myDisplayName : widget.contact.name});
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mesaj yıldızlandı ⭐')));
-            },
-          ),
-        if (!m.deleted)
-          ListTile(
             leading: Icon(Icons.star, color: Colors.amber),
             title: FutureBuilder<List<Map<String, dynamic>>>(
               future: LocalStore.loadStarredMessages(),
@@ -1128,6 +1118,20 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _saveAndShareFile(_DisplayMessage m) async {
+    if (m.fileData == null) return;
+    try {
+      final bytes = base64Decode(m.fileData!);
+      final dir = await getTemporaryDirectory();
+      final safeName = (m.fileName ?? 'dosya').replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final file = File('${dir.path}/$safeName');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)]);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Dosya açılamadı: $e')));
+    }
+  }
+
   Widget _buildFileBubble(_DisplayMessage m, bool mine) {
     final name = m.fileName ?? 'dosya';
     final size = m.fileSize ?? 0;
@@ -1135,7 +1139,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (size < 1024) sizeStr = '$size B';
     else if (size < 1024 * 1024) sizeStr = '${(size / 1024).toStringAsFixed(1)} KB';
     else sizeStr = '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return Container(
+    return GestureDetector(
+      onTap: () => _saveAndShareFile(m),
+      child: Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
@@ -1343,7 +1349,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_replyToMsg!['from'] == widget.identity.fipId ? 'Sen' : widget.contact.name,
                     style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
-                  Text(_replyToMsg!['text'] as String, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(_replyToMsg!['text'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ])),
                 GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: PhotonColors.textDim, size: 16)),
               ]),
@@ -1387,7 +1393,11 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 GestureDetector(
                   onLongPressStart: (_) => _startVoiceMessage(),
-                  onLongPressEnd: (_) {},
+                  onLongPressEnd: (_) async {
+                    if (_isRecordingVoice) {
+                      await _speech.stop();
+                    }
+                  },
                   child: Container(
                     width: 36, height: 36,
                     margin: const EdgeInsets.only(right: 2),

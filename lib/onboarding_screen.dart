@@ -225,8 +225,8 @@ class FipCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           fip.lines[i],
-                          style: const TextStyle(
-                              color: Color(0xFF9FE8CC),
+                          style: TextStyle(
+                              color: PhotonColors.text,
                               fontSize: 10.5,
                               fontFamily: 'monospace',
                               letterSpacing: 0.5),

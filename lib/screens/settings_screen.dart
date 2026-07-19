@@ -840,7 +840,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Hesap silme
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: const Color(0xFF1A1314), border: Border.all(color: PhotonColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.danger.withOpacity(0.08), border: Border.all(color: PhotonColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Hesabı bu cihazdan kaldır', style: TextStyle(color: PhotonColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 8),

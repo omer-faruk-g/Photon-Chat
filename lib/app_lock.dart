@@ -6,6 +6,12 @@ class AppLock {
   static const _enabledKey = 'knk_app_lock_enabled_v1';
   static const _typeKey = 'knk_app_lock_type_v1'; // 'pin' or 'pattern'
   static const _hashKey = 'knk_app_lock_hash_v1';
+  static const _pinLenKey = 'knk_app_lock_pinlen_v1';
+
+  static Future<int> getPinLength() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_pinLenKey) ?? 4;
+  }
 
   static Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -22,6 +28,7 @@ class AppLock {
     await prefs.setBool(_enabledKey, true);
     await prefs.setString(_typeKey, type);
     await prefs.setString(_hashKey, _hash(value));
+    if (type == 'pin') await prefs.setInt(_pinLenKey, value.length);
   }
 
   static Future<void> disable() async {
