@@ -15,6 +15,8 @@ import 'starred_messages_screen.dart';
 import '../i18n.dart';
 import '../sound_picker.dart';
 import '../quick_replies.dart';
+import '../app_lock.dart';
+import 'lock_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../device_manager.dart';
 
@@ -42,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _voiceGender = 'male';
   String _notifSound = 'Varsayilan';
   String _fontSize = 'orta';
+  bool _lockEnabled = false;
 
   @override
   void initState() {
@@ -51,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
     LocalStore.loadNotifSound().then((v) { if (mounted) setState(() => _notifSound = v); });
     LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
+    AppLock.isEnabled().then((v) { if (mounted) setState(() => _lockEnabled = v); });
     _load();
   }
 
@@ -548,6 +552,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {});
                 },
                 activeColor: PhotonColors.accent,
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Uygulama Kilidi
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              Icon(Icons.lock_outline, color: PhotonColors.textDim, size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Uygulama Kilidi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(_lockEnabled ? 'PIN veya desen ile korunuyor' : 'Kapalı', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              ])),
+              if (_lockEnabled)
+                GestureDetector(
+                  onTap: () async {
+                    await AppLock.disable();
+                    setState(() => _lockEnabled = false);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text('Kaldır', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => SetLockScreen(onDone: () {
+                    setState(() => _lockEnabled = true);
+                  })));
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(8)),
+                  child: Text(_lockEnabled ? 'Değiştir' : 'Ayarla', style: TextStyle(color: const Color(0xFF06251A), fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
               ),
             ]),
           ),

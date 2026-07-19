@@ -11,6 +11,8 @@ import 'local_store.dart';
 import 'notification_service.dart';
 import 'chat_wallpaper.dart';
 import 'offline_queue.dart';
+import 'app_lock.dart';
+import 'screens/lock_screen.dart';
 
 @pragma('vm:entry-point')
 void _bgDispatcher() {
@@ -60,9 +62,56 @@ class PhotonApp extends StatelessWidget {
         title: 'Photon Chat',
         debugShowCheckedModeBanner: false,
         theme: PhotonTheme.instance.isDark ? photonTheme : photonLightTheme,
-        home: RootGate(key: rootGateKey),
+        home: const _LockGate(),
       ),
     );
+  }
+}
+
+class _LockGate extends StatefulWidget {
+  const _LockGate();
+  @override
+  State<_LockGate> createState() => _LockGateState();
+}
+
+class _LockGateState extends State<_LockGate> with WidgetsBindingObserver {
+  bool _locked = false;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkLock();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _checkLock() async {
+    final enabled = await AppLock.isEnabled();
+    setState(() { _locked = enabled; _checking = false; });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkLock();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return Scaffold(backgroundColor: PhotonColors.bg, body: const SizedBox());
+    }
+    if (_locked) {
+      return LockScreen(onUnlocked: () => setState(() => _locked = false));
+    }
+    return RootGate(key: rootGateKey);
   }
 }
 
