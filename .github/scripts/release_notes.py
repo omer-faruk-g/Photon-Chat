@@ -157,10 +157,37 @@ CHANGELOGS = {
         "- ⚡ Hızlı yanıtlar — önceden kayıtlı mesaj şablonları\n"
         "- 🔐 Uygulama kilidi — PIN veya desen ile koruma (opsiyonel)"
     ),
+    'v6.2.0': (
+        "### 🔧 v6.2.0 — Büyük Kararlılık ve Hata Düzeltme Sürümü\n\n"
+        "**Grup sohbetleri tamamen yeniden yazıldı:**\n"
+        "- 🐛 Anket oluşturulunca gönderene görünmüyordu — düzeltildi\n"
+        "- 🐛 Duyuru gönderilince gönderene görünmüyordu — düzeltildi\n"
+        "- 🐛 Grup mesajları bazı üyelere ulaşmıyordu — hepsi sahibin sunucusuna gidiyor\n"
+        "- 🐛 MOD atama/geri alma yeniden başlatınca kayboluyordu — kalıcı hale getirildi\n"
+        "- 🐛 Üye atma yeniden başlatınca geri geliyordu — kalıcı hale getirildi\n\n"
+        "**Sohbet ekranı düzeltmeleri:**\n"
+        "- 🐛 \"…yazıyor\" göstergesi hiç görünmüyordu — düzeltildi\n"
+        "- 🐛 Dosya baloncuğuna tıklayınca hiçbir şey olmuyordu — artık dosya açılıyor/paylaşılıyor\n"
+        "- 🐛 Hızlı yanıt chip'i mesajı sessizce gönderiyordu — artık input'a ekliyor\n"
+        "- 🐛 NSFW uyarısı gönderende görünmüyordu — düzeltildi\n"
+        "- 🐛 Sohbet menüsünde çift \"Yıldızla\" öğesi vardı — temizlendi\n"
+        "- 🐛 Yanıt/duyuru banner'ları null mesajlarda crash oluyordu — güvenli hale getirildi\n"
+        "- 🐛 Chat girişinde çift dosya butonu vardı — kaldırıldı\n\n"
+        "**Kurulum & tema:**\n"
+        "- 🐛 Onboarding'de 5 haneli kod hiç gösterilmiyordu — artık \"Devam →\" butonuyla gösteriliyor\n"
+        "- 🐛 Onboarding FIP satırları light modda görünmüyordu — düzeltildi\n"
+        "- 🐛 Ayarlar tehlike kartı light modda karanlık leke oluyordu — tema-uyumlu hale getirildi\n"
+        "- 🐛 Uygulama kilidi 5-6 haneli PIN kabul etmiyordu — düzeltildi\n"
+        "- 🐛 Sesli mesaj bırakınca durmuyordu — düzeltildi\n\n"
+        "**Diğer:**\n"
+        "- 📖 Render.com sunucu kurulum adımları README ve rehber ekranında ayrıntılandırıldı\n"
+        "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
+        "- 👤 Kişi bio'su artık profilden çekiliyor"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0'}
 
 
 def make_body(tag):
