@@ -1161,6 +1161,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ])),
         Icon(Icons.download, color: PhotonColors.accent, size: 20),
       ]),
+    ),
     );
   }
 
@@ -1331,7 +1332,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     side: BorderSide(color: PhotonColors.line),
                     onPressed: () {
                       _draftCtrl.text = r;
-                      _send();
+                      _draftCtrl.selection = TextSelection.fromPosition(TextPosition(offset: r.length));
                       setState(() => _showQuickReplies = false);
                     },
                   ),

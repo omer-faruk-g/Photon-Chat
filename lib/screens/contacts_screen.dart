@@ -56,7 +56,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _myStatusMsg = statusMsg ?? '';
     });
     StoryManager.loadStories().then((s) { if (mounted) setState(() => _stories = s); });
-    await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg, avatar: avatar);
+    await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg ?? '', avatar: avatar ?? '');
     _sync();
     _groupSync();
   }

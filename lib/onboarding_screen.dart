@@ -35,7 +35,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final fip = await LocalStore.createIdentity();
     await LocalStore.saveDisplayName(name);
     setState(() => _created = fip);
-    widget.onCreated(fip, name);
+    // Do NOT immediately advance — let the user see and copy their code.
+    // A "Devam" button below fires widget.onCreated.
+  }
+
+  void _finish() {
+    if (_created == null) return;
+    widget.onCreated(_created!, _nameCtrl.text.trim());
   }
 
   @override
@@ -106,7 +112,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 12),
               ElevatedButton(
                 style: photonPrimaryButtonStyle(),
-                onPressed: _nameCtrl.text.trim().isEmpty ? null : _create,
+                onPressed: (_nameCtrl.text.trim().isEmpty || _created != null) ? null : _create,
                 child: const Text('Kimliği bu cihazda oluştur'),
               ),
               const SizedBox(height: 12),
@@ -150,6 +156,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         icon: const Icon(Icons.copy, size: 15),
                         label: const Text('Kodu Kopyala', style: TextStyle(fontSize: 13)),
                         onPressed: () => Clipboard.setData(ClipboardData(text: _created!.code)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: photonPrimaryButtonStyle(),
+                        onPressed: _finish,
+                        child: const Text('Devam →'),
                       ),
                     ),
                   ]),
