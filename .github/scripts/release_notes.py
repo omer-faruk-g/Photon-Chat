@@ -151,10 +151,7 @@ CHANGELOGS = {
         "- 🛡️ Grup moderatör rolü — MOD yetki ver/al, moderatörler mesaj silebilir\n"
         "- 📖 Hikayeler / Durum — 24 saat sonra kaybolan metin ve görsel hikayeler\n"
         "- ⭐ Mesaj yıldızlama — önemli mesajları kaydet ve sonra kolayca bul\n"
-        "- 🔔 Bildirim sesi özelleştirme — 6 farklı ses seçeneği"
-    ),
-    'v6.1.0': (
-        "### ✨ v6.1.0 Yenilikleri\n"
+        "- 🔔 Bildirim sesi özelleştirme — cihaz kütüphanesinden ses seç ve önizle\n"
         "- 🔠 Yazı tipi boyutu ayarı — küçük / orta / büyük\n"
         "- 📤 Sohbet dışa aktarma — konuşmayı .txt olarak paylaş\n"
         "- ⚡ Hızlı yanıtlar — önceden kayıtlı mesaj şablonları\n"
@@ -162,8 +159,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.1.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.1.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0'}
 
 
 def make_body(tag):
