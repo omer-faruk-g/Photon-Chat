@@ -184,6 +184,12 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v6.6.0': (
+        "### 🔐 v6.6.0 — E2E Şifreleme + Kararlılık\n\n"
+        "- 🔐 **KRİTİK GÜVENLİK:** Görsel/GIF gönderirken caption metni E2E şifrelenmiyordu — plaintext olarak sunucuya gidiyordu. Düzeltildi.\n"
+        "- 🛡️ Hikaye yükleme hard cast crash — güvenli tip dönüşümü\n"
+        "- 🛡️ Grup davet linki hard cast crash — güvenli tip dönüşümü"
+    ),
     'v6.5.0': (
         "### 🛠️ v6.5.0 — Kararlılık + UI\n\n"
         "- 🔴 Chat/group poll loop crash → tüm mesaj güncellemesi duruyordu; try/catch + safe int cast\n"
@@ -240,8 +246,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0'}
 
 
 def make_body(tag):

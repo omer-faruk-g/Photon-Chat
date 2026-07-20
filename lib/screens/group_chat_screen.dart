@@ -825,7 +825,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   List<QueuedMessage> get _queuedGroupMessages {
     final queued = OfflineQueue.instance.getForChat(widget.group.groupId);
-    final existingTs = _messages.map((m) => m['ts'] as int).toSet();
+    final existingTs = _messages.map((m) => (m['ts'] as num?)?.toInt() ?? 0).toSet();
     return queued.where((q) => !existingTs.contains(q.ts)).toList();
   }
 

@@ -179,7 +179,7 @@ class LocalStore {
     if (raw == null) return [];
     final list = List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
     final now = DateTime.now().millisecondsSinceEpoch;
-    list.removeWhere((s) => (s['expiresAt'] as int) < now);
+    list.removeWhere((s) => ((s['expiresAt'] as num?)?.toInt() ?? 0) < now);
     return list;
   }
 

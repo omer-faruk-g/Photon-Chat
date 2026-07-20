@@ -1,7 +1,7 @@
 name: photon_chat
 description: "Photon Chat - FIP tabanlı, telefon numarası gerektirmeyen güvenli mesajlaşma uygulaması"
 publish_to: 'none'
-version: 6.5.0+26
+version: 6.6.0+27
 
 environment:
   sdk: '>=3.5.0 <4.0.0'

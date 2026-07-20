@@ -270,8 +270,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = markNsfw ? '[Hassas Görsel]' : '[Fotoğraf]';
-    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
-    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
+    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
 
     if (markNsfw) {
       final warnTs = ts + 1;
@@ -307,9 +308,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final b64 = base64Encode(gifBytes);
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = caption.isNotEmpty ? caption : '[GIF]';
-
-    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
-    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: displayText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
+    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
   }
 
   void _startListening() async {
