@@ -4,6 +4,7 @@ import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
 import '../i18n.dart';
+import 'qr_scan_screen.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -110,10 +111,30 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     return code.length == 7 && server.startsWith('http') && !_loading;
   }
 
+  Future<void> _scanQr() async {
+    final scanned = await Navigator.push<String>(context, MaterialPageRoute(
+      builder: (_) => const QrScanScreen(mode: QrScanMode.group),
+    ));
+    if (scanned == null || !mounted) return;
+    // Fill input then auto-attempt join (server URL is inside the QR payload).
+    _inputCtrl.text = scanned;
+    _onInputChanged(scanned);
+    if (_canJoin) await _join();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppLang.instance.t('joinGroup'))),
+      appBar: AppBar(
+        title: Text(AppLang.instance.t('joinGroup')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: AppLang.instance.t('scanGroupQr'),
+            onPressed: _scanQr,
+          ),
+        ],
+      ),
       backgroundColor: PhotonColors.bg,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

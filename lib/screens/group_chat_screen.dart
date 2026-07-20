@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../fip.dart';
 import '../local_store.dart';
 import '../font_size.dart';
@@ -621,7 +622,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Davet Linki', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(AppLang.instance.t('groupInviteQr'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 16),
+              // QR code — recipient scans and joins directly, no server URL to type.
+              Center(child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: QrImageView(data: link, size: 200, backgroundColor: Colors.white),
+              )),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
@@ -631,7 +639,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
+                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace'), textAlign: TextAlign.center),
               ),
               const SizedBox(height: 16),
               Row(children: [

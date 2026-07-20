@@ -590,6 +590,12 @@ class AppLang extends ChangeNotifier {
     'pulseAiHint': 'Pulse AI\'e bir şey sor…',
     // QR
     'qrHoldCode': 'Arkadaşının QR kodunu kameraya tut',
+    'qrHoldGroupCode': 'Grup davet QR kodunu kameraya tut',
+    'scanQr': 'QR Tara',
+    'groupInviteQr': 'Grup Davet QR\'ı',
+    'showGroupQr': 'Grup QR\'ını Göster',
+    'scanGroupQr': 'Grup QR\'ını Tara',
+    'invalidQr': 'Geçersiz QR kodu.',
     // Contacts
     'deactivateWarn': 'Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.',
     'noDestroy': 'Hayır, imha et',

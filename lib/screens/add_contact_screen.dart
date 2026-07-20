@@ -125,7 +125,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: AppLang.instance.t('scanFriendQr'),
             onPressed: () async {
-              final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
+              final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen(mode: QrScanMode.contact)));
               if (code != null && mounted) {
                 _addrCtrl.text = code;
                 setState(() {});
