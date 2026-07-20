@@ -537,7 +537,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (widget.group.isOwner)
               ListTile(
                 leading: Icon(Icons.person_remove, color: PhotonColors.danger),
-                title: Text('${member.name} kullanıcısını gruptan at', style: TextStyle(color: PhotonColors.danger)),
+                title: Text('${member.name} ${AppLang.instance.t('kickUserSuffix')}', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () {
                   Navigator.pop(context);
                   _kickMember(member);
@@ -545,7 +545,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ListTile(
               leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
-              title: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim)),
+              title: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim)),
               onTap: () => Navigator.pop(context),
             ),
           ],
@@ -565,7 +565,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ],
         const SizedBox(height: 6),
         if (widget.group.isOwner) ...[
-          Text('GRUP ADRESİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+          Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
           const SizedBox(height: 4),
           GestureDetector(
             onTap: () => Clipboard.setData(ClipboardData(text: widget.group.address)),
@@ -573,7 +573,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           const SizedBox(height: 16),
         ],
-        Text('ÜYELER', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+        Text(AppLang.instance.t('members'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
         const SizedBox(height: 8),
         ...widget.group.members.map((m) {
           final isMuted = _mutedMembers.contains(m.fipId);
@@ -643,7 +643,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: link));
                       Navigator.pop(context);
-                      _showToast('Link kopyalandı!');
+                      _showToast(AppLang.instance.t('linkCopied'));
                     },
                   ),
                 ),
@@ -657,7 +657,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     icon: const Icon(Icons.share, size: 16),
-                    label: const Text('Paylaş'),
+                    label: Text(AppLang.instance.t('share')),
                     onPressed: () {
                       Navigator.pop(context);
                       Share.share('Photon Chat grup davet linki:\n$link');
@@ -685,7 +685,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final ctrl = TextEditingController();
     showDialog(context: context, builder: (ctx) => AlertDialog(
       backgroundColor: PhotonColors.panel,
-      title: Text('Duyuru Gönder', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+      title: Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
       content: TextField(
         controller: ctrl, autofocus: true,
         style: TextStyle(color: PhotonColors.text),
@@ -693,7 +693,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         decoration: InputDecoration(hintText: 'Duyuru metni…', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
         ElevatedButton(
           style: photonPrimaryButtonStyle(),
           onPressed: () async {
@@ -704,9 +704,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (mounted) setState(() => _announcements = [..._announcements, {'from': widget.identity.fipId, 'fromName': widget.displayName, 'text': text, 'ts': ts}]);
             await PhotonApi.sendGroupAnnouncement(widget.group.ownerServerUrl, widget.group.groupId,
               from: widget.identity.fipId, fromName: widget.displayName, text: text);
-            _showToast('Duyuru gönderildi.');
+            _showToast(AppLang.instance.t('announcementSentDot'));
           },
-          child: const Text('Gönder'),
+          child: Text(AppLang.instance.t('sendShort')),
         ),
       ],
     ));
@@ -716,7 +716,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final questionCtrl = TextEditingController();
     final optCtrls = [
       TextEditingController(text: 'Evet'),
-      TextEditingController(text: 'Hayır'),
+      TextEditingController(text: AppLang.instance.t('no')),
     ];
 
     showDialog(
@@ -724,7 +724,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
         return AlertDialog(
           backgroundColor: PhotonColors.panel,
-          title: Text('Anket Oluştur', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+          title: Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
@@ -747,7 +747,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       controller: optCtrls[i],
                       style: TextStyle(color: PhotonColors.text),
                       decoration: InputDecoration(
-                        labelText: 'Seçenek ${i + 1}${i < 2 ? "" : " (opsiyonel)"}',
+                        labelText: '${AppLang.instance.t('optionN')} ${i + 1}${i < 2 ? "" : " ${AppLang.instance.t('optionOptional')}"}',
                         labelStyle: TextStyle(color: PhotonColors.textDim),
                         filled: true, fillColor: PhotonColors.bg,
                         border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
@@ -766,12 +766,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               TextButton.icon(
                 onPressed: () => ss(() => optCtrls.add(TextEditingController())),
                 icon: Icon(Icons.add, color: PhotonColors.accent, size: 18),
-                label: Text('Seçenek Ekle', style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
+                label: Text(AppLang.instance.t('addOption'), style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
               ),
             ]),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
             ElevatedButton(
               style: photonPrimaryButtonStyle(),
               onPressed: () async {
@@ -792,9 +792,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 await PhotonApi.sendGroupPoll([widget.group.ownerServerUrl], widget.group.groupId,
                   from: widget.identity.fipId, fromName: widget.displayName,
                   question: question, options: opts, ts: ts);
-                _showToast('Anket gönderildi.');
+                _showToast(AppLang.instance.t('pollSentDot'));
               },
-              child: const Text('Oluştur'),
+              child: Text(AppLang.instance.t('create')),
             ),
           ],
         );
@@ -864,7 +864,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           );
         }).toList(),
         const SizedBox(height: 4),
-        Text('$totalVotes oy kullandı', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+        Text('$totalVotes ${AppLang.instance.t('votesCastSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
       ]),
     );
   }
@@ -900,8 +900,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             itemBuilder: (_) => [
               PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text('Davet Linki', style: TextStyle(color: PhotonColors.text))])),
               if (widget.group.isOwner) ...[
-                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text('Duyuru Gönder', style: TextStyle(color: PhotonColors.text))])),
-                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text('Anket Oluştur', style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text))])),
               ],
             ],
           ),
@@ -1038,7 +1038,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text('çeviri', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                                  Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
                                   const SizedBox(height: 2),
                                   Text(_translations[msgId]!,
                                     style: TextStyle(color: PhotonColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
@@ -1066,7 +1066,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 child: Row(children: [
                   IconButton(
                     icon: Icon(Icons.location_on, color: PhotonColors.textDim),
-                    tooltip: 'Konum Paylaş',
+                    tooltip: AppLang.instance.t('shareLocation'),
                     onPressed: _shareLocation,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

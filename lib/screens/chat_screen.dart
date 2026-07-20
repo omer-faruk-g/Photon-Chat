@@ -17,6 +17,7 @@ import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
 import '../chat_wallpaper.dart';
+import '../i18n.dart';
 import '../offline_queue.dart';
 import '../translate_service.dart';
 import '../nsfw_scanner.dart';
@@ -151,19 +152,19 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _shareLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum servisi kapalı.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationServiceOff'))));
       return;
     }
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni reddedildi.')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionDenied'))));
         return;
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni kalıcı olarak reddedildi.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionPermanent'))));
       return;
     }
     try {
@@ -172,7 +173,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _draftCtrl.text = locationText;
       await _send();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Konum alınamadı: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('locationFailed')}: $e')));
     }
   }
 
@@ -204,7 +205,7 @@ class _ChatScreenState extends State<ChatScreen> {
         await _send();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ses kaydı başlatılamadı: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('voiceRecordStartFailed')}: $e')));
     } finally {
       if (mounted) setState(() => _isRecordingVoice = false);
     }
@@ -228,7 +229,7 @@ class _ChatScreenState extends State<ChatScreen> {
     // Compress to max 800px, quality 70
     final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: 800, minHeight: 800, quality: 70);
     if (compressed.length > 3 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Görsel çok büyük (maks 3 MB)')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
       return;
     }
 
@@ -242,7 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Görsel Gönder', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        title: Text(AppLang.instance.t('sendImage'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -252,31 +253,31 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(children: [
             Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: PhotonColors.danger),
             const SizedBox(width: 4),
-            Expanded(child: Text('Hassas / +18 içerik olarak işaretle', style: TextStyle(color: PhotonColors.text, fontSize: 12))),
+            Expanded(child: Text(AppLang.instance.t('markSensitive'), style: TextStyle(color: PhotonColors.text, fontSize: 12))),
           ]),
           if (markNsfw)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('⚠️ Karşı tarafa siyah blok olarak gönderilir ve uyarı mesajı iletilir.', style: TextStyle(color: PhotonColors.danger, fontSize: 11, height: 1.5)),
+              child: Text(AppLang.instance.t('sensitiveWarning'), style: TextStyle(color: PhotonColors.danger, fontSize: 11, height: 1.5)),
             ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Gönder', style: TextStyle(color: PhotonColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('sendShort'), style: TextStyle(color: PhotonColors.accent))),
         ],
       )),
     );
     if (confirmed != true || !mounted) return;
 
     final ts = DateTime.now().millisecondsSinceEpoch;
-    final displayText = markNsfw ? '[Hassas Görsel]' : '[Fotoğraf]';
+    final displayText = markNsfw ? AppLang.instance.t('sensitiveImageTag') : AppLang.instance.t('photoTag');
     final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
     await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
     await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
 
     if (markNsfw) {
       final warnTs = ts + 1;
-      final warnText = '⚠️ Sistem uyarısı: Önceki mesajda hassas/+18 içerik tespit edildi.';
+      final warnText = AppLang.instance.t('nsfwSystemWarning');
       await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
       // Also mirror the warning to my own server so the sender sees it in their own poll.
       await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
@@ -289,7 +290,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final fileBytes = result.files.single.bytes!;
     final fileSize = result.files.single.size;
     if (fileSize > 50 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dosya çok büyük (maks 50 MB)')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('fileTooLarge'))));
       return;
     }
     final base64data = base64Encode(fileBytes);
@@ -302,7 +303,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         sentFileName = await e2eEncrypt('[Dosya: $fileName]', _sharedKey!);
       } catch (_) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
         return;
       }
     }
@@ -523,7 +524,7 @@ class _ChatScreenState extends State<ChatScreen> {
         try {
           editEncrypted = await e2eEncrypt(editText, _sharedKey!);
         } catch (_) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
           return;
         }
       }
@@ -533,7 +534,7 @@ class _ChatScreenState extends State<ChatScreen> {
         await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
         await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Düzenleme başarısız: $e')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('editFailed')}: $e')));
       }
       return;
     }
@@ -555,7 +556,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         encryptedText = await e2eEncrypt(text, _sharedKey!);
       } catch (_) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
         return;
       }
     }
@@ -740,7 +741,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('çeviri', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                          Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
                           const SizedBox(height: 2),
                           Text(_translations[m.msgId]!,
                             style: TextStyle(
@@ -781,7 +782,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
                             await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
                           } catch (err) {
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reaksiyon gönderilemedi: $err')));
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('reactionFailed')}: $err')));
                           }
                         },
                         child: Container(
@@ -850,7 +851,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
                   await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
                 } catch (err) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reaksiyon gönderilemedi: $err')));
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('reactionFailed')}: $err')));
                 }
               },
               child: Text(emoji, style: const TextStyle(fontSize: 30)),
@@ -860,7 +861,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Divider(color: PhotonColors.line, height: 1),
         ListTile(
           leading: Icon(Icons.reply, color: PhotonColors.accent),
-          title: Text('Yanıtla', style: TextStyle(color: PhotonColors.text)),
+          title: Text(AppLang.instance.t('reply'), style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
             setState(() => _replyToMsg = {'msgId': m.msgId, 'from': m.from, 'text': m.text});
@@ -869,7 +870,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!m.deleted)
           ListTile(
             leading: Icon(Icons.forward, color: PhotonColors.accent),
-            title: Text('İlet', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('forward'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               _forwardMessage(m);
@@ -887,7 +888,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!m.deleted)
           ListTile(
             leading: Icon(Icons.translate, color: PhotonColors.accent),
-            title: Text('Çevir', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               _translateMessage(m.msgId, m.text);
@@ -897,7 +898,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ListTile(
             leading: Icon(Icons.push_pin, color: PhotonColors.accent),
             title: Text(
-              _pinnedMessage?['msgId'] == m.msgId ? 'Sabitlemeyi Kaldır' : 'Sabitle',
+              _pinnedMessage?['msgId'] == m.msgId ? AppLang.instance.t('unpin') : AppLang.instance.t('pin'),
               style: TextStyle(color: PhotonColors.text),
             ),
             onTap: () async {
@@ -936,7 +937,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (m.from == widget.identity.fipId && !m.deleted) ...[
           ListTile(
             leading: Icon(Icons.edit, color: PhotonColors.accent),
-            title: Text('Düzenle', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('edit'), style: TextStyle(color: PhotonColors.text)),
             onTap: () { Navigator.pop(context); setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; }); },
           ),
           ListTile(
@@ -948,7 +949,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
                 await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Silme başarısız: $e')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('deleteFailed')}: $e')));
               }
             },
           ),
@@ -975,7 +976,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (active.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Aktif kişin yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                child: Text(AppLang.instance.t('noActiveContacts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
               ),
             ...active.map((c) => ListTile(
               leading: CircleAvatar(
@@ -988,7 +989,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Navigator.pop(context);
                 final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
                 final ts = DateTime.now().millisecondsSinceEpoch;
-                final fwdText = '↗️ İletildi:\n${m.text}';
+                final fwdText = '${AppLang.instance.t('forwardedPrefix')}\n${m.text}';
                 String sendText = fwdText;
                 try {
                   final info = await PhotonApi.lookupByCode(c.serverUrl, c.code);
@@ -998,12 +999,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     sendText = await e2eEncrypt(fwdText, key);
                   }
                 } catch (_) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
                   return;
                 }
                 await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, senderName: _myDisplayName);
                 await PhotonApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} kişisine iletildi'), duration: const Duration(seconds: 2)));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} ${AppLang.instance.t('forwardedToPerson')}'), duration: const Duration(seconds: 2)));
               },
             )),
             const SizedBox(height: 8),
@@ -1032,18 +1033,18 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _showDisappearDialog() {
     final options = <String, int?>{
-      'Kapalı': null,
-      '10 saniye': 10,
-      '30 saniye': 30,
-      '1 dakika': 60,
-      '5 dakika': 300,
-      '1 saat': 3600,
+      AppLang.instance.t('off'): null,
+      AppLang.instance.t('disappear10s'): 10,
+      AppLang.instance.t('disappear30s'): 30,
+      AppLang.instance.t('disappear1m'): 60,
+      AppLang.instance.t('disappear5m'): 300,
+      AppLang.instance.t('disappear1h'): 3600,
     };
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Kaybolan Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        title: Text(AppLang.instance.t('disappearingMessages'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: options.entries.map((e) => RadioListTile<int?>(
@@ -1063,12 +1064,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   String _formatLastSeen(int ts) {
-    if (ts == 0) return 'Son görülme bilinmiyor';
+    if (ts == 0) return AppLang.instance.t('lastSeenUnknown');
     final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts));
-    if (diff.inMinutes < 1) return 'az önce';
-    if (diff.inMinutes < 60) return 'Son görülme: ${diff.inMinutes} dk önce';
-    if (diff.inHours < 24) return 'Son görülme: ${diff.inHours} saat önce';
-    return 'Son görülme: ${diff.inDays} gün önce';
+    if (diff.inMinutes < 1) return AppLang.instance.t('justNow');
+    if (diff.inMinutes < 60) return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inMinutes} ${AppLang.instance.t('minutesAgo')}';
+    if (diff.inHours < 24) return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inHours} ${AppLang.instance.t('hoursAgo')}';
+    return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inDays} ${AppLang.instance.t('daysAgo')}';
   }
 
   void _showDeactivatedDialog() {
@@ -1076,9 +1077,9 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Kişi artık aktif değil', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
-        content: Text('Bu kişi hesabını bu cihazdan kaldırdı.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('Tamam', style: TextStyle(color: PhotonColors.accent)))],
+        title: Text(AppLang.instance.t('contactInactiveTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Text(AppLang.instance.t('contactRemovedDevice'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLang.instance.t('ok'), style: TextStyle(color: PhotonColors.accent)))],
       ),
     );
   }
@@ -1099,7 +1100,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Text('⛔', style: TextStyle(fontSize: 32)),
             const SizedBox(height: 8),
-            Text('Hassas içerik\nGörmek için dokun', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 11)),
+            Text(AppLang.instance.t('sensitiveContentTap'), textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
         ),
       );
@@ -1130,7 +1131,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.touch_app, color: Colors.white70, size: 28),
                 const SizedBox(height: 4),
-                Text('Görmek için dokun', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                Text(AppLang.instance.t('tapToView'), style: TextStyle(color: Colors.white70, fontSize: 11)),
               ]),
             )),
           ]),
@@ -1141,7 +1142,7 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
       );
     } catch (_) {
-      return Text('[Görsel yüklenemedi]', style: TextStyle(color: PhotonColors.textDim, fontSize: 12));
+      return Text(AppLang.instance.t('imageLoadFailedInline'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12));
     }
   }
 
@@ -1162,7 +1163,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Row(children: [
           Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
           const SizedBox(width: 6),
-          Text('Konumunu Paylaştı', style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         const SizedBox(height: 8),
         GestureDetector(
@@ -1173,7 +1174,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.map, color: PhotonColors.accent, size: 14),
               const SizedBox(width: 6),
-              Text('Haritada Aç', style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
             ]),
           ),
         ),
@@ -1221,7 +1222,7 @@ class _ChatScreenState extends State<ChatScreen> {
       await file.writeAsBytes(bytes);
       await Share.shareXFiles([XFile(file.path)]);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Dosya açılamadı: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('fileOpenFailed')}: $e')));
     }
   }
 
@@ -1315,7 +1316,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(widget.contact.name, style: const TextStyle(fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(
-              _contactOnline ? 'Çevrimiçi' : _formatLastSeen(widget.contact.lastSeen),
+              _contactOnline ? AppLang.instance.t('online') : _formatLastSeen(widget.contact.lastSeen),
               style: TextStyle(
                 color: _contactOnline ? Colors.green : PhotonColors.textDim,
                 fontSize: 10,
@@ -1328,7 +1329,7 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: Icon(Icons.file_download_outlined, color: PhotonColors.textDim),
             onPressed: _exportChat,
-            tooltip: 'Sohbeti Dışa Aktar',
+            tooltip: AppLang.instance.t('exportChat'),
           ),
           IconButton(
             icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
@@ -1377,14 +1378,14 @@ class _ChatScreenState extends State<ChatScreen> {
               ]),
             ),
           if (_isBlocked)
-            _banner(Icons.block, 'Bu kişiyi engellediniz.', PhotonColors.danger)
+            _banner(Icons.block, AppLang.instance.t('blockedByYou'), PhotonColors.danger)
           else if (!_contactActive)
-            _banner(Icons.info_outline, '${widget.contact.name} hesabını kaldırdı.', PhotonColors.danger),
+            _banner(Icons.info_outline, '${widget.contact.name} ${AppLang.instance.t('removedAccountSuffix')}', PhotonColors.danger),
           if (_contactTyping && !_isBlocked)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text('${widget.contact.name} yazıyor…', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
+              child: Text('${widget.contact.name} ${AppLang.instance.t('typing')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
             ),
           if (_editingMsgId != null)
             Container(
@@ -1394,7 +1395,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(children: [
                 Icon(Icons.edit, color: PhotonColors.accent, size: 14),
                 const SizedBox(width: 8),
-                Text('Düzenleme modu', style: TextStyle(color: PhotonColors.accent, fontSize: 12)),
+                Text(AppLang.instance.t('editMode'), style: TextStyle(color: PhotonColors.accent, fontSize: 12)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => setState(() { _editingMsgId = null; _draftCtrl.clear(); }),
@@ -1404,9 +1405,9 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           Expanded(
             child: _isBlocked
-                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6))))
+                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('unblockToSee'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6))))
                 : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
-                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6))))
+                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text(AppLang.instance.t('chatCleanStart'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6))))
                     : _buildMessageList(),
           ),
           if (_inputError != null)
@@ -1456,7 +1457,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 IconButton(
                   icon: Icon(Icons.photo_outlined, color: PhotonColors.textDim),
-                  tooltip: 'Fotoğraf Gönder',
+                  tooltip: AppLang.instance.t('sendPhoto'),
                   onPressed: _pickAndSendImage,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1472,7 +1473,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 IconButton(
                   icon: Icon(Icons.gif_box_outlined, color: PhotonColors.textDim),
-                  tooltip: 'GIF Oluştur',
+                  tooltip: AppLang.instance.t('createGif'),
                   onPressed: _openGifCreator,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1480,7 +1481,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 IconButton(
                   icon: Icon(Icons.location_on, color: PhotonColors.textDim),
-                  tooltip: 'Konum Paylaş',
+                  tooltip: AppLang.instance.t('shareLocation'),
                   onPressed: _shareLocation,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1511,7 +1512,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 IconButton(
                   icon: Icon(Icons.flash_on, color: _showQuickReplies ? PhotonColors.accent : PhotonColors.textDim),
-                  tooltip: 'Hızlı Yanıtlar',
+                  tooltip: AppLang.instance.t('quickReplies'),
                   onPressed: () => setState(() => _showQuickReplies = !_showQuickReplies),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1522,7 +1523,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   enabled: !_isBlocked,
                   decoration: InputDecoration(
-                    hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_editingMsgId != null ? 'Mesajı düzenle…' : (_isListening ? '🎙 Dinliyor…' : (_contactActive ? 'Mesaj yaz…' : 'Kişi artık aktif değil…'))),
+                    hintText: _isBlocked ? AppLang.instance.t('blockedHint') : (_editingMsgId != null ? AppLang.instance.t('editingMessageHint') : (_isListening ? AppLang.instance.t('listening') : (_contactActive ? AppLang.instance.t('writeMessagePlaceholder') : AppLang.instance.t('contactInactiveHint')))),
                     hintStyle: TextStyle(color: _isListening ? PhotonColors.accent : PhotonColors.textDim),
                     filled: true, fillColor: PhotonColors.bg,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
