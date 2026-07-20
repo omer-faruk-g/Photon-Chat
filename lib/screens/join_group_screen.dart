@@ -50,20 +50,15 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     final server = _extractServer(val);
     if (server.startsWith('http')) {
       _serverCtrl.text = server;
-      setState(() => _showServer = false);
-    } else {
-      final code = _extractCode(val);
-      if (code.length == 7) {
-        setState(() => _showServer = true);
-      } else {
-        setState(() => _showServer = false);
-      }
     }
+    // Server field is now optional — bridge auto-resolves — so we never
+    // force-open it. User can still open it via the "advanced" toggle.
+    setState(() {});
   }
 
   Future<void> _join() async {
-    final code   = _extractCode(_inputCtrl.text);
-    final server = _extractServer(_inputCtrl.text).isNotEmpty
+    final code = _extractCode(_inputCtrl.text);
+    var server = _extractServer(_inputCtrl.text).isNotEmpty
         ? _extractServer(_inputCtrl.text)
         : _serverCtrl.text.trim();
 
@@ -71,12 +66,21 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       setState(() => _error = AppLang.instance.t('groupCode7Required'));
       return;
     }
-    if (server.isEmpty || !server.startsWith('http')) {
-      setState(() => _error = AppLang.instance.t('ownerServerMissing'));
-      return;
-    }
 
     setState(() { _loading = true; _error = null; });
+
+    // If server URL is not given, try to resolve it via the global bridge.
+    // Groups now auto-register their code on creation (v8.3), so a plain
+    // 7-digit code is enough.
+    if (server.isEmpty || !server.startsWith('http')) {
+      final resolved = await PhotonApi.lookupServerOnBridge(code);
+      if (resolved != null) {
+        server = resolved;
+      } else {
+        setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
+        return;
+      }
+    }
     try {
       final data = await PhotonApi.getGroupByCode(server, code);
       if (data == null) {
@@ -104,11 +108,10 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   }
 
   bool get _canJoin {
-    final code   = _extractCode(_inputCtrl.text);
-    final server = _extractServer(_inputCtrl.text).isNotEmpty
-        ? _extractServer(_inputCtrl.text)
-        : _serverCtrl.text.trim();
-    return code.length == 7 && server.startsWith('http') && !_loading;
+    // Server URL is now resolved from the global bridge if the user only
+    // provides a code, so a valid 7-digit code alone is enough.
+    final code = _extractCode(_inputCtrl.text);
+    return code.length == 7 && !_loading;
   }
 
   Future<void> _scanQr() async {

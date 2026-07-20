@@ -105,6 +105,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _groupSync() async {
     for (final g in _groups.where((g) => g.isOwner)) {
       try {
+        // Re-register the group's code on the bridge each cycle so members
+        // can join by code alone (bridge is in-memory; survives via snapshot).
+        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl);
         final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
         if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
       } catch (_) {}

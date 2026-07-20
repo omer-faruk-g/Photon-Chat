@@ -43,6 +43,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         description: _descCtrl.text.trim(),
       );
       if (data == null) { setState(() { _error = AppLang.instance.t('groupCreateFailed'); _loading = false; }); return; }
+      // Register group code on bridge so members can join by code alone (no server URL to type).
+      await PhotonApi.registerOnBridge(data['groupCode'] as String, widget.myServerUrl);
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
