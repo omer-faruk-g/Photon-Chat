@@ -569,8 +569,8 @@ class AppLang extends ChangeNotifier {
     'wrongTriesPrefix': 'yanlış deneme —',
     'waitSecondsSuffix': 's bekleyin.',
     'wrongRetry': 'Tekrar deneyin.',
-    'pin': 'PIN',
-    'pattern': 'desen',
+    'pinLabel': 'PIN',
+    'patternLabel': 'desen',
     'pinsDontMatch': 'PIN\'ler eşleşmiyor. Tekrar deneyin.',
     'patternsDontMatch': 'Desenler eşleşmiyor. Tekrar deneyin.',
     // Wallpaper
