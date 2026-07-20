@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '60mb' })); // v6.0.0+ needs 50MB file share (base64 inflates ~33%)
 
 // --- In-memory store ---
 const users = new Map();
@@ -14,6 +14,11 @@ const chatReads = new Map(); // chatKey -> { fipId: ts }
 const chatReactions = new Map(); // `${chatKey}_${msgId}` -> {emoji: [fipId,...]}
 const userNotifs = new Map();
 const groupAnnouncements = new Map(); // groupId -> [{id, from, fromName, text, ts}]
+const stories = new Map(); // fipId -> [{id, ...storyData, ts, expiresAt}]
+const deviceLinkRequests = new Map(); // ownerFipId -> [{requesterFipId, requesterName, ts, status, code}]
+const deviceLinkStatus = new Map(); // requesterFipId -> {status, code, ...}
+const deviceActivities = new Map(); // ownerFipId -> [{deviceId, action, detail, ts}]
+const deviceBans = new Map(); // ownerFipId -> Set<bannedFipId>
 
 function rand(n) {
   return Math.floor(Math.random() * Math.pow(10, n)).toString().padStart(n, '0');
@@ -25,9 +30,9 @@ function msgId() {
 
 // --- Presence ---
 app.post('/presence', (req, res) => {
-  const { fipId, code, name, publicKey, serverUrl, statusMsg, avatar } = req.body;
+  const { fipId, code, name, publicKey, serverUrl, statusMsg, avatar, bio } = req.body;
   if (!fipId) return res.sendStatus(400);
-  users.set(fipId, { code, name, publicKey, serverUrl, statusMsg: statusMsg || '', avatar: avatar || '', lastSeen: Date.now() });
+  users.set(fipId, { code, name, publicKey, serverUrl, statusMsg: statusMsg || '', avatar: avatar || '', bio: bio || '', lastSeen: Date.now() });
   res.sendStatus(200);
 });
 
@@ -41,7 +46,7 @@ app.get('/lookup/:code', (req, res) => {
 app.get('/profile/:fipId', (req, res) => {
   const u = users.get(req.params.fipId);
   if (!u) return res.sendStatus(404);
-  res.json({ fipId: req.params.fipId, name: u.name, code: u.code, statusMsg: u.statusMsg || '', avatar: u.avatar || '', lastSeen: u.lastSeen || 0 });
+  res.json({ fipId: req.params.fipId, name: u.name, code: u.code, statusMsg: u.statusMsg || '', avatar: u.avatar || '', bio: u.bio || '', lastSeen: u.lastSeen || 0 });
 });
 
 // --- Friend requests ---
@@ -419,6 +424,115 @@ app.get('/notifs/:fipId', (req, res) => {
   const list = userNotifs.get(req.params.fipId) || [];
   userNotifs.delete(req.params.fipId);
   res.json(list);
+});
+
+// --- Stories (v6.0.0) ---
+app.post('/stories/:fipId', (req, res) => {
+  const list = stories.get(req.params.fipId) || [];
+  const item = { ...req.body, id: req.body.id || msgId() };
+  // Remove expired before adding
+  const now = Date.now();
+  const filtered = list.filter(s => (s.expiresAt || 0) > now);
+  filtered.push(item);
+  stories.set(req.params.fipId, filtered);
+  res.sendStatus(200);
+});
+app.get('/stories/:fipId', (req, res) => {
+  const list = stories.get(req.params.fipId) || [];
+  const now = Date.now();
+  res.json(list.filter(s => (s.expiresAt || 0) > now));
+});
+app.delete('/stories/:fipId/:storyId', (req, res) => {
+  const list = stories.get(req.params.fipId) || [];
+  stories.set(req.params.fipId, list.filter(s => s.id !== req.params.storyId));
+  res.sendStatus(200);
+});
+
+// --- Device Link (v5.0.0) ---
+app.post('/device-link/:ownerFipId', (req, res) => {
+  // Ban check: reject banned requesters at protocol level
+  const banned = deviceBans.get(req.params.ownerFipId) || new Set();
+  if (banned.has(req.body.requesterFipId)) return res.status(403).json({ error: 'banned' });
+  const list = deviceLinkRequests.get(req.params.ownerFipId) || [];
+  list.push({ ...req.body, status: 'pending', attempts: 0 });
+  deviceLinkRequests.set(req.params.ownerFipId, list);
+  deviceLinkStatus.set(req.body.requesterFipId, { status: 'pending' });
+  res.sendStatus(200);
+});
+app.get('/device-link/:fipId', (req, res) => {
+  res.json(deviceLinkRequests.get(req.params.fipId) || []);
+});
+app.post('/device-link/:ownerFipId/respond', (req, res) => {
+  const { requesterFipId, status, code } = req.body;
+  // Update pending request
+  const list = deviceLinkRequests.get(req.params.ownerFipId) || [];
+  const idx = list.findIndex(r => r.requesterFipId === requesterFipId);
+  if (idx !== -1) {
+    if (status === 'reject') {
+      list.splice(idx, 1);
+    } else {
+      list[idx].status = status;
+      list[idx].code = code;
+    }
+    deviceLinkRequests.set(req.params.ownerFipId, list);
+  }
+  // Publish status for requester to poll
+  deviceLinkStatus.set(requesterFipId, { status, code });
+  res.sendStatus(200);
+});
+app.get('/device-link-status/:requesterFipId', (req, res) => {
+  const st = deviceLinkStatus.get(req.params.requesterFipId);
+  if (!st) return res.sendStatus(404);
+  res.json(st);
+});
+app.post('/device-link/:ownerFipId/verify', (req, res) => {
+  const { requesterFipId, code } = req.body;
+  const list = deviceLinkRequests.get(req.params.ownerFipId) || [];
+  const idx = list.findIndex(r => r.requesterFipId === requesterFipId);
+  if (idx === -1) return res.status(404).json({ error: 'not-found' });
+  list[idx].attempts = (list[idx].attempts || 0) + 1;
+  const ok = list[idx].code === code;
+  if (ok) {
+    deviceLinkStatus.set(requesterFipId, { status: 'linked' });
+    list.splice(idx, 1); // clean up pending
+  } else if (list[idx].attempts >= 3) {
+    deviceLinkStatus.set(requesterFipId, { status: 'fake' });
+    // Auto-ban after 3 failures
+    if (!deviceBans.has(req.params.ownerFipId)) deviceBans.set(req.params.ownerFipId, new Set());
+    deviceBans.get(req.params.ownerFipId).add(requesterFipId);
+    list.splice(idx, 1);
+  } else {
+    deviceLinkStatus.set(requesterFipId, { status: 'retry', attempt: list[idx].attempts });
+  }
+  deviceLinkRequests.set(req.params.ownerFipId, list);
+  res.json({ ok, attempts: list[idx]?.attempts || 3 });
+});
+app.delete('/device-link/:ownerFipId/:deviceId', (req, res) => {
+  // Kick a linked device (removes activity log; ban prevents re-link)
+  deviceActivities.delete(`${req.params.ownerFipId}_${req.params.deviceId}`);
+  res.sendStatus(200);
+});
+
+app.post('/device-activity/:ownerFipId', (req, res) => {
+  const key = `${req.params.ownerFipId}_${req.body.deviceId}`;
+  const list = deviceActivities.get(key) || [];
+  list.push(req.body);
+  if (list.length > 500) list.splice(0, list.length - 500);
+  deviceActivities.set(key, list);
+  res.sendStatus(200);
+});
+app.get('/device-activity/:ownerFipId/:deviceId', (req, res) => {
+  const key = `${req.params.ownerFipId}_${req.params.deviceId}`;
+  res.json(deviceActivities.get(key) || []);
+});
+
+app.post('/device-ban/:ownerFipId', (req, res) => {
+  if (!deviceBans.has(req.params.ownerFipId)) deviceBans.set(req.params.ownerFipId, new Set());
+  deviceBans.get(req.params.ownerFipId).add(req.body.bannedFipId);
+  res.sendStatus(200);
+});
+app.get('/device-ban/:ownerFipId', (req, res) => {
+  res.json([...(deviceBans.get(req.params.ownerFipId) || new Set())]);
 });
 
 const PORT = process.env.PORT || 3000;

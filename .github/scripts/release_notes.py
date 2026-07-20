@@ -184,6 +184,19 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v7.0.0': (
+        "### 🚨 v7.0.0 — Server Endpoint'leri + Kritik Fixler\n\n"
+        "**Denetim büyük eksikleri ortaya çıkardı — server tarafında:**\n"
+        "- 🔴 Hikayeler cross-user görünmüyordu (`/stories/*` endpoint'i eksikti) — eklendi\n"
+        "- 🔴 Cihaz eşleştirme (v5.0.0) hiç çalışmıyordu (`/device-link/*` yok) — eklendi\n"
+        "- 🔴 FAKE tespit (v5.0.0) tetiklenemiyordu — 3 yanlış kod otomatik FAKE + ban\n"
+        "- 🔴 50MB dosya paylaşımı imkansızdı (server 2MB body limit) — 60MB'a çıkarıldı\n"
+        "- 🔴 Bio (v4.0.0) sunucuda saklanmıyordu — presence + profile'a eklendi\n\n"
+        "**Uygulama:**\n"
+        "- 🔐 Görsel/GIF caption E2E şifrelenmiyordu — düzeltildi\n"
+        "- 🛡️ Story yükleme hard cast crash — güvenli\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy etmen lazım — yeni endpoint'ler için."
+    ),
     'v6.6.0': (
         "### 🔐 v6.6.0 — E2E Şifreleme + Kararlılık\n\n"
         "- 🔐 **KRİTİK GÜVENLİK:** Görsel/GIF gönderirken caption metni E2E şifrelenmiyordu — plaintext olarak sunucuya gidiyordu. Düzeltildi.\n"
@@ -246,8 +259,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0'}
 
 
 def make_body(tag):
