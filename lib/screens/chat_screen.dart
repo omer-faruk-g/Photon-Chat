@@ -371,15 +371,19 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _markRead() async {
-    await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+    try {
+      await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+    } catch (_) {}
   }
 
   void _startReadPoll() {
     _readPollTimer?.cancel();
     _readPollTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
       if (!_alive) { t.cancel(); return; }
-      final status = await PhotonApi.getReadStatus(widget.contact.serverUrl, _chatKey);
-      if (_alive && mounted) setState(() => _readStatus = status);
+      try {
+        final status = await PhotonApi.getReadStatus(widget.contact.serverUrl, _chatKey);
+        if (_alive && mounted) setState(() => _readStatus = status);
+      } catch (_) {}
     });
   }
 
@@ -467,20 +471,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _pollContactStatus() async {
     while (_alive) {
-      final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
-      if (_alive && mounted) {
-        if (active != _contactActive) setState(() => _contactActive = active);
-        if (active != _contactOnline) setState(() => _contactOnline = active);
-      }
+      try {
+        final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+        if (_alive && mounted) {
+          if (active != _contactActive) setState(() => _contactActive = active);
+          if (active != _contactOnline) setState(() => _contactOnline = active);
+        }
+      } catch (_) {}
       await Future.delayed(const Duration(seconds: 5));
     }
   }
 
   void _startTypingPoll() {
     _typingPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      final typingList = await PhotonApi.getTyping(widget.myServerUrl, _chatKey);
-      final contactTyping = typingList.any((t) => t['fipId'] == widget.contact.fipId);
-      if (mounted && contactTyping != _contactTyping) setState(() => _contactTyping = contactTyping);
+      try {
+        final typingList = await PhotonApi.getTyping(widget.myServerUrl, _chatKey);
+        final contactTyping = typingList.any((t) => t['fipId'] == widget.contact.fipId);
+        if (mounted && contactTyping != _contactTyping) setState(() => _contactTyping = contactTyping);
+      } catch (_) {}
     });
   }
 
@@ -592,9 +600,12 @@ class _ChatScreenState extends State<ChatScreen> {
         final msgId = myMsgId;
         Future.delayed(Duration(seconds: _disappearSeconds!), () async {
           if (!mounted) return;
-          await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
-          await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
-          if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
+          try {
+            await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
+            if (!mounted) return;
+            await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
+            if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
+          } catch (_) { /* ignore disappearing delete failures */ }
         });
       }
     } on SocketException {
@@ -827,10 +838,20 @@ class _ChatScreenState extends State<ChatScreen> {
         Padding(padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: ['👍','❤️','😂','😮','😢','😡'].map((emoji) => GestureDetector(
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
-                PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                try {
+                  setState(() {
+                    final list = m.reactions.putIfAbsent(emoji, () => <String>[]);
+                    if (!list.contains(widget.identity.fipId)) list.add(widget.identity.fipId);
+                  });
+                } catch (_) { /* reactions map may be const default */ }
+                try {
+                  await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                  await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                } catch (err) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reaksiyon gönderilemedi: $err')));
+                }
               },
               child: Text(emoji, style: const TextStyle(fontSize: 30)),
             )).toList(),

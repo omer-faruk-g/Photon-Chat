@@ -296,7 +296,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         body: Stack(
           children: [
             ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 100 + MediaQuery.of(context).padding.bottom),
               children: [
                 // Hikayeler
                 StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),

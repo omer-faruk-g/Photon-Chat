@@ -339,7 +339,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
       const SizedBox(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(6, (i) => Container(
+        children: List.generate((_pin.length + 1) < 4 ? 4 : ((_pin.length + 1) > 6 ? 6 : _pin.length + 1), (i) => Container(
           margin: const EdgeInsets.symmetric(horizontal: 6),
           width: 14,
           height: 14,

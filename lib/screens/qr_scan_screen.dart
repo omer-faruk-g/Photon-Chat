@@ -15,7 +15,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('QR ile Ekle')),
-      body: Stack(children: [
+      body: SafeArea(child: Stack(children: [
         MobileScanner(
           onDetect: (capture) {
             if (_scanned) return;
@@ -36,7 +36,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             child: Text('Arkadaşının QR kodunu kameraya tut', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
           ),
         ),
-      ]),
+      ])),
     );
   }
 }
