@@ -4,6 +4,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -30,7 +31,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
+    if (name.isEmpty) { setState(() => _error = AppLang.instance.t('groupNameEmpty')); return; }
     setState(() { _loading = true; _error = null; });
     try {
       final data = await PhotonApi.createGroup(
@@ -41,7 +42,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerServerUrl: widget.myServerUrl,
         description: _descCtrl.text.trim(),
       );
-      if (data == null) { setState(() { _error = 'Grup oluşturulamadı'; _loading = false; }); return; }
+      if (data == null) { setState(() { _error = AppLang.instance.t('groupCreateFailed'); _loading = false; }); return; }
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
@@ -54,14 +55,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       );
       setState(() { _created = group; _loading = false; });
     } catch (e) {
-      setState(() { _error = 'Hata: $e'; _loading = false; });
+      setState(() { _error = '${AppLang.instance.t('error')}: $e'; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Grup Oluştur')),
+      appBar: AppBar(title: Text(AppLang.instance.t('createGroup'))),
       backgroundColor: PhotonColors.bg,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -73,13 +74,13 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildForm() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+      Text(AppLang.instance.t('createGroupHint'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
       const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
         style: TextStyle(color: PhotonColors.text),
         decoration: InputDecoration(
-          labelText: 'Grup Adı',
+          labelText: AppLang.instance.t('groupName'),
           labelStyle: TextStyle(color: PhotonColors.textDim),
           enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
           focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
@@ -94,9 +95,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         maxLines: 2,
         style: TextStyle(color: PhotonColors.text, fontSize: 13),
         decoration: InputDecoration(
-          labelText: 'Grup Açıklaması (isteğe bağlı)',
+          labelText: AppLang.instance.t('groupDescriptionOptional'),
           labelStyle: TextStyle(color: PhotonColors.textDim),
-          hintText: 'Kısa bir tanım yazabilirsin…',
+          hintText: AppLang.instance.t('groupDescriptionHint'),
           hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
           counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
           enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
@@ -111,7 +112,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           onPressed: _loading ? null : _create,
           child: _loading
               ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-              : const Text('Oluştur'),
+              : Text(AppLang.instance.t('create')),
         ),
       ),
     ],
@@ -122,14 +123,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        Text(AppLang.instance.t('groupCreatedShareBelow'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         const SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('GRUP ADRESİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+            Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
             const SizedBox(height: 8),
             Text(g.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
           ]),
@@ -140,7 +141,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Adresi Kopyala'),
+            label: Text(AppLang.instance.t('copyAddress')),
             onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),
           ),
         ),
@@ -150,7 +151,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           child: ElevatedButton(
             style: photonPrimaryButtonStyle(),
             onPressed: () => Navigator.pop(context, g),
-            child: const Text('Tamam'),
+            child: Text(AppLang.instance.t('ok')),
           ),
         ),
       ],

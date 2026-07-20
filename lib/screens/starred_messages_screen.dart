@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../local_store.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 class StarredMessagesScreen extends StatefulWidget {
   const StarredMessagesScreen({super.key});
@@ -26,11 +27,11 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yıldızlı Mesajlar')),
+      appBar: AppBar(title: Text(AppLang.instance.t('starredMessages'))),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
           : _starred.isEmpty
-          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Yıldızlı mesajın yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
+          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('noStarredMessagesYet'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _starred.length,

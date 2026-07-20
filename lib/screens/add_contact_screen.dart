@@ -6,6 +6,7 @@ import '../fip.dart';
 import '../photon_api.dart';
 import '../local_store.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 class AddContactScreen extends StatefulWidget {
   final FipBlock identity;
@@ -39,7 +40,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('BENİM QR KODUM', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+            Text(AppLang.instance.t('myQrCode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -50,7 +51,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             Text(widget.identity.code,
               style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontFamily: 'monospace', letterSpacing: 10, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('Arkadaşın bu kodu veya QR\'ı tarayarak seni ekleyebilir.',
+            Text(AppLang.instance.t('qrHint'),
               textAlign: TextAlign.center,
               style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
             const SizedBox(height: 16),
@@ -64,12 +65,12 @@ class _AddContactScreenState extends State<AddContactScreen> {
     final code = _addrCtrl.text.trim();
 
     if (code.length != 5 || !RegExp(r'^\d{5}$').hasMatch(code)) {
-      setState(() => _error = 'Kod tam olarak 5 rakamdan oluşmalıdır');
+      setState(() => _error = AppLang.instance.t('codeMustBe5'));
       return;
     }
 
     if (code == widget.identity.code) {
-      setState(() => _error = 'Bu senin kendi kodun.');
+      setState(() => _error = AppLang.instance.t('thatIsYourCode'));
       return;
     }
 
@@ -81,14 +82,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
       if (lookup == null) {
         if (mounted) setState(() {
           _sending = false;
-          _error = 'Bu koda sahip aktif bir kullanıcı bulunamadı.';
+          _error = AppLang.instance.t('noActiveUserWithCode');
         });
         return;
       }
 
       final targetServerUrl = lookup['serverUrl'] as String;
       final targetFipId = lookup['fipId'] as String;
-      final targetName = (lookup['name'] as String?) ?? 'Bilinmeyen';
+      final targetName = (lookup['name'] as String?) ?? AppLang.instance.t('unknown');
 
       await PhotonApi.sendFriendRequest(
         toServerUrl: targetServerUrl,
@@ -105,7 +106,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
         Contact(fipId: targetFipId, name: targetName, code: code, serverUrl: targetServerUrl, status: 'pending_out'),
       );
     } catch (e) {
-      if (mounted) setState(() { _sending = false; _error = 'Davet gönderilemedi: $e'; });
+      if (mounted) setState(() { _sending = false; _error = '${AppLang.instance.t('inviteFailed')}: $e'; });
     }
   }
 
@@ -113,16 +114,16 @@ class _AddContactScreenState extends State<AddContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Kişi Ekle'),
+        title: Text(AppLang.instance.t('addContact')),
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code),
-            tooltip: 'Benim QR Kodum',
+            tooltip: AppLang.instance.t('myQrTooltip'),
             onPressed: () => _showMyQr(),
           ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
-            tooltip: 'Arkadaşının QR\'ını Tara',
+            tooltip: AppLang.instance.t('scanFriendQr'),
             onPressed: () async {
               final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
               if (code != null && mounted) {
@@ -148,7 +149,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ARKADAŞININ 5 HANELİ KODU',
+                AppLang.instance.t('friendCode5Digit'),
                 style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),
@@ -180,8 +181,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Arkadaşının profilindeki 5 haneli kodu gir. '
-                'Davet isteği otomatik olarak onun sunucusuna gönderilir.',
+                AppLang.instance.t('friendCodeHint'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
               ),
@@ -196,7 +196,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                     child: OutlinedButton(
                       style: photonGhostButtonStyle(),
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Vazgeç'),
+                      child: Text(AppLang.instance.t('cancel')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -210,7 +210,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)),
                             )
-                          : Text('Davet gönder'),
+                          : Text(AppLang.instance.t('sendInvite')),
                     ),
                   ),
                 ],

@@ -3,6 +3,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
+import '../i18n.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -66,11 +67,11 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         : _serverCtrl.text.trim();
 
     if (code.length != 7) {
-      setState(() => _error = 'Grup kodu 7 haneli olmalıdır');
+      setState(() => _error = AppLang.instance.t('groupCode7Required'));
       return;
     }
     if (server.isEmpty || !server.startsWith('http')) {
-      setState(() => _error = 'Grup sahibinin sunucu adresi eksik');
+      setState(() => _error = AppLang.instance.t('ownerServerMissing'));
       return;
     }
 
@@ -78,11 +79,11 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     try {
       final data = await PhotonApi.getGroupByCode(server, code);
       if (data == null) {
-        setState(() { _error = 'Grup bulunamadı. Davet linkini kontrol et.'; _loading = false; });
+        setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
         return;
       }
       final groupId   = data['groupId'] as String;
-      final groupName = data['name']    as String? ?? 'Grup';
+      final groupName = data['name']    as String? ?? AppLang.instance.t('group');
       final groupDesc = data['description'] as String? ?? '';
       await PhotonApi.sendGroupJoinRequest(server, groupId,
         fromFipId:     widget.identity.fipId,
@@ -97,7 +98,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       );
       if (mounted) Navigator.pop(context, group);
     } catch (e) {
-      setState(() { _error = 'Hata: $e'; _loading = false; });
+      setState(() { _error = '${AppLang.instance.t('error')}: $e'; _loading = false; });
     }
   }
 
@@ -112,7 +113,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gruba Katıl')),
+      appBar: AppBar(title: Text(AppLang.instance.t('joinGroup'))),
       backgroundColor: PhotonColors.bg,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -127,13 +128,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 border: Border.all(color: PhotonColors.line),
               ),
               child: Text(
-                'Grup sahibinin paylaştığı davet linkini yapıştır — otomatik tanınır.\n\nDavet linki yoksa 7 haneli grup kodunu yaz.',
+                AppLang.instance.t('joinGroupIntro'),
                 style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.6),
               ),
             ),
             const SizedBox(height: 20),
 
-            Text('DAVET LİNKİ VEYA GRUP KODU',
+            Text(AppLang.instance.t('inviteLinkOrCode'),
               style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
             const SizedBox(height: 6),
             TextField(
@@ -142,7 +143,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
               maxLength: 300,
               style: TextStyle(color: PhotonColors.accent, fontSize: 14, fontFamily: 'monospace'),
               decoration: InputDecoration(
-                hintText: 'photon://1234567@https://… veya sadece 1234567',
+                hintText: AppLang.instance.t('inviteLinkHint'),
                 hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 11),
                 counterText: '',
                 filled: true, fillColor: PhotonColors.bg,
@@ -155,14 +156,14 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
             if (_showServer) ...[
               const SizedBox(height: 16),
-              Text('GRUP SAHİBİNİN SUNUCU ADRESİ',
+              Text(AppLang.instance.t('groupOwnerServer'),
                 style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
               const SizedBox(height: 6),
               TextField(
                 controller: _serverCtrl,
                 style: TextStyle(color: PhotonColors.text, fontSize: 13, fontFamily: 'monospace'),
                 decoration: InputDecoration(
-                  hintText: 'https://sunucu.onrender.com',
+                  hintText: AppLang.instance.t('ownerServerHint'),
                   hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
                   filled: true, fillColor: PhotonColors.bg,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
@@ -186,7 +187,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 onPressed: _canJoin ? _join : null,
                 child: _loading
                     ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                    : const Text('Katılma İsteği Gönder'),
+                    : Text(AppLang.instance.t('sendJoinRequest')),
               ),
             ),
           ],

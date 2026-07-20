@@ -184,6 +184,22 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v8.0.0': (
+        "### 🌐 v8.0.0 — Çoklu Dil Desteği Genişletildi\n\n"
+        "Ayarlardan dil seçiminde artık çok daha fazla ekran hedef dile çevriliyor:\n\n"
+        "**Bu sürümde çevrilen ekranlar:**\n"
+        "- ✅ Kişiler ana ekranı\n"
+        "- ✅ Ayarlar (tümü)\n"
+        "- ✅ Kişi Ekle\n"
+        "- ✅ Grup Oluştur\n"
+        "- ✅ Gruba Katıl\n"
+        "- ✅ Yıldızlı Mesajlar\n"
+        "- ✅ Sunucu Kurulumu\n\n"
+        "**Sonraki sürüme kalan (v8.1.0):**\n"
+        "- Chat ekranı, Grup Chat, Onboarding, Rehber, Hikayeler, Cihazlar, Kilit\n\n"
+        "**Toplam:** 360+ çeviri anahtarı, 45 dil destekleniyor (Google Translate ile otomatik).\n\n"
+        "Not: Mesaj çeviri özelliği (uzun bas → Çevir) her zaman tüm dilleri destekliyordu — bu güncelleme UI dili."
+    ),
     'v7.2.1': (
         "### 🚨 v7.2.1 — Hotfix: Client actor field'ı eksikti\n\n"
         "**KRİTİK:** v7.2.0'da server auth için `actor` field'ı eklendi ama client hiçbir yerde göndermiyor du → kick/mute/edit/delete tümü 403 alıyordu.\n\n"
@@ -329,8 +345,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0'}
 
 
 def make_body(tag):
