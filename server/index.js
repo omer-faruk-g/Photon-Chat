@@ -192,12 +192,9 @@ app.post('/deactivate', (req, res) => {
   users.delete(fipId);
   requests.delete(fipId);
   accepted.delete(fipId);
-  for (const [key] of chats) {
-    if (key.includes(fipId)) chats.delete(key);
-  }
-  for (const [key] of typingMap) {
-    if (key.includes(fipId)) typingMap.delete(key);
-  }
+  // Collect keys first — never mutate a Map while iterating it.
+  [...chats.keys()].filter(k => k.includes(fipId)).forEach(k => chats.delete(k));
+  [...typingMap.keys()].filter(k => k.includes(fipId)).forEach(k => typingMap.delete(k));
   for (const [, g] of groups) {
     g.members = g.members.filter(m => m.fipId !== fipId);
     g.joinRequests = g.joinRequests.filter(r => r.fromFipId !== fipId);
@@ -421,9 +418,14 @@ app.post('/notifs/:fipId', (req, res) => {
 });
 
 app.get('/notifs/:fipId', (req, res) => {
+  // v7.1: GET is non-destructive so multi-device users don't lose notifs on the first client to poll.
+  // Client should call DELETE /notifs/:fipId/:ts after handling.
   const list = userNotifs.get(req.params.fipId) || [];
-  userNotifs.delete(req.params.fipId);
-  res.json(list);
+  // Auto-expire entries older than 10 minutes.
+  const now = Date.now();
+  const fresh = list.filter(n => (n.ts || 0) > now - 10 * 60 * 1000);
+  if (fresh.length !== list.length) userNotifs.set(req.params.fipId, fresh);
+  res.json(fresh);
 });
 
 // --- Stories (v6.0.0) ---
@@ -491,25 +493,31 @@ app.post('/device-link/:ownerFipId/verify', (req, res) => {
   const idx = list.findIndex(r => r.requesterFipId === requesterFipId);
   if (idx === -1) return res.status(404).json({ error: 'not-found' });
   list[idx].attempts = (list[idx].attempts || 0) + 1;
+  const attempts = list[idx].attempts; // capture before possible splice
   const ok = list[idx].code === code;
   if (ok) {
     deviceLinkStatus.set(requesterFipId, { status: 'linked' });
     list.splice(idx, 1); // clean up pending
-  } else if (list[idx].attempts >= 3) {
+  } else if (attempts >= 3) {
     deviceLinkStatus.set(requesterFipId, { status: 'fake' });
     // Auto-ban after 3 failures
     if (!deviceBans.has(req.params.ownerFipId)) deviceBans.set(req.params.ownerFipId, new Set());
     deviceBans.get(req.params.ownerFipId).add(requesterFipId);
     list.splice(idx, 1);
   } else {
-    deviceLinkStatus.set(requesterFipId, { status: 'retry', attempt: list[idx].attempts });
+    deviceLinkStatus.set(requesterFipId, { status: 'retry', attempt: attempts });
   }
   deviceLinkRequests.set(req.params.ownerFipId, list);
-  res.json({ ok, attempts: list[idx]?.attempts || 3 });
+  res.json({ ok, attempts });
 });
 app.delete('/device-link/:ownerFipId/:deviceId', (req, res) => {
-  // Kick a linked device (removes activity log; ban prevents re-link)
+  // Kick a linked device (removes activity log + revokes link status; ban prevents re-link)
   deviceActivities.delete(`${req.params.ownerFipId}_${req.params.deviceId}`);
+  // deviceId format is `${ownerFipId}_${requesterFipId}_${ts}` for FAKE, but linked devices may store deviceId differently.
+  // Best-effort: clear any status entry that shares the requester FIP hint from the id.
+  for (const [reqFipId] of deviceLinkStatus) {
+    if (req.params.deviceId.includes(reqFipId)) deviceLinkStatus.set(reqFipId, { status: 'kicked' });
+  }
   res.sendStatus(200);
 });
 

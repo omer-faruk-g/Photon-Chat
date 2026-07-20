@@ -8,19 +8,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 // E2E Encryption — X25519 + HKDF + AES-GCM
 // ---------------------------------------------------------------------------
 
-const _kPrivKeyPref = 'e2e_priv_key_v1';
-const _kPubKeyPref = 'e2e_pub_key_v1';
+const _kPrivKeyPref = 'knk_e2e_priv_key_v1';
+const _kPubKeyPref = 'knk_e2e_pub_key_v1';
+// Legacy (v<7.1) keys — still checked for backward-compat migration
+const _kPrivKeyPrefLegacy = 'e2e_priv_key_v1';
+const _kPubKeyPrefLegacy = 'e2e_pub_key_v1';
 
 /// Uygulama başlangıcında çağrılır. Anahtar yoksa oluşturur.
 Future<void> ensureE2EKeypair() async {
   final prefs = await SharedPreferences.getInstance();
-  if (prefs.getString(_kPrivKeyPref) != null) return;
+  // Migrate legacy keys to knk_-prefixed storage (so wipeIdentity clears them).
+  final legacyPriv = prefs.getString(_kPrivKeyPrefLegacy);
+  final legacyPub = prefs.getString(_kPubKeyPrefLegacy);
+  if (legacyPriv != null && prefs.getString(_kPrivKeyPref) == null) {
+    await prefs.setString(_kPrivKeyPref, legacyPriv);
+    if (legacyPub != null) await prefs.setString(_kPubKeyPref, legacyPub);
+    await prefs.remove(_kPrivKeyPrefLegacy);
+    await prefs.remove(_kPubKeyPrefLegacy);
+  }
+  if (prefs.getString(_kPrivKeyPref) != null && prefs.getString(_kPubKeyPref) != null) return;
   final algo = X25519();
   final kp = await algo.newKeyPair();
   final privBytes = await kp.extractPrivateKeyBytes();
   final pubKey = await kp.extractPublicKey();
-  prefs.setString(_kPrivKeyPref, base64.encode(privBytes));
-  prefs.setString(_kPubKeyPref, base64.encode(pubKey.bytes));
+  await prefs.setString(_kPrivKeyPref, base64.encode(privBytes));
+  await prefs.setString(_kPubKeyPref, base64.encode(pubKey.bytes));
 }
 
 /// Kendi public key'imizi Base64 string olarak döndürür.

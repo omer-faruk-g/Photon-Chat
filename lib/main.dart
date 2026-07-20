@@ -14,6 +14,7 @@ import 'offline_queue.dart';
 import 'app_lock.dart';
 import 'screens/lock_screen.dart';
 import 'font_size.dart';
+import 'e2e.dart';
 
 @pragma('vm:entry-point')
 void _bgDispatcher() {
@@ -38,6 +39,7 @@ void main() async {
   PhotonTheme.instance.setDark(isDark);
   await AppLang.loadLang();
   await FontSizeNotifier.instance.load();
+  await ensureE2EKeypair();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
   if (Platform.isAndroid) {

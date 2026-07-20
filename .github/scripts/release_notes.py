@@ -184,6 +184,43 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v7.1.0': (
+        "### 🎯 v7.1.0 — 7 Ajan Denetim Sonucu 100+ Bug Fix\n\n"
+        "**Kritik güvenlik & gizlilik:**\n"
+        "- 🔐 E2E keypair'i main.dart'ta hiç başlatılmıyordu — eklendi\n"
+        "- 🔐 E2E keypair'i knk_ prefix'siz saklanıyordu, hesabı sil sonrası kalıyordu — knk_ prefix + migrasyon\n"
+        "- 🛡️ Server /notifs GET destructive'ti — 2. cihaz bildirimleri kaybediyordu, artık non-destructive\n"
+        "- 🛡️ Server /deactivate iteration-mutation bug — düzeltildi\n"
+        "- 🛡️ Server device-link attempts field splice sonrası yanlış — düzeltildi\n\n"
+        "**Grup sohbeti:**\n"
+        "- Anket/duyuru/mute polling try/catch\n"
+        "- Anket oyu optimistic + pendingVote (msgId boşken 404 önleme)\n"
+        "- accept/reject/mute/kick optimistic + revert\n"
+        "- Announcement ts safe cast\n"
+        "- Input wallpaper okunabilirliği (Container color)\n\n"
+        "**1-1 sohbet:**\n"
+        "- Görsel/GIF/dosya/forward E2E encryption\n"
+        "- edit/delete/reaction try/catch + optimistic\n"
+        "- Encryption failure abort + toast (plaintext leak önleme)\n"
+        "- Timer sızıntıları düzeltildi\n"
+        "- Disappearing msg mounted check\n"
+        "- Contact 60-char isim overflow fix\n"
+        "- AppBar title ellipsis\n\n"
+        "**Ayarlar/Onboarding:**\n"
+        "- FipCard preview code artık gerçek kimliğe kaydediliyor (createIdentity accepts existing)\n"
+        "- add_contact & create_group SingleChildScrollView\n"
+        "- Onboarding FIP ListView physics fix\n"
+        "- SetLock PIN dot count dinamik\n\n"
+        "**UI/UX:**\n"
+        "- QR scan SafeArea\n"
+        "- Contacts alt bar 100+safeBottom padding\n"
+        "- Device approve dialog FittedBox\n"
+        "- Pulse AI input keyboard-aware\n"
+        "- Story image NSFW scan + boyut kontrolü\n"
+        "- GIF creator ilk kare fix + spinner color\n"
+        "- Device link hint görünürlük\n\n"
+        "⚠️ Server'ı Render'da tekrar deploy et — güvenlik fixleri için."
+    ),
     'v7.0.0': (
         "### 🚨 v7.0.0 — Server Endpoint'leri + Kritik Fixler\n\n"
         "**Denetim büyük eksikleri ortaya çıkardı — server tarafında:**\n"
@@ -259,8 +296,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0'}
 
 
 def make_body(tag):

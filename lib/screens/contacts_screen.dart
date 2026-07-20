@@ -716,7 +716,7 @@ class _ContactRow extends StatelessWidget {
           ]),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
+            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
             Text(
               isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),

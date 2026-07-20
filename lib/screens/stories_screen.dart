@@ -101,7 +101,7 @@ class _StoriesRowState extends State<StoriesRow> {
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     if (bytes.length > 3 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gorsel cok buyuk (maks 3 MB)')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Görsel çok büyük (maks 3 MB)')));
       return;
     }
     if (await NsfwScanner.hasImageViolation(bytes)) {
