@@ -85,15 +85,20 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
   }
 
   static Future<Uint8List> _encodeGif(List<Uint8List> frames) async {
-    final animation = img.Image(width: 320, height: 320);
+    img.Image? animation;
     for (final frameBytes in frames) {
       var frame = img.decodeImage(frameBytes);
       if (frame == null) continue;
       frame = img.copyResizeCropSquare(frame, size: 320);
-      final gifFrame = img.Image(width: 320, height: 320, numChannels: 4);
-      gifFrame.frames.add(frame);
-      gifFrame.frameDuration = 500; // 0.5 saniye / kare
-      animation.addFrame(gifFrame);
+      frame.frameDuration = 500; // 0.5 saniye / kare
+      if (animation == null) {
+        animation = frame;
+      } else {
+        animation.addFrame(frame);
+      }
+    }
+    if (animation == null) {
+      return Uint8List(0);
     }
     return Uint8List.fromList(img.encodeGif(animation));
   }
@@ -204,7 +209,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                         ),
                         onPressed: (_scanning || _encoding) ? null : _addFrame,
                         icon: _scanning
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent))
                             : const Icon(Icons.add_photo_alternate_outlined, size: 18),
                         label: Text(_scanning ? 'Taranıyor…' : 'Kare Ekle'),
                       ),

@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (name.isEmpty || _preview == null || _creating) return;
     setState(() => _creating = true);
     try {
-      final fip = await LocalStore.createIdentity();
+      final fip = await LocalStore.createIdentity(existing: _preview);
       await LocalStore.saveDisplayName(name);
       if (!mounted) return;
       setState(() => _created = fip);
@@ -241,6 +241,7 @@ class FipCard extends StatelessWidget {
             constraints: const BoxConstraints(maxHeight: 220),
             child: ListView.builder(
               shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: fip.lines.length,
               itemBuilder: (context, i) {
                 return Padding(

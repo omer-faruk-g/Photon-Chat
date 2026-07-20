@@ -99,8 +99,8 @@ class LocalStore {
     return FipBlock.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
-  static Future<FipBlock> createIdentity() async {
-    final fip = FipBlock.generate();
+  static Future<FipBlock> createIdentity({FipBlock? existing}) async {
+    final fip = existing ?? FipBlock.generate();
     (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
     return fip;
   }

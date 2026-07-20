@@ -134,7 +134,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Container(
           margin: const EdgeInsets.only(top: 24),

@@ -295,8 +295,19 @@ class _ChatScreenState extends State<ChatScreen> {
     final base64data = base64Encode(fileBytes);
     final ts = DateTime.now().millisecondsSinceEpoch;
     final fileName = result.files.single.name;
-    await PhotonApi.sendFileMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: fileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
-    await PhotonApi.sendFileMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: fileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    // Encrypt the visible file name (displayText) when we have a shared key.
+    // The file bytes themselves stay as base64 (out of scope).
+    String sentFileName = fileName;
+    if (_sharedKey != null) {
+      try {
+        sentFileName = await e2eEncrypt('[Dosya: $fileName]', _sharedKey!);
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+        return;
+      }
+    }
+    await PhotonApi.sendFileMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    await PhotonApi.sendFileMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
   }
 
   Future<void> _openGifCreator() async {
@@ -501,12 +512,21 @@ class _ChatScreenState extends State<ChatScreen> {
       final editText = sanitizeMessage(raw);
       String editEncrypted = editText;
       if (_sharedKey != null) {
-        try { editEncrypted = await e2eEncrypt(editText, _sharedKey!); } catch (_) {}
+        try {
+          editEncrypted = await e2eEncrypt(editText, _sharedKey!);
+        } catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+          return;
+        }
       }
       final msgId = _editingMsgId!;
       setState(() { _editingMsgId = null; _draftCtrl.clear(); _inputError = null; _replyToMsg = null; });
-      await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted);
-      await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted);
+      try {
+        await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted);
+        await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Düzenleme başarısız: $e')));
+      }
       return;
     }
 
@@ -524,7 +544,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final ts = DateTime.now().millisecondsSinceEpoch;
     String encryptedText = text;
     if (_sharedKey != null) {
-      try { encryptedText = await e2eEncrypt(text, _sharedKey!); } catch (_) {}
+      try {
+        encryptedText = await e2eEncrypt(text, _sharedKey!);
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+        return;
+      }
     }
 
     final replyData = _replyToMsg != null
@@ -735,9 +760,18 @@ class _ChatScreenState extends State<ChatScreen> {
                   Padding(padding: const EdgeInsets.only(top: 2, bottom: 4),
                     child: Wrap(spacing: 4, runSpacing: 4,
                       children: m.reactions.entries.map((e) => GestureDetector(
-                        onTap: () {
-                          PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
-                          PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, e.key);
+                        onTap: () async {
+                          final emoji = e.key;
+                          setState(() {
+                            final list = m.reactions.putIfAbsent(emoji, () => <String>[]);
+                            if (!list.contains(widget.identity.fipId)) list.add(widget.identity.fipId);
+                          });
+                          try {
+                            await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                            await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                          } catch (err) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reaksiyon gönderilemedi: $err')));
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -889,8 +923,12 @@ class _ChatScreenState extends State<ChatScreen> {
             title: Text('Sil', style: TextStyle(color: PhotonColors.danger)),
             onTap: () async {
               Navigator.pop(context);
-              await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
-              await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
+              try {
+                await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
+                await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Silme başarısız: $e')));
+              }
             },
           ),
         ],
@@ -930,8 +968,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
                 final ts = DateTime.now().millisecondsSinceEpoch;
                 final fwdText = '↗️ İletildi:\n${m.text}';
-                await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, senderName: _myDisplayName);
-                await PhotonApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: fwdText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
+                String sendText = fwdText;
+                try {
+                  final info = await PhotonApi.lookupByCode(c.serverUrl, c.code);
+                  final pubKey = info?['publicKey'] as String?;
+                  if (pubKey != null && pubKey.isNotEmpty) {
+                    final key = await deriveSharedKey(pubKey);
+                    sendText = await e2eEncrypt(fwdText, key);
+                  }
+                } catch (_) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Şifreleme hatası, mesaj gönderilemedi.')));
+                  return;
+                }
+                await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, senderName: _myDisplayName);
+                await PhotonApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} kişisine iletildi'), duration: const Duration(seconds: 2)));
               },
             )),

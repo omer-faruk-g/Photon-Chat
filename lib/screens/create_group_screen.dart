@@ -63,7 +63,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Grup Oluştur')),
       backgroundColor: PhotonColors.bg,
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: _created == null ? _buildForm() : _buildSuccess(),
       ),
