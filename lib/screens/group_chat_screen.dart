@@ -293,8 +293,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollJoinRequests() {
     Future<void> fetchOnce() async {
-      final reqs = await PhotonApi.getGroupJoinRequests(widget.group.ownerServerUrl, widget.group.groupId);
-      if (mounted) setState(() => _pendingJoins = reqs);
+      try {
+        final reqs = await PhotonApi.getGroupJoinRequests(widget.group.ownerServerUrl, widget.group.groupId);
+        if (mounted) setState(() => _pendingJoins = reqs);
+      } catch (_) {}
     }
     fetchOnce();
     _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) => fetchOnce());
@@ -302,27 +304,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollMutedMembers() {
     _muteTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      final muted = await PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId);
-      if (mounted) setState(() => _mutedMembers = muted);
+      try {
+        final muted = await PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId);
+        if (mounted) setState(() => _mutedMembers = muted);
+      } catch (_) {}
     });
     PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId).then((muted) {
       if (mounted) setState(() => _mutedMembers = muted);
-    });
+    }).catchError((_) {});
   }
 
   void _pollAnnouncements() {
     String keyOf(Map m) => '${m['ts']}_${m['from']}';
     _annTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      final anns = await PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId);
-      final serverKeys = anns.map((m) => keyOf(m)).toSet();
-      final localOnly = _announcements.where((m) => !serverKeys.contains(keyOf(m))).toList();
-      final merged = [...anns, ...localOnly];
-      merged.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
-      if (mounted) setState(() => _announcements = merged);
+      try {
+        final anns = await PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId);
+        final serverKeys = anns.map((m) => keyOf(m)).toSet();
+        final localOnly = _announcements.where((m) => !serverKeys.contains(keyOf(m))).toList();
+        final merged = [...anns, ...localOnly];
+        merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
+        if (mounted) setState(() => _announcements = merged);
+      } catch (_) {}
     });
     PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId).then((a) {
       if (mounted) setState(() => _announcements = a);
-    });
+    }).catchError((_) {});
   }
 
   Future<void> _send() async {
@@ -366,54 +372,93 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Future<void> _vote(Map<String, dynamic> pollMsg, int optionIndex) async {
     final msgIdVal = pollMsg['msgId'] as String? ?? '';
-    await PhotonApi.voteOnPoll(widget.group.ownerServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
+    // Optimistic UI update
     setState(() {
       if (pollMsg['votes'] == null) pollMsg['votes'] = {};
       (pollMsg['votes'] as Map)[widget.identity.fipId] = optionIndex;
     });
+    if (msgIdVal.isEmpty) {
+      // Server hasn't assigned a msgId yet — defer; next poll will pick up the vote.
+      pollMsg['_pendingVote'] = optionIndex;
+      if (mounted) _showToast('Oy gönderiliyor…');
+      return;
+    }
+    try {
+      await PhotonApi.voteOnPoll(widget.group.ownerServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
+    } catch (_) {
+      if (mounted) _showToast('Oy gönderilemedi.');
+    }
   }
 
   Future<void> _acceptMember(Map<String, dynamic> req) async {
-    await PhotonApi.acceptGroupMember(widget.group.ownerServerUrl, widget.group.groupId,
-      fipId: req['fromFipId'] as String,
-      name: req['fromName'] as String? ?? 'Bilinmeyen',
-      serverUrl: req['fromServerUrl'] as String? ?? '',
-    );
     setState(() => _pendingJoins.remove(req));
+    try {
+      await PhotonApi.acceptGroupMember(widget.group.ownerServerUrl, widget.group.groupId,
+        fipId: req['fromFipId'] as String,
+        name: req['fromName'] as String? ?? 'Bilinmeyen',
+        serverUrl: req['fromServerUrl'] as String? ?? '',
+      );
+    } catch (_) {
+      if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
+      if (mounted) _showToast('Kabul edilemedi.');
+    }
   }
 
   Future<void> _rejectMember(Map<String, dynamic> req) async {
-    await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, req['fromFipId'] as String);
     setState(() => _pendingJoins.remove(req));
+    try {
+      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, req['fromFipId'] as String);
+    } catch (_) {
+      if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
+      if (mounted) _showToast('Reddedilemedi.');
+    }
   }
 
   Future<void> _muteMember(GroupMember member) async {
-    await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
-    await PhotonApi.sendNotification(member.serverUrl, member.fipId,
-        'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
     if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
-    if (mounted) _showToast('${member.name} susturuldu.');
+    try {
+      await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      await PhotonApi.sendNotification(member.serverUrl, member.fipId,
+          'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
+      if (mounted) _showToast('${member.name} susturuldu.');
+    } catch (_) {
+      if (mounted) setState(() => _mutedMembers.remove(member.fipId));
+      if (mounted) _showToast('Susturulamadı.');
+    }
   }
 
   Future<void> _unmuteMember(GroupMember member) async {
-    await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
     if (mounted) setState(() => _mutedMembers.remove(member.fipId));
-    if (mounted) _showToast('${member.name} susturma kaldırıldı.');
+    try {
+      await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      if (mounted) _showToast('${member.name} susturma kaldırıldı.');
+    } catch (_) {
+      if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
+      if (mounted) _showToast('İşlem başarısız.');
+    }
   }
 
   Future<void> _kickMember(GroupMember member) async {
-    await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
-    await PhotonApi.sendNotification(member.serverUrl, member.fipId,
-        'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
+    final backup = List<GroupMember>.of(widget.group.members);
     if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
-    // Persist member removal to disk.
-    final storedGroups = await LocalStore.loadGroups();
-    final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
-    if (sIdx != -1) {
-      storedGroups[sIdx].members = List.of(widget.group.members);
-      await LocalStore.saveGroups(storedGroups);
+    try {
+      await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      await PhotonApi.sendNotification(member.serverUrl, member.fipId,
+          'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
+      // Persist member removal to disk.
+      final storedGroups = await LocalStore.loadGroups();
+      final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
+      if (sIdx != -1) {
+        storedGroups[sIdx].members = List.of(widget.group.members);
+        await LocalStore.saveGroups(storedGroups);
+      }
+      if (mounted) _showToast('${member.name} gruptan atıldı.');
+    } catch (_) {
+      if (mounted) setState(() { widget.group.members
+        ..clear()
+        ..addAll(backup); });
+      if (mounted) _showToast('Çıkarma başarısız.');
     }
-    if (mounted) _showToast('${member.name} gruptan atıldı.');
   }
 
   String? _toastMsg;
@@ -1016,7 +1061,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 ),
               Container(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                decoration: BoxDecoration(border: Border(top: BorderSide(color: PhotonColors.line))),
+                decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
                 child: Row(children: [
                   IconButton(
                     icon: Icon(Icons.location_on, color: PhotonColors.textDim),

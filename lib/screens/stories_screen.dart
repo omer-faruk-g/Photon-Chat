@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../fip.dart';
 import '../local_store.dart';
 import '../story_manager.dart';
+import '../nsfw_scanner.dart';
 import '../theme.dart';
 
 class StoriesRow extends StatefulWidget {
@@ -101,6 +102,10 @@ class _StoriesRowState extends State<StoriesRow> {
     final bytes = await picked.readAsBytes();
     if (bytes.length > 3 * 1024 * 1024) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gorsel cok buyuk (maks 3 MB)')));
+      return;
+    }
+    if (await NsfwScanner.hasImageViolation(bytes)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uygunsuz icerik tespit edildi — paylasilmadi.')));
       return;
     }
     final b64 = base64Encode(bytes);

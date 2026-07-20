@@ -206,7 +206,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                         decoration: InputDecoration(
                           counterText: '',
                           hintText: '0' * _currentCodeLength,
-                          hintStyle: TextStyle(color: PhotonColors.textDim.withOpacity(0.3), fontSize: _currentCodeLength > 12 ? 18 : 22, letterSpacing: 3, fontFamily: 'monospace'),
+                          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: _currentCodeLength > 12 ? 18 : 22, letterSpacing: 3, fontFamily: 'monospace'),
                           filled: true,
                           fillColor: PhotonColors.bg,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: PhotonColors.line)),

@@ -170,7 +170,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
             ),
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).viewInsets.bottom + 16),
             decoration: BoxDecoration(
               color: PhotonColors.panel,
               border: Border(top: BorderSide(color: PhotonColors.line)),
