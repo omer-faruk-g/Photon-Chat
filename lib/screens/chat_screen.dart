@@ -879,7 +879,7 @@ class _ChatScreenState extends State<ChatScreen> {
         if (!m.deleted)
           ListTile(
             leading: Icon(Icons.copy, color: PhotonColors.accent),
-            title: Text('Kopyala', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('copyMessage'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
               Clipboard.setData(ClipboardData(text: m.text));
@@ -942,7 +942,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: PhotonColors.danger),
-            title: Text('Sil', style: TextStyle(color: PhotonColors.danger)),
+            title: Text(AppLang.instance.t('delete'), style: TextStyle(color: PhotonColors.danger)),
             onTap: () async {
               Navigator.pop(context);
               try {
@@ -984,7 +984,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
               ),
               title: Text(c.name, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
-              subtitle: Text('Kod: ${c.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              subtitle: Text('${AppLang.instance.t('codeLabel')}: ${c.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               onTap: () async {
                 Navigator.pop(context);
                 final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
@@ -1334,7 +1334,7 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
             onPressed: _showDisappearDialog,
-            tooltip: 'Kaybolan Mesajlar',
+            tooltip: AppLang.instance.t('disappearingMessages'),
           ),
         ],
       ),
@@ -1443,7 +1443,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(width: 3, height: 36, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(width: 8),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(_replyToMsg!['from'] == widget.identity.fipId ? 'Sen' : widget.contact.name,
+                  Text(_replyToMsg!['from'] == widget.identity.fipId ? AppLang.instance.t('you') : widget.contact.name,
                     style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
                   Text(_replyToMsg!['text'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ])),
@@ -1465,7 +1465,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (!_isBlocked)
                 IconButton(
                   icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
-                  tooltip: 'Dosya Gonder',
+                  tooltip: AppLang.instance.t('sendFile'),
                   onPressed: _pickAndSendFile,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

@@ -152,6 +152,8 @@ class AppLang extends ChangeNotifier {
     'statusMessage': 'DURUM MESAJI',
     'deactivateAccount': 'Hesabı bu cihazdan kaldır',
     'copy': 'Kodunu Kopyala',
+    'copyMessage': 'Kopyala',
+    'codeLabel': 'Kod',
     'cancel': 'Vazgeç',
     'confirm': 'Onayla',
     'serverSetup': 'Sunucu Ayarı',
