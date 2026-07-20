@@ -1313,13 +1313,14 @@ class _ChatScreenState extends State<ChatScreen> {
           _buildAvatar(widget.contact.name, widget.contact.avatar, size: 32),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.contact.name, style: const TextStyle(fontSize: 15)),
+            Text(widget.contact.name, style: const TextStyle(fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(
               _contactOnline ? 'Çevrimiçi' : _formatLastSeen(widget.contact.lastSeen),
               style: TextStyle(
                 color: _contactOnline ? Colors.green : PhotonColors.textDim,
                 fontSize: 10,
               ),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ])),
         ]),

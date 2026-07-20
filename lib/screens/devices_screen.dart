@@ -74,7 +74,7 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: PhotonColors.accent, width: 2),
             ),
-            child: Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: codeLength > 12 ? 20 : 28, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'monospace')),
+            child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: codeLength > 12 ? 20 : 28, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'monospace'))),
           ),
           const SizedBox(height: 12),
           Text('${req.requesterName} bağlanmaya çalışıyor', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
