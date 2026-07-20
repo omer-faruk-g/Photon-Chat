@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import '../nsfw_scanner.dart';
 import '../profanity_filter.dart';
+import '../i18n.dart';
 import '../theme.dart';
 
 class GifCreatorScreen extends StatefulWidget {
@@ -107,12 +108,12 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GIF Oluştur'),
+        title: Text(AppLang.instance.t('gifCreate')),
         actions: [
           if (_frames.isNotEmpty && !_encoding && !_scanning)
             TextButton(
               onPressed: _createAndSend,
-              child: Text('Gönder', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
+              child: Text(AppLang.instance.t('sendShort'), style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
             ),
         ],
       ),
@@ -211,7 +212,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                         icon: _scanning
                             ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent))
                             : const Icon(Icons.add_photo_alternate_outlined, size: 18),
-                        label: Text(_scanning ? 'Taranıyor…' : 'Kare Ekle'),
+                        label: Text(_scanning ? AppLang.instance.t('scanning') : AppLang.instance.t('addFrame')),
                       ),
                     ),
                     if (_frames.isNotEmpty) ...[
@@ -223,7 +224,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                           icon: _encoding
                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                               : const Icon(Icons.gif_box_outlined, size: 18),
-                          label: Text(_encoding ? 'Oluşturuluyor…' : 'GIF Gönder'),
+                          label: Text(_encoding ? AppLang.instance.t('creating') : AppLang.instance.t('sendGif')),
                         ),
                       ),
                     ],

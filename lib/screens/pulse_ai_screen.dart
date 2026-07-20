@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../photon_api.dart';
+import '../i18n.dart';
 import '../theme.dart';
 import '../message_guard.dart';
 
@@ -99,7 +100,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                           Text('Pulse AI', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
                           const SizedBox(height: 8),
                           Text(
-                            'Kelime anlamı mı merak ediyorsun? Bir şey mi sormak istiyorsun? Sohbet etmek mi istiyorsun? Buradayım.',
+                            AppLang.instance.t('pulseAiWelcome'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.7),
                           ),
@@ -159,7 +160,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)),
                 SizedBox(width: 10),
-                Text('Pulse AI yazıyor…', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+                Text(AppLang.instance.t('pulseAiTyping'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
               ]),
             ),
           if (_inputError != null)
@@ -182,7 +183,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                   enabled: !_loading,
                   style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Pulse AI\'e bir şey sor…',
+                    hintText: AppLang.instance.t('pulseAiHint'),
                     hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                     enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(999)),

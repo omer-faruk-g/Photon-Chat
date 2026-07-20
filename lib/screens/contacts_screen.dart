@@ -244,9 +244,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
         title: Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
-        content: Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        content: Text(AppLang.instance.t('deactivateWarn'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Hayır, imha et', style: TextStyle(color: PhotonColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('noDestroy'), style: TextStyle(color: PhotonColors.danger))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Evet, sakla', style: TextStyle(color: PhotonColors.accent))),
         ],
       ),
@@ -602,7 +602,7 @@ class _EmptyState extends StatelessWidget {
     child: Column(children: [
       Text('＋', style: TextStyle(color: PhotonColors.accent2, fontSize: 28)),
       const SizedBox(height: 8),
-      Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
+      Text(AppLang.instance.t('emptyContacts'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
       const SizedBox(height: 6),
       Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
@@ -684,7 +684,7 @@ class _ContactRow extends StatelessWidget {
               ),
               ListTile(
                 leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
-                title: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim)),
+                title: Text(AppLang.instance.t('giveUp'), style: TextStyle(color: PhotonColors.textDim)),
                 onTap: () => Navigator.pop(context),
               ),
             ],

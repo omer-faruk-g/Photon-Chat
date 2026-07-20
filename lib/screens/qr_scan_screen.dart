@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../i18n.dart';
 import '../theme.dart';
 
 class QrScanScreen extends StatefulWidget {
@@ -33,7 +34,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: PhotonColors.panel.withOpacity(0.9), borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
-            child: Text('Arkadaşının QR kodunu kameraya tut', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
+            child: Text(AppLang.instance.t('qrHoldCode'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
           ),
         ),
       ])),

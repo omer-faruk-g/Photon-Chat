@@ -87,7 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('⛔ Bu görsel uygunsuz içerik taşıyor — avatar olarak ayarlanamaz.'),
+            content: Text(AppLang.instance.t('avatarNsfwRejected')),
             backgroundColor: PhotonColors.danger,
           ),
         );
@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     if (bytes.length > 200 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fotoğraf çok büyük (max 200KB)')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(AppLang.instance.t('photoTooLarge'))));
       return;
     }
     final b64 = base64Encode(bytes);
@@ -128,14 +128,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDlgState) {
         return AlertDialog(
           backgroundColor: PhotonColors.panel,
-          title: Text('Hızlı Yanıtlar', style: TextStyle(color: PhotonColors.text, fontSize: 16)),
+          title: Text(AppLang.instance.t('quickRepliesTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 16)),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (replies.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text('Henüz hızlı yanıt eklenmemiş.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                  child: Text(AppLang.instance.t('noQuickReplyYet'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
                 )
               else
                 ...replies.map((r) => ListTile(
@@ -155,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('Kapat', style: TextStyle(color: PhotonColors.textDim)),
+              child: Text(AppLang.instance.t('close'), style: TextStyle(color: PhotonColors.textDim)),
             ),
             TextButton(
               onPressed: () async {
@@ -164,15 +164,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   context: ctx,
                   builder: (c) => AlertDialog(
                     backgroundColor: PhotonColors.panel,
-                    title: Text('Yeni Hızlı Yanıt', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+                    title: Text(AppLang.instance.t('newQuickReply'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
                     content: TextField(
                       controller: ctrl,
                       style: TextStyle(color: PhotonColors.text),
-                      decoration: InputDecoration(hintText: 'Mesaj yazın...', hintStyle: TextStyle(color: PhotonColors.textDim)),
+                      decoration: InputDecoration(hintText: AppLang.instance.t('writeMessageHint'), hintStyle: TextStyle(color: PhotonColors.textDim)),
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(c), child: Text('İptal', style: TextStyle(color: PhotonColors.textDim))),
-                      TextButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: Text('Ekle', style: TextStyle(color: PhotonColors.accent))),
+                      TextButton(onPressed: () => Navigator.pop(c), child: Text(AppLang.instance.t('iptalUp'), style: TextStyle(color: PhotonColors.textDim))),
+                      TextButton(onPressed: () => Navigator.pop(c, ctrl.text.trim()), child: Text(AppLang.instance.t('add'), style: TextStyle(color: PhotonColors.accent))),
                     ],
                   ),
                 );
@@ -183,7 +183,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setDlgState(() {});
                 }
               },
-              child: Text('Ekle', style: TextStyle(color: PhotonColors.accent)),
+              child: Text(AppLang.instance.t('add'), style: TextStyle(color: PhotonColors.accent)),
             ),
           ],
         );
@@ -243,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(color: PhotonColors.line, height: 1),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('CİHAZ SESLERİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
+            child: Text(AppLang.instance.t('deviceSounds'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
           Expanded(
             child: ListView.builder(
               controller: scrollCtrl,
@@ -479,7 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(color: PhotonColors.text, fontSize: 13),
                 maxLength: 60,
                 decoration: InputDecoration(
-                  hintText: 'Müsait, Meşgul, Toplantıda…',
+                  hintText: AppLang.instance.t('statusMsgHint'),
                   hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
                   filled: true, fillColor: PhotonColors.bg,
                   counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
@@ -514,7 +514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   maxLength: 100,
                   maxLines: 1,
                   decoration: InputDecoration(
-                    hintText: 'Kendin hakkında kısa bir şeyler yaz…',
+                    hintText: AppLang.instance.t('bioHint'),
                     hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
                     filled: true, fillColor: PhotonColors.bg,
                     counterText: '${_bioCtrl.text.length}/100',
@@ -570,7 +570,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(AppLang.instance.t('appLockSection'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(_lockEnabled ? 'PIN veya desen ile korunuyor' : 'Kapalı', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(_lockEnabled ? AppLang.instance.t('lockProtected') : AppLang.instance.t('lockOff'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               ])),
               if (_lockEnabled)
                 GestureDetector(
@@ -580,7 +580,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Text('Kaldır', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text(AppLang.instance.t('remove'), style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                 ),
               GestureDetector(
@@ -592,7 +592,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(8)),
-                  child: Text(_lockEnabled ? 'Değiştir' : 'Ayarla', style: TextStyle(color: const Color(0xFF06251A), fontSize: 12, fontWeight: FontWeight.w700)),
+                  child: Text(_lockEnabled ? AppLang.instance.t('change') : AppLang.instance.t('setUp'), style: TextStyle(color: const Color(0xFF06251A), fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ),
             ]),
@@ -607,11 +607,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Text('YAZI BOYUTU', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Row(children: [
-                _buildFontSizeChip('kucuk', 'Küçük'),
+                _buildFontSizeChip('kucuk', AppLang.instance.t('smallSize')),
                 const SizedBox(width: 8),
                 _buildFontSizeChip('orta', 'Orta'),
                 const SizedBox(width: 8),
-                _buildFontSizeChip('buyuk', 'Büyük'),
+                _buildFontSizeChip('buyuk', AppLang.instance.t('bigSize')),
               ]),
               const SizedBox(height: 12),
               Container(
@@ -619,10 +619,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: PhotonColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('ÖNIZLEME', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                  Text(AppLang.instance.t('preview'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
                   const SizedBox(height: 6),
                   Text(
-                    'Mesajlarınız bu boyutta görünür.',
+                    AppLang.instance.t('previewMessage'),
                     style: TextStyle(color: PhotonColors.text, fontSize: FontSizeNotifier.instance.msgFontSize, height: 1.4),
                   ),
                 ]),
@@ -661,8 +661,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Icon(Icons.record_voice_over, color: PhotonColors.textDim, size: 18),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('SES CİNSİYETİ', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text('TTS sesli mesaj için ses tonu', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(AppLang.instance.t('voiceGender'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(AppLang.instance.t('voiceGenderDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
               ])),
               DropdownButton<String>(
                 value: _voiceGender,
@@ -671,7 +671,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(color: PhotonColors.text, fontSize: 13),
                 items: [
                   DropdownMenuItem(value: 'male', child: Text('Erkek', style: TextStyle(color: PhotonColors.text))),
-                  DropdownMenuItem(value: 'female', child: Text('Kadın', style: TextStyle(color: PhotonColors.text))),
+                  DropdownMenuItem(value: 'female', child: Text(AppLang.instance.t('female'), style: TextStyle(color: PhotonColors.text))),
                 ],
                 onChanged: (v) async {
                   if (v == null) return;
@@ -692,7 +692,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.devices, color: PhotonColors.accent, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Cihaz Yönetimi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('deviceManagement'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text('Yan cihazlar, fake hesaplar ve bağlantı istekleri', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
@@ -739,7 +739,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.star, color: Colors.amber, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Yıldızlı Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('starredMessagesLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text('Yildizladigin mesajlari gor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
@@ -777,8 +777,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.flash_on, color: PhotonColors.textDim, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Hızlı Yanıtlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text('Sık kullanılan mesajları yönet', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('quickReplies'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('manageFrequentMessages'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),
@@ -836,7 +836,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('SENİN ADRESİN', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text(AppLang.instance.t('yourAddressLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 8),
               Text(myAddress, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace')),
               const SizedBox(height: 10),
@@ -852,7 +852,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
           const SizedBox(height: 16),
-          FipCard(title: 'BU CİHAZIN FIP BLOĞU', fip: widget.identity),
+          FipCard(title: AppLang.instance.t('thisDeviceFipBlock'), fip: widget.identity),
           const SizedBox(height: 20),
 
           // Hesap silme
@@ -860,24 +860,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: PhotonColors.danger.withOpacity(0.08), border: Border.all(color: PhotonColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Hesabı bu cihazdan kaldır', style: TextStyle(color: PhotonColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text(AppLang.instance.t('deactivateAccountTitle'), style: TextStyle(color: PhotonColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
               const SizedBox(height: 8),
-              Text('FIP bloğun, kişi listen ve aktif sohbetlerin kalıcı olarak silinir.', style: TextStyle(color: PhotonColors.textDim, fontSize: 11.5, height: 1.6)),
+              Text(AppLang.instance.t('deactivateAccountBody'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11.5, height: 1.6)),
               const SizedBox(height: 14),
               if (!_confirming)
                 ElevatedButton(
                   style: photonDangerButtonStyle(),
                   onPressed: () => setState(() => _confirming = true),
-                  child: const SizedBox(width: double.infinity, child: Text('Hesabı sil', textAlign: TextAlign.center)),
+                  child: const SizedBox(width: double.infinity, child: Text(AppLang.instance.t('deleteAccountButton'), textAlign: TextAlign.center)),
                 )
               else
                 Row(children: [
-                  Expanded(child: OutlinedButton(style: photonGhostButtonStyle(), onPressed: _deleting ? null : () => setState(() => _confirming = false), child: const Text('Vazgeç'))),
+                  Expanded(child: OutlinedButton(style: photonGhostButtonStyle(), onPressed: _deleting ? null : () => setState(() => _confirming = false), child: Text(AppLang.instance.t('giveUp')))),
                   const SizedBox(width: 10),
                   Expanded(child: ElevatedButton(
                     style: photonDangerButtonStyle(),
                     onPressed: _deleting ? null : _deactivate,
-                    child: _deleting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Evet, sil'),
+                    child: _deleting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(AppLang.instance.t('yesDelete')),
                   )),
                 ]),
             ]),
