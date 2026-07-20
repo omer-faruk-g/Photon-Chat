@@ -12,6 +12,7 @@ import '../profanity_filter.dart';
 import '../message_guard.dart';
 import '../offline_queue.dart';
 import '../chat_wallpaper.dart';
+import '../i18n.dart';
 import '../translate_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -94,7 +95,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _shareLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum servisi kapalı.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationServiceOff'))));
       return;
     }
     LocationPermission permission = await Geolocator.checkPermission();
@@ -106,7 +107,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni kalıcı olarak reddedildi.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionPermanent'))));
       return;
     }
     try {
@@ -115,7 +116,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _msgCtrl.text = locationText;
       await _send();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Konum alınamadı: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('locationFailed')}: $e')));
     }
   }
 
@@ -138,7 +139,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         await _send();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ses kaydı başlatılamadı: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('voiceRecordStartFailed')}: $e')));
     } finally {
       if (mounted) setState(() => _isRecordingVoice = false);
     }
@@ -171,7 +172,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         Row(children: [
           Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
           const SizedBox(width: 6),
-          Text('Konumunu Paylaştı', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         const SizedBox(height: 8),
         GestureDetector(
@@ -182,7 +183,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.map, color: PhotonColors.accent, size: 14),
               const SizedBox(width: 6),
-              Text('Haritada Aç', style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
             ]),
           ),
         ),
@@ -246,7 +247,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
           leading: Icon(Icons.translate, color: PhotonColors.accent),
-          title: Text('Çevir', style: TextStyle(color: PhotonColors.text)),
+          title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
             _translateMessage(msgId, text);
@@ -380,13 +381,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (msgIdVal.isEmpty) {
       // Server hasn't assigned a msgId yet — defer; next poll will pick up the vote.
       pollMsg['_pendingVote'] = optionIndex;
-      if (mounted) _showToast('Oy gönderiliyor…');
+      if (mounted) _showToast(AppLang.instance.t('voteSending'));
       return;
     }
     try {
       await PhotonApi.voteOnPoll(widget.group.ownerServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
     } catch (_) {
-      if (mounted) _showToast('Oy gönderilemedi.');
+      if (mounted) _showToast(AppLang.instance.t('voteFailed'));
     }
   }
 
@@ -423,7 +424,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (mounted) _showToast('${member.name} susturuldu.');
     } catch (_) {
       if (mounted) setState(() => _mutedMembers.remove(member.fipId));
-      if (mounted) _showToast('Susturulamadı.');
+      if (mounted) _showToast(AppLang.instance.t('muteFailed'));
     }
   }
 
@@ -431,10 +432,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (mounted) setState(() => _mutedMembers.remove(member.fipId));
     try {
       await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
-      if (mounted) _showToast('${member.name} susturma kaldırıldı.');
+      if (mounted) _showToast('${member.name} ${AppLang.instance.t('unmutedUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
-      if (mounted) _showToast('İşlem başarısız.');
+      if (mounted) _showToast(AppLang.instance.t('actionFailed'));
     }
   }
 
@@ -444,7 +445,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       await PhotonApi.sendNotification(member.serverUrl, member.fipId,
-          'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
+          AppLang.instance.t('removedFromGroupTitle'), '"${widget.group.name}" ${AppLang.instance.t('removedFromGroupBodySuffix')}');
       // Persist member removal to disk.
       final storedGroups = await LocalStore.loadGroups();
       final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
@@ -452,12 +453,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         storedGroups[sIdx].members = List.of(widget.group.members);
         await LocalStore.saveGroups(storedGroups);
       }
-      if (mounted) _showToast('${member.name} gruptan atıldı.');
+      if (mounted) _showToast('${member.name} ${AppLang.instance.t('kickedFromGroupUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() { widget.group.members
         ..clear()
         ..addAll(backup); });
-      if (mounted) _showToast('Çıkarma başarısız.');
+      if (mounted) _showToast(AppLang.instance.t('kickFailed'));
     }
   }
 
@@ -473,7 +474,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       context: context, backgroundColor: PhotonColors.panel,
       builder: (_) => StatefulBuilder(
         builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
-          Text('Katılma İstekleri', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+          Text(AppLang.instance.t('joinRequests'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 16),
           if (_pendingJoins.isEmpty) Text('Bekleyen istek yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
           ..._pendingJoins.map((req) => ListTile(
@@ -500,7 +501,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (widget.group.isOwner)
               ListTile(
                 leading: Icon(member.isMod ? Icons.remove_moderator : Icons.shield, color: Colors.amber),
-                title: Text(member.isMod ? 'MOD Kaldır' : 'MOD Yap', style: TextStyle(color: PhotonColors.text)),
+                title: Text(member.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('modMake'), style: TextStyle(color: PhotonColors.text)),
                 onTap: () async {
                   Navigator.pop(context);
                   final idx = widget.group.members.indexWhere((m) => m.fipId == member.fipId);
@@ -522,7 +523,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ListTile(
               leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
-              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur',
+              title: Text(isMuted ? '${member.name} ${AppLang.instance.t('unmuteUserSuffix')}' : '${member.name} ${AppLang.instance.t('muteUserSuffix')}',
                   style: TextStyle(color: PhotonColors.text)),
               onTap: () {
                 Navigator.pop(context);

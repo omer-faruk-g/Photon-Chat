@@ -6,6 +6,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../story_manager.dart';
 import '../nsfw_scanner.dart';
+import '../i18n.dart';
 import '../theme.dart';
 
 class StoriesRow extends StatefulWidget {
@@ -59,7 +60,7 @@ class _StoriesRowState extends State<StoriesRow> {
         ),
         ListTile(
           leading: Icon(Icons.image, color: PhotonColors.accent),
-          title: Text('Görsel Hikaye', style: TextStyle(color: PhotonColors.text)),
+          title: Text(AppLang.instance.t('imageStory'), style: TextStyle(color: PhotonColors.text)),
           onTap: () { Navigator.pop(context); _addImageStory(); },
         ),
       ])),
@@ -101,7 +102,7 @@ class _StoriesRowState extends State<StoriesRow> {
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
     if (bytes.length > 3 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Görsel çok büyük (maks 3 MB)')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
       return;
     }
     if (await NsfwScanner.hasImageViolation(bytes)) {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../chat_wallpaper.dart';
+import '../i18n.dart';
 import '../theme.dart';
 
 class WallpaperPickerScreen extends StatefulWidget {
@@ -28,7 +29,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
     if (bytes.length > 300 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Fotoğraf çok büyük (max 300KB)')),
+          SnackBar(content: Text(AppLang.instance.t('photoTooLarge'))),
         );
       }
       return;
@@ -87,7 +88,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
           if (_selectedType == 'none')
             Center(
               child: Text(
-                'Duvar Kağıdı Önizleme',
+                AppLang.instance.t('wallpaperPreview'),
                 style: TextStyle(
                   color: PhotonColors.textDim,
                   fontSize: 13,
@@ -105,7 +106,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
     return Scaffold(
       backgroundColor: PhotonColors.bg,
       appBar: AppBar(
-        title: const Text('Sohbet Duvar Kağıdı'),
+        title: Text(AppLang.instance.t('chatWallpaper')),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: PhotonColors.text),
           onPressed: () => Navigator.pop(context, true),
@@ -134,7 +135,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
                   children: [
                     Icon(Icons.block, color: PhotonColors.textDim, size: 20),
                     const SizedBox(width: 12),
-                    Text('Varsayilan', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                    Text(AppLang.instance.t('defaultLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                     const Spacer(),
                     if (_selectedType == 'none')
                       Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),
@@ -149,7 +150,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
           // Color grid
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Renkler', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
+            child: Text(AppLang.instance.t('colors'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
           ),
           const SizedBox(height: 10),
           Padding(
@@ -202,7 +203,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
                   children: [
                     Icon(Icons.photo_library, color: PhotonColors.accent, size: 20),
                     const SizedBox(width: 12),
-                    Text('Galeriden Sec', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                    Text(AppLang.instance.t('pickFromGallery'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
                     const Spacer(),
                     if (_selectedType == 'image')
                       Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),

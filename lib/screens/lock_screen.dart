@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app_lock.dart';
+import '../i18n.dart';
 import '../theme.dart';
 
 class LockScreen extends StatefulWidget {
@@ -66,8 +67,8 @@ class _LockScreenState extends State<LockScreen> {
       }
       setState(() {
         _error = _isLockedOut
-            ? '${_wrongTries} yanlış deneme — ${_lockedUntil!.difference(DateTime.now()).inSeconds}s bekleyin.'
-            : 'Yanlış ${_type == 'pin' ? 'PIN' : 'desen'}. Tekrar deneyin.';
+            ? '${_wrongTries} ${AppLang.instance.t('wrongTriesPrefix')} ${_lockedUntil!.difference(DateTime.now()).inSeconds}${AppLang.instance.t('waitSecondsSuffix')}'
+            : '${_type == 'pin' ? AppLang.instance.t('wrongPin') : AppLang.instance.t('wrongPattern')}. ${AppLang.instance.t('wrongRetry')}';
         _input = '';
         _pattern = [];
       });
@@ -168,7 +169,7 @@ class _LockScreenState extends State<LockScreen> {
       children: [
         Icon(Icons.pattern, color: PhotonColors.accent, size: 48),
         const SizedBox(height: 16),
-        Text('Deseni Çizin', style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
+        Text(AppLang.instance.t('drawPattern'), style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         if (_error != null) Text(_error!, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
         const SizedBox(height: 24),
@@ -335,7 +336,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
   Widget _buildPinSetup() {
     final isConfirm = _confirmPin != null;
     return Column(children: [
-      Text(isConfirm ? 'PIN\'i Onaylayın' : 'Yeni PIN Girin (4-6 hane)', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+      Text(isConfirm ? AppLang.instance.t('confirmPin') : AppLang.instance.t('newPinEnter'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
       const SizedBox(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -406,7 +407,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
           if (mounted) Navigator.pop(context);
         });
       } else {
-        setState(() { _error = 'PIN\'ler eşleşmiyor. Tekrar deneyin.'; _pin = ''; _confirmPin = null; });
+        setState(() { _error = AppLang.instance.t('pinsDontMatch'); _pin = ''; _confirmPin = null; });
       }
     }
   }
@@ -414,7 +415,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
   Widget _buildPatternSetup() {
     final isConfirm = _confirmPattern != null;
     return Column(children: [
-      Text(isConfirm ? 'Deseni Onaylayın' : 'Yeni Desen Çizin (en az 3 nokta)', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+      Text(isConfirm ? AppLang.instance.t('confirmPattern') : AppLang.instance.t('newPatternDraw'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
       const SizedBox(height: 24),
       _PatternGrid(
         selected: _pattern,
@@ -428,7 +429,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
                 if (mounted) Navigator.pop(context);
               });
             } else {
-              setState(() { _error = 'Desenler eşleşmiyor. Tekrar deneyin.'; _confirmPattern = null; _pattern = []; });
+              setState(() { _error = AppLang.instance.t('patternsDontMatch'); _confirmPattern = null; _pattern = []; });
             }
           }
         },

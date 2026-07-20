@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'i18n.dart';
 import 'theme.dart';
 
 class GuideScreen extends StatefulWidget {
@@ -12,38 +13,38 @@ class _GuideScreenState extends State<GuideScreen> {
   final _controller = PageController();
   int _page = 0;
 
-  static const _pages = [
+  List<_GuidePage> get _pages => [
     _GuidePage(
       icon: '⚡',
-      title: "Photon Chat'e Hoş Geldin",
-      body: 'Telefon numarası yok. E-posta yok. Hesap yok.\n\nSadece bir kriptografik kimlik — cihazında oluşturulur, kimseyle paylaşılmaz.',
+      title: AppLang.instance.t('guideWelcomeTitle'),
+      body: AppLang.instance.t('guideWelcomeBody'),
     ),
     _GuidePage(
       icon: '🌐',
-      title: 'Kendi Sunucunu Kur (Bir Kez)',
-      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nrender.com üzerinde ücretsiz kendi sunucunu çalıştır. Bu kurulumu yalnızca bir kez yapman yeterli — sonraki açılışlarda tekrar sorulmaz.\n\nAdımlar:\n1. render.com → New → Web Service\n2. GitHub reposunu bağla\n3. Root Directory: server\n4. Build Command: npm install\n5. Start Command: node index.js\n6. Plan: Free → Deploy',
-      tip: 'Root Directory mutlaka "server" olmalı!',
+      title: AppLang.instance.t('guideSetupServer'),
+      body: AppLang.instance.t('guideServerBody'),
+      tip: AppLang.instance.t('guideServerTip'),
     ),
     _GuidePage(
       icon: '🔢',
-      title: 'Senin Kodun',
-      body: 'Kimliğin oluşturulunca sana 5 haneli bir eşleşme kodu verilir.\n\nBu kod senin tek adresindir. Arkadaşlarına sadece bu kodu ver — başka bir şey gerekmez.',
+      title: AppLang.instance.t('guideYourCode'),
+      body: AppLang.instance.t('guideCodeBody'),
       highlight: '1 2 3 4 5',
     ),
     _GuidePage(
       icon: '🤝',
-      title: 'Arkadaş Ekle',
-      body: 'Arkadaşının 5 haneli kodunu gir — ya da QR kodunu tara.\n\nİstek bridge üzerinden iletilir. Kabul ederse ikiniz bağlanırsınız.\n\nSunucu URL\'si paylaşmanıza gerek yok.',
+      title: AppLang.instance.t('guideAddFriend'),
+      body: AppLang.instance.t('guideAddFriendBody'),
     ),
     _GuidePage(
       icon: '👥',
-      title: 'Grup Sohbetleri',
-      body: 'Gruplar merkeziyetsizdir — her üyenin sunucusu grubun bir parçasını taşır.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Bu kodu paylaş → üyeler katılmak için gönderir\n• Sen kabul et → mesajlaşma başlar',
+      title: AppLang.instance.t('guideGroupChats'),
+      body: AppLang.instance.t('guideGroupBody'),
     ),
     _GuidePage(
       icon: '🔒',
-      title: 'Gizlilik',
-      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Sunucu sadece şifreli blob'ları iletir",
+      title: AppLang.instance.t('guidePrivacy'),
+      body: AppLang.instance.t('guidePrivacyBody'),
     ),
   ];
 
@@ -91,7 +92,7 @@ class _GuideScreenState extends State<GuideScreen> {
                   ? const SizedBox(height: 48)
                   : TextButton(
                       onPressed: _skip,
-                      child: Text('Atla', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                      child: Text(AppLang.instance.t('skip'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
                     ),
             ),
             Expanded(
@@ -110,7 +111,7 @@ class _GuideScreenState extends State<GuideScreen> {
                   style: photonPrimaryButtonStyle(),
                   onPressed: _next,
                   child: Text(
-                    _page == _pages.length - 1 ? 'Hadi Başlayalım →' : 'Devam →',
+                    _page == _pages.length - 1 ? AppLang.instance.t('letsStart') : AppLang.instance.t('continueArrow'),
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),

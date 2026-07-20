@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../device_manager.dart';
 import '../photon_api.dart';
+import '../i18n.dart';
 import '../theme.dart';
 import '../fip.dart';
 
@@ -63,9 +64,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Doğrulama Kodu (Deneme $attempt/3)', style: TextStyle(color: PhotonColors.text)),
+        title: Text('${AppLang.instance.t('verificationCodeAttempt')} (${AppLang.instance.t('attempt')} $attempt/3)', style: TextStyle(color: PhotonColors.text)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Bu $codeLength haneli kodu diğer cihaza gir:', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+          Text('${AppLang.instance.t('enterCodeDigitsPrefix')} $codeLength ${AppLang.instance.t('enterCodeDigitsSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -77,17 +78,17 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
             child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: codeLength > 12 ? 20 : 28, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'monospace'))),
           ),
           const SizedBox(height: 12),
-          Text('${req.requesterName} bağlanmaya çalışıyor', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+          Text('${req.requesterName} ${AppLang.instance.t('tryingToConnectSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
           if (attempt > 1)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('⚠️ Deneme $attempt — ${attempt == 3 ? "Son şans!" : "Bir sonraki 15 haneli olacak"}', style: TextStyle(color: Colors.orange, fontSize: 11)),
+              child: Text('⚠️ ${AppLang.instance.t('attempt')} $attempt — ${attempt == 3 ? AppLang.instance.t('lastChance') : AppLang.instance.t('nextWillBe15')}', style: TextStyle(color: Colors.orange, fontSize: 11)),
             ),
         ]),
         actions: [
           TextButton(
             onPressed: () { Navigator.pop(ctx); _load(); },
-            child: Text('Tamam', style: TextStyle(color: PhotonColors.accent)),
+            child: Text(AppLang.instance.t('ok'), style: TextStyle(color: PhotonColors.accent)),
           ),
         ],
       ),
@@ -113,14 +114,14 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Cihazı At', style: TextStyle(color: PhotonColors.text)),
+        title: Text(AppLang.instance.t('kickDevice'), style: TextStyle(color: PhotonColors.text)),
         content: Text(
-          '${device.name} cihazını atmak istediğine emin misin?\n\nAtılan cihaz bir daha bu servera bağlanamaz.',
+          '${device.name} ${AppLang.instance.t('kickDeviceConfirmSuffix')}',
           style: TextStyle(color: PhotonColors.textDim, fontSize: 13),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Vazgeç', style: TextStyle(color: PhotonColors.textDim))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('At', style: TextStyle(color: PhotonColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('kickShort'), style: TextStyle(color: PhotonColors.danger))),
         ],
       ),
     );
@@ -138,7 +139,7 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
     await DeviceManager.addBannedServer(widget.myServerUrl, device.fipId);
     await PhotonApi.banDeviceOnServer(widget.myServerUrl, widget.identity.fipId, device.fipId);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${device.name} banlandı'), backgroundColor: PhotonColors.danger));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${device.name} ${AppLang.instance.t('bannedSuffix')}'), backgroundColor: PhotonColors.danger));
     }
     await _load();
   }
@@ -156,16 +157,16 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cihaz Yönetimi'),
+        title: Text(AppLang.instance.t('deviceManagement')),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: PhotonColors.accent,
           unselectedLabelColor: PhotonColors.textDim,
           indicatorColor: PhotonColors.accent,
           tabs: [
-            Tab(text: 'Cihazlar (${_linkedDevices.length})'),
+            Tab(text: '${AppLang.instance.t('devices')} (${_linkedDevices.length})'),
             Tab(text: 'Fake (${_fakeDevices.length})'),
-            Tab(text: 'İstekler (${_pendingRequests.length})'),
+            Tab(text: '${AppLang.instance.t('requestsTab')} (${_pendingRequests.length})'),
           ],
         ),
       ),
@@ -187,9 +188,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.devices, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text('Bağlı yan cihaz yok', style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noLinkedDevices'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
           const SizedBox(height: 8),
-          Text('Başka bir cihaz aynı server URL\'sine bağlanmaya çalıştığında burada görünecek.',
+          Text(AppLang.instance.t('linkedDevicesHint'),
               textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
         ]),
       ));
@@ -200,8 +201,8 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       itemBuilder: (_, i) {
         final d = linked[i];
         return _deviceCard(d, actions: [
-          _actionBtn(Icons.visibility, 'İzle', PhotonColors.accent, () => _viewActivities(d)),
-          _actionBtn(Icons.logout, 'At', PhotonColors.danger, () => _kickDevice(d)),
+          _actionBtn(Icons.visibility, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
+          _actionBtn(Icons.logout, AppLang.instance.t('kickShort'), PhotonColors.danger, () => _kickDevice(d)),
         ]);
       },
     );
@@ -215,9 +216,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.shield, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text('Fake hesap yok', style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noFakeAccounts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
           const SizedBox(height: 8),
-          Text('Yanlış kod giren veya reddedilen cihazlar burada FAKE olarak görünür.',
+          Text(AppLang.instance.t('fakeAccountsHint'),
               textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
         ]),
       ));
@@ -228,9 +229,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       itemBuilder: (_, i) {
         final d = fakes[i];
         return _deviceCard(d, showFakeBadge: true, actions: [
-          _actionBtn(Icons.visibility, 'İzle', PhotonColors.accent, () => _viewActivities(d)),
-          _actionBtn(d.isMod ? Icons.remove_moderator : Icons.admin_panel_settings, d.isMod ? 'MOD Kaldır' : 'MOD Ver', Colors.amber, () => _giveModToFake(d)),
-          _actionBtn(Icons.block, 'Banla', PhotonColors.danger, () => _banFake(d)),
+          _actionBtn(Icons.visibility, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
+          _actionBtn(d.isMod ? Icons.remove_moderator : Icons.admin_panel_settings, d.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('giveMod'), Colors.amber, () => _giveModToFake(d)),
+          _actionBtn(Icons.block, AppLang.instance.t('block'), PhotonColors.danger, () => _banFake(d)),
         ]);
       },
     );
@@ -243,7 +244,7 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.notifications_none, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text('Bekleyen istek yok', style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noPendingRequestsShort'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
         ]),
       ));
     }
@@ -267,20 +268,20 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
               Expanded(child: Text(req.requesterName, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 14))),
             ]),
             const SizedBox(height: 8),
-            Text('Bu cihaz senin serverına bağlanmak istiyor.', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+            Text(AppLang.instance.t('deviceWantsToConnect'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: ElevatedButton.icon(
                 style: photonPrimaryButtonStyle(),
                 icon: const Icon(Icons.check, size: 16),
-                label: const Text('Onayla (Kod Gönder)'),
+                label: Text(AppLang.instance.t('approveSendCode')),
                 onPressed: () => _approveRequest(req),
               )),
               const SizedBox(width: 8),
               Expanded(child: ElevatedButton.icon(
                 style: photonDangerButtonStyle(),
                 icon: const Icon(Icons.close, size: 16),
-                label: const Text('Reddet (FAKE)'),
+                label: Text(AppLang.instance.t('rejectFake')),
                 onPressed: () => _rejectRequest(req),
               )),
             ]),
@@ -320,9 +321,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
             ),
         ]),
         const SizedBox(height: 4),
-        Text('Bağlandı: ${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
+        Text('${AppLang.instance.t('connectedAtLabel')} ${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
             style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
-        Text('Aktivite: ${d.activities.length} kayıt', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+        Text('${AppLang.instance.t('activityLabel')} ${d.activities.length} ${AppLang.instance.t('recordsSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: actions),
       ]),
@@ -381,7 +382,7 @@ class _DeviceActivityScreenState extends State<DeviceActivityScreen> {
       body: _loading
           ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
           : _activities.isEmpty
-              ? Center(child: Text('Henüz aktivite yok', style: TextStyle(color: PhotonColors.textDim)))
+              ? Center(child: Text(AppLang.instance.t('noActivity'), style: TextStyle(color: PhotonColors.textDim)))
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: _activities.length,

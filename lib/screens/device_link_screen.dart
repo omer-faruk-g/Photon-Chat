@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../device_manager.dart';
 import '../photon_api.dart';
+import '../i18n.dart';
 import '../theme.dart';
 import '../fip.dart';
 
@@ -67,7 +68,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
     final code = _codeCtrl.text.trim();
     final expected = _currentCodeLength;
     if (code.length != expected || !RegExp(r'^\d+$').hasMatch(code)) {
-      setState(() => _error = 'Kod $expected haneli olmalı');
+      setState(() => _error = '${AppLang.instance.t('codeMustBeDigitsPrefix')} $expected ${AppLang.instance.t('codeMustBeDigitsSuffix')}');
       return;
     }
     setState(() { _verifying = true; _error = null; });
@@ -91,7 +92,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
       await DeviceManager.saveMainDeviceFip(widget.ownerFipId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Cihaz başarıyla eşleştirildi!'), backgroundColor: PhotonColors.accent),
+          SnackBar(content: Text(AppLang.instance.t('devicePairedSuccess')), backgroundColor: PhotonColors.accent),
         );
       }
       widget.onLinked();
@@ -102,7 +103,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
         setState(() => _permanentFake = true);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('3 yanlış deneme — kalıcı FAKE olarak işaretlendiniz'), backgroundColor: PhotonColors.danger),
+            SnackBar(content: Text(AppLang.instance.t('threeWrongTriesFake')), backgroundColor: PhotonColors.danger),
           );
         }
         widget.onFake();
@@ -111,7 +112,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
         setState(() {
           _attempt++;
           _codeCtrl.clear();
-          _error = 'Kod yanlış! Ana cihazdan $nextLen haneli yeni kod al.';
+          _error = '${AppLang.instance.t('codeWrongTryAgainPrefix')} $nextLen ${AppLang.instance.t('codeWrongTryAgainSuffix')}';
         });
         await PhotonApi.respondDeviceLink(widget.serverUrl, widget.ownerFipId,
             requesterFipId: widget.identity.fipId, status: 'retry', code: '$_attempt');
@@ -123,7 +124,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PhotonColors.bg,
-      appBar: AppBar(title: const Text('Cihaz Bağlama')),
+      appBar: AppBar(title: Text(AppLang.instance.t('deviceLinking'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -133,10 +134,10 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
               children: [
                 Icon(Icons.devices_other, color: PhotonColors.accent, size: 48),
                 const SizedBox(height: 16),
-                Text('Bu Server Zaten Kayıtlı', style: TextStyle(color: PhotonColors.text, fontSize: 20, fontWeight: FontWeight.w800)),
+                Text(AppLang.instance.t('serverAlreadyRegistered'), style: TextStyle(color: PhotonColors.text, fontSize: 20, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 Text(
-                  'Bu sunucuda zaten bir hesap mevcut. Yan cihaz olarak bağlanmak için ana cihazdan onay gerekiyor.',
+                  AppLang.instance.t('serverAlreadyHasAccount'),
                   style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6),
                 ),
                 const SizedBox(height: 24),
@@ -150,12 +151,12 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                       border: Border.all(color: PhotonColors.line),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('NASIL ÇALIŞIR?', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      Text(AppLang.instance.t('howItWorks'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                       const SizedBox(height: 8),
-                      _stepRow('1', 'Bağlantı isteği gönder'),
-                      _stepRow('2', 'Ana cihaz sana doğrulama kodu verecek'),
-                      _stepRow('3', 'Kodu buraya gir'),
-                      _stepRow('4', 'Kod doğruysa yan cihaz olarak bağlan'),
+                      _stepRow('1', AppLang.instance.t('linkStep1')),
+                      _stepRow('2', AppLang.instance.t('linkStep2')),
+                      _stepRow('3', AppLang.instance.t('linkStep3')),
+                      _stepRow('4', AppLang.instance.t('linkStep4')),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -163,7 +164,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                         child: Row(children: [
                           Icon(Icons.warning, color: PhotonColors.danger, size: 16),
                           const SizedBox(width: 8),
-                          Expanded(child: Text('3 yanlış denemede kalıcı FAKE olarak işaretlenirsin!', style: TextStyle(color: PhotonColors.danger, fontSize: 11))),
+                          Expanded(child: Text(AppLang.instance.t('threeWrongWarn'), style: TextStyle(color: PhotonColors.danger, fontSize: 11))),
                         ]),
                       ),
                     ]),
@@ -174,7 +175,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                     child: ElevatedButton.icon(
                       style: photonPrimaryButtonStyle(),
                       icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) : const Icon(Icons.send, size: 18),
-                      label: Text(_loading ? 'Gönderiliyor…' : 'Bağlantı İsteği Gönder'),
+                      label: Text(_loading ? AppLang.instance.t('sending') : AppLang.instance.t('sendConnectionRequest')),
                       onPressed: _loading ? null : _sendRequest,
                     ),
                   ),
@@ -192,10 +193,10 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                       Row(children: [
                         Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),
                         const SizedBox(width: 8),
-                        Expanded(child: Text('Deneme $_attempt / $_maxAttempts', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold))),
+                        Expanded(child: Text('${AppLang.instance.t('attempt')} $_attempt / $_maxAttempts', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold))),
                       ]),
                       const SizedBox(height: 12),
-                      Text('Ana cihazdan aldığın $_currentCodeLength haneli kodu gir:', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                      Text('${AppLang.instance.t('enterCodeFromMainPrefix')} $_currentCodeLength ${AppLang.instance.t('enterCodeFromMainSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _codeCtrl,
@@ -225,7 +226,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                           onPressed: _verifying ? null : _submitCode,
                           child: _verifying
                               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                              : const Text('Kodu Doğrula'),
+                              : Text(AppLang.instance.t('verifyCode')),
                         ),
                       ),
                     ]),
@@ -261,10 +262,10 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.block, color: PhotonColors.danger, size: 64),
         const SizedBox(height: 16),
-        Text('Kalıcı FAKE', style: TextStyle(color: PhotonColors.danger, fontSize: 24, fontWeight: FontWeight.w900)),
+        Text(AppLang.instance.t('permanentFake'), style: TextStyle(color: PhotonColors.danger, fontSize: 24, fontWeight: FontWeight.w900)),
         const SizedBox(height: 12),
         Text(
-          '3 yanlış deneme yaptınız.\nBu cihaz kalıcı olarak FAKE olarak işaretlendi.\nAna hesabın hiçbir yetkisini göremezsiniz.',
+          AppLang.instance.t('permanentFakeBody'),
           textAlign: TextAlign.center,
           style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6),
         ),

@@ -184,6 +184,17 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v8.1.0': (
+        "### 🌐 v8.1.0 — i18n Genişletmesi Tamamlandı\n\n"
+        "Ayarlardan dil seçtiğinde neredeyse tüm ekranlar hedef dile çevriliyor:\n\n"
+        "- ✅ Onboarding, Rehber, Sunucu Kurulumu\n"
+        "- ✅ Kişiler, Kişi Ekle, Grup Oluştur, Gruba Katıl\n"
+        "- ✅ Ayarlar (tümü), Yıldızlı Mesajlar\n"
+        "- ✅ Grup Chat, Hikayeler, Cihazlar, Cihaz Eşleştirme\n"
+        "- ✅ Uygulama Kilidi, Duvar Kağıdı\n\n"
+        "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
+        "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
+    ),
     'v8.0.0': (
         "### 🌐 v8.0.0 — Çoklu Dil Desteği Genişletildi\n\n"
         "Ayarlardan dil seçiminde artık çok daha fazla ekran hedef dile çevriliyor:\n\n"
@@ -345,8 +356,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0'}
 
 
 def make_body(tag):

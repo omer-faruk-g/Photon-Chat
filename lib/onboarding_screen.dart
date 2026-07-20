@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'fip.dart';
+import 'i18n.dart';
 import 'local_store.dart';
 import 'theme.dart';
 
@@ -45,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Kimlik oluşturulamadı: $e'), backgroundColor: PhotonColors.danger),
+          SnackBar(content: Text('${AppLang.instance.t('identityCreateFailed')}: $e'), backgroundColor: PhotonColors.danger),
         );
       }
     } finally {
@@ -100,7 +101,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'FIP tabanlı kimlik · sunucusuz rehber · numarasız',
+                      AppLang.instance.t('photonChatTagline'),
                       style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 0.5),
                     ),
                   ],
@@ -108,19 +109,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: 24),
               FipCard(
-                title: 'FIP — ÖNİZLEME',
+                title: AppLang.instance.t('fipPreview'),
                 fip: preview,
                 onRegen: _regen,
               ),
               const SizedBox(height: 24),
-              Text('Görünen ad (sadece arkadaşların görür)',
+              Text(AppLang.instance.t('displayNameFriendsOnly'),
                   style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1)),
               const SizedBox(height: 8),
               TextField(
                 controller: _nameCtrl,
                 maxLength: 20,
                 style: TextStyle(color: PhotonColors.text, fontSize: 15),
-                decoration: photonInputDecoration('örn. Photon'),
+                decoration: photonInputDecoration(AppLang.instance.t('displayNameExample')),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),
@@ -129,12 +130,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPressed: (_nameCtrl.text.trim().isEmpty || _created != null || _creating) ? null : _create,
                 child: _creating
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)))
-                    : const Text('Kimliği bu cihazda oluştur'),
+                    : Text(AppLang.instance.t('createIdentityOnDevice')),
               ),
               const SizedBox(height: 12),
               Text(
-                'Bu işlem internet hesabı, telefon numarası ya da e-posta gerektirmez. '
-                'FIP bloğun ve eşleşme kodun bu cihazda saklanır.',
+                AppLang.instance.t('onboardingPrivacyNote'),
                 style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
               ),
               if (_created != null) ...[
@@ -148,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('SENİN KODUN', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                    Text(AppLang.instance.t('yourCode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
                     const SizedBox(height: 8),
                     Text(
                       _created!.code,
@@ -156,7 +156,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Bu kodu arkadaşlarınla paylaş',
+                      AppLang.instance.t('shareCodeWithFriends'),
                       style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
                     ),
                     const SizedBox(height: 10),
@@ -170,7 +170,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.copy, size: 15),
-                        label: const Text('Kodu Kopyala', style: TextStyle(fontSize: 13)),
+                        label: Text(AppLang.instance.t('copyCode'), style: const TextStyle(fontSize: 13)),
                         onPressed: () => Clipboard.setData(ClipboardData(text: _created!.code)),
                       ),
                     ),
@@ -180,7 +180,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: ElevatedButton(
                         style: photonPrimaryButtonStyle(),
                         onPressed: _finish,
-                        child: const Text('Devam →'),
+                        child: Text(AppLang.instance.t('continueArrow')),
                       ),
                     ),
                   ]),
@@ -222,7 +222,7 @@ class FipCard extends StatelessWidget {
               if (onRegen != null)
                 GestureDetector(
                   onTap: onRegen,
-                  child: Text('yeniden üret',
+                  child: Text(AppLang.instance.t('regenerateShort'),
                       style: TextStyle(
                           color: PhotonColors.accent2,
                           fontSize: 11,
@@ -275,7 +275,7 @@ class FipCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('EŞLEŞME KODU',
+              Text(AppLang.instance.t('matchCodeUpper'),
                   style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
               Text(
                 fip.code,
