@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'e2e.dart';
 
 const String bridgeUrl = 'https://photon-chat.onrender.com';
 
@@ -39,10 +40,14 @@ class PhotonApi {
 
   // --- Presence ---
 
-  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name, {String statusMsg = '', String avatar = '', String bio = ''}) async {
+  static Future<void> registerPresence(String myServerUrl, String fipId, String code, String name, {String statusMsg = '', String avatar = '', String bio = '', String? publicKey}) async {
     try {
+      String? pk = publicKey;
+      if (pk == null) {
+        try { pk = await getMyPublicKeyBase64(); } catch (_) {}
+      }
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar, 'bio': bio}));
+          body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar, 'bio': bio, if (pk != null) 'publicKey': pk}));
       await registerOnBridge(code, myServerUrl);
     } catch (_) {}
   }
@@ -181,6 +186,10 @@ class PhotonApi {
     } catch (_) {}
   }
 
+  static Future<void> deleteNotif(String serverUrl, String fipId, int ts) async {
+    try { await http.delete(_u(serverUrl, '/notifs/$fipId/$ts')); } catch (_) {}
+  }
+
   static Future<List<Map<String, dynamic>>> getNotifications(String serverUrl, String fipId) async {
     try {
       final r = await http.get(_u(serverUrl, '/notifs/$fipId'));
@@ -203,9 +212,9 @@ class PhotonApi {
 
   // --- Typing indicator ---
 
-  static Future<void> sendTyping(String myServerUrl, String chatKey, String fipId) async {
+  static Future<void> sendTyping(String receiverServerUrl, String chatKey, String fipId) async {
     try {
-      await http.post(_u(myServerUrl, '/typing/$chatKey'),
+      await http.post(_u(receiverServerUrl, '/typing/$chatKey'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'fipId': fipId, 'ts': DateTime.now().millisecondsSinceEpoch}));
     } catch (_) {}

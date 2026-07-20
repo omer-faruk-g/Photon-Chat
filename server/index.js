@@ -1,6 +1,22 @@
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const app = express();
-app.use(express.json({ limit: '60mb' })); // v6.0.0+ needs 50MB file share (base64 inflates ~33%)
+app.set('trust proxy', 1);
+app.use(helmet());
+app.use(cors());
+app.use(compression());
+app.use(rateLimit({ windowMs: 60_000, max: 300 }));
+app.use(express.json({ limit: '256kb' }));
+// Larger body limit for endpoints that carry base64 media (avatars, images, files, stories, group keys).
+const bigBody = express.json({ limit: '60mb' });
+
+// Stricter limit for AI endpoint: 20 requests/hour per IP.
+const aiLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20 });
 
 // --- In-memory store ---
 const users = new Map();
@@ -19,6 +35,90 @@ const deviceLinkRequests = new Map(); // ownerFipId -> [{requesterFipId, request
 const deviceLinkStatus = new Map(); // requesterFipId -> {status, code, ...}
 const deviceActivities = new Map(); // ownerFipId -> [{deviceId, action, detail, ts}]
 const deviceBans = new Map(); // ownerFipId -> Set<bannedFipId>
+const codeToFipId = new Map(); // code -> fipId (O(1) lookup)
+const groupCodeIndex = new Map(); // groupCode -> groupId (O(1) lookup)
+const deviceIdToRequester = new Map(); // deviceId -> requesterFipId (populated on successful verify)
+
+// --- Auth helpers ---
+function requireOwner(req, res, group) {
+  if (req.body.actor !== group.ownerFipId) { res.sendStatus(403); return false; }
+  return true;
+}
+function requireMessageAuthor(req, res, msg) {
+  if (req.body.actor !== msg.from) { res.sendStatus(403); return false; }
+  return true;
+}
+
+// --- Persistence ---
+const SNAPSHOT_FILE = process.env.SNAPSHOT_FILE || '/tmp/photon-snapshot.json';
+
+function mapToObj(m) {
+  const o = {};
+  for (const [k, v] of m) o[k] = v instanceof Set ? [...v] : v;
+  return o;
+}
+function objToMap(o, asSet = false) {
+  const m = new Map();
+  for (const k of Object.keys(o || {})) m.set(k, asSet ? new Set(o[k]) : o[k]);
+  return m;
+}
+
+function loadSnapshot() {
+  try {
+    if (!fs.existsSync(SNAPSHOT_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, 'utf8'));
+    for (const [k, v] of Object.entries(raw.users || {})) { users.set(k, v); if (v && v.code) codeToFipId.set(v.code, k); }
+    for (const [k, v] of Object.entries(raw.requests || {})) requests.set(k, v);
+    for (const [k, v] of Object.entries(raw.accepted || {})) accepted.set(k, new Set(v));
+    for (const [k, v] of Object.entries(raw.chats || {})) chats.set(k, v);
+    for (const [k, v] of Object.entries(raw.groups || {})) { groups.set(k, v); if (v && v.groupCode) groupCodeIndex.set(v.groupCode, k); }
+    for (const [k, v] of Object.entries(raw.registry || {})) registry.set(k, v);
+    for (const [k, v] of Object.entries(raw.chatReads || {})) chatReads.set(k, v);
+    for (const [k, v] of Object.entries(raw.chatReactions || {})) chatReactions.set(k, v);
+    for (const [k, v] of Object.entries(raw.userNotifs || {})) userNotifs.set(k, v);
+    for (const [k, v] of Object.entries(raw.groupAnnouncements || {})) groupAnnouncements.set(k, v);
+    for (const [k, v] of Object.entries(raw.stories || {})) stories.set(k, v);
+    for (const [k, v] of Object.entries(raw.deviceLinkRequests || {})) deviceLinkRequests.set(k, v);
+    for (const [k, v] of Object.entries(raw.deviceLinkStatus || {})) deviceLinkStatus.set(k, v);
+    for (const [k, v] of Object.entries(raw.deviceActivities || {})) deviceActivities.set(k, v);
+    for (const [k, v] of Object.entries(raw.deviceBans || {})) deviceBans.set(k, new Set(v));
+    for (const [k, v] of Object.entries(raw.deviceIdToRequester || {})) deviceIdToRequester.set(k, v);
+    console.log(`Snapshot loaded from ${SNAPSHOT_FILE}`);
+  } catch (e) {
+    console.error('Snapshot load failed:', e.message);
+  }
+}
+
+function saveSnapshot() {
+  try {
+    const data = {
+      users: mapToObj(users),
+      requests: mapToObj(requests),
+      accepted: mapToObj(accepted),
+      chats: mapToObj(chats),
+      groups: mapToObj(groups),
+      registry: mapToObj(registry),
+      chatReads: mapToObj(chatReads),
+      chatReactions: mapToObj(chatReactions),
+      userNotifs: mapToObj(userNotifs),
+      groupAnnouncements: mapToObj(groupAnnouncements),
+      stories: mapToObj(stories),
+      deviceLinkRequests: mapToObj(deviceLinkRequests),
+      deviceLinkStatus: mapToObj(deviceLinkStatus),
+      deviceActivities: mapToObj(deviceActivities),
+      deviceBans: mapToObj(deviceBans),
+      deviceIdToRequester: mapToObj(deviceIdToRequester),
+    };
+    const tmp = SNAPSHOT_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data));
+    fs.renameSync(tmp, SNAPSHOT_FILE);
+  } catch (e) {
+    console.error('Snapshot save failed:', e.message);
+  }
+}
+
+loadSnapshot();
+setInterval(saveSnapshot, 30_000);
 
 function rand(n) {
   return Math.floor(Math.random() * Math.pow(10, n)).toString().padStart(n, '0');
@@ -29,16 +129,25 @@ function msgId() {
 }
 
 // --- Presence ---
-app.post('/presence', (req, res) => {
+app.post('/presence', bigBody, (req, res) => {
   const { fipId, code, name, publicKey, serverUrl, statusMsg, avatar, bio } = req.body;
   if (!fipId) return res.sendStatus(400);
+  if (avatar && typeof avatar === 'string' && avatar.length > 300_000) {
+    return res.status(413).json({ error: 'avatar too large' });
+  }
+  // Maintain reverse index
+  const prev = users.get(fipId);
+  if (prev && prev.code && prev.code !== code) codeToFipId.delete(prev.code);
   users.set(fipId, { code, name, publicKey, serverUrl, statusMsg: statusMsg || '', avatar: avatar || '', bio: bio || '', lastSeen: Date.now() });
+  if (code) codeToFipId.set(code, fipId);
   res.sendStatus(200);
 });
 
 app.get('/lookup/:code', (req, res) => {
-  for (const [fipId, u] of users) {
-    if (u.code === req.params.code) return res.json({ fipId, ...u });
+  const fipId = codeToFipId.get(req.params.code);
+  if (fipId) {
+    const u = users.get(fipId);
+    if (u) return res.json({ fipId, ...u });
   }
   res.sendStatus(404);
 });
@@ -46,17 +155,17 @@ app.get('/lookup/:code', (req, res) => {
 app.get('/profile/:fipId', (req, res) => {
   const u = users.get(req.params.fipId);
   if (!u) return res.sendStatus(404);
-  res.json({ fipId: req.params.fipId, name: u.name, code: u.code, statusMsg: u.statusMsg || '', avatar: u.avatar || '', bio: u.bio || '', lastSeen: u.lastSeen || 0 });
+  res.json({ fipId: req.params.fipId, name: u.name, code: u.code, publicKey: u.publicKey || '', statusMsg: u.statusMsg || '', avatar: u.avatar || '', bio: u.bio || '', lastSeen: u.lastSeen || 0 });
 });
 
 // --- Friend requests ---
-app.post('/requests/:toFipId', (req, res) => {
+app.post('/requests/:toFipId', bigBody, (req, res) => {
   const { toFipId } = req.params;
-  const { fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey } = req.body;
+  const { fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey, bio } = req.body;
   if (!requests.has(toFipId)) requests.set(toFipId, []);
   const list = requests.get(toFipId);
   if (!list.find(r => r.fromFipId === fromFipId)) {
-    list.push({ fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey, ts: Date.now() });
+    list.push({ fromFipId, fromCode, fromName, fromServerUrl, fromPublicKey, bio: bio || '', ts: Date.now() });
   }
   res.sendStatus(200);
 });
@@ -89,8 +198,11 @@ app.get('/chat/:chatKey', (req, res) => {
   res.json(chats.get(req.params.chatKey) || []);
 });
 
-app.post('/chat/:chatKey', (req, res) => {
+app.post('/chat/:chatKey', bigBody, (req, res) => {
   const key = req.params.chatKey;
+  if (typeof req.body.text === 'string' && req.body.text.length > 8000) {
+    return res.status(413).json({ error: 'text too long' });
+  }
   if (!chats.has(key)) chats.set(key, []);
   const msgs = chats.get(key);
   const id = msgId();
@@ -110,11 +222,12 @@ app.delete('/chat/:chatKey', (req, res) => {
   res.sendStatus(200);
 });
 
-app.delete('/chat/:chatKey/msg/:msgId', (req, res) => {
+app.delete('/chat/:chatKey/msg/:msgId', express.json(), (req, res) => {
   const msgs = chats.get(req.params.chatKey);
   if (!msgs) return res.sendStatus(404);
   const idx = msgs.findIndex(m => m.msgId === req.params.msgId);
   if (idx === -1) return res.sendStatus(404);
+  if (!requireMessageAuthor(req, res, msgs[idx])) return;
   msgs[idx] = { ...msgs[idx], text: '', deleted: true };
   res.sendStatus(200);
 });
@@ -124,6 +237,7 @@ app.put('/chat/:chatKey/msg/:msgId', (req, res) => {
   if (!msgs) return res.sendStatus(404);
   const idx = msgs.findIndex(m => m.msgId === req.params.msgId);
   if (idx === -1) return res.sendStatus(404);
+  if (!requireMessageAuthor(req, res, msgs[idx])) return;
   msgs[idx] = { ...msgs[idx], text: req.body.text, edited: true };
   res.sendStatus(200);
 });
@@ -189,12 +303,14 @@ app.get('/typing/:chatKey', (req, res) => {
 // --- Deactivate ---
 app.post('/deactivate', (req, res) => {
   const { fipId } = req.body;
+  const prev = users.get(fipId);
+  if (prev && prev.code) codeToFipId.delete(prev.code);
   users.delete(fipId);
   requests.delete(fipId);
   accepted.delete(fipId);
   // Collect keys first — never mutate a Map while iterating it.
-  [...chats.keys()].filter(k => k.includes(fipId)).forEach(k => chats.delete(k));
-  [...typingMap.keys()].filter(k => k.includes(fipId)).forEach(k => typingMap.delete(k));
+  [...chats.keys()].filter(k => k.split('_').includes(fipId)).forEach(k => chats.delete(k));
+  [...typingMap.keys()].filter(k => k.split('_').includes(fipId)).forEach(k => typingMap.delete(k));
   for (const [, g] of groups) {
     g.members = g.members.filter(m => m.fipId !== fipId);
     g.joinRequests = g.joinRequests.filter(r => r.fromFipId !== fipId);
@@ -229,13 +345,15 @@ app.post('/groups', (req, res) => {
     muted: [],
     groupKeys: {},
   });
+  groupCodeIndex.set(groupCode, groupId);
   res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl });
 });
 
 app.get('/groups/by-code/:code', (req, res) => {
-  for (const [, g] of groups) {
-    if (g.groupCode === req.params.code)
-      return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl });
+  const groupId = groupCodeIndex.get(req.params.code);
+  if (groupId) {
+    const g = groups.get(groupId);
+    if (g) return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl });
   }
   res.sendStatus(404);
 });
@@ -277,9 +395,12 @@ app.post('/groups/:groupId/members', (req, res) => {
   res.sendStatus(200);
 });
 
-app.delete('/groups/:groupId/members/:fipId', (req, res) => {
+app.delete('/groups/:groupId/members/:fipId', express.json(), (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
+  // Allow either the owner (kick) or the member themselves (leave).
+  const actor = req.body && req.body.actor;
+  if (actor !== g.ownerFipId && actor !== req.params.fipId) return res.sendStatus(403);
   g.members = g.members.filter(m => m.fipId !== req.params.fipId);
   g.muted = (g.muted || []).filter(id => id !== req.params.fipId);
   res.sendStatus(200);
@@ -288,6 +409,7 @@ app.delete('/groups/:groupId/members/:fipId', (req, res) => {
 app.post('/groups/:groupId/muted', (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
+  if (!requireOwner(req, res, g)) return;
   const { fipId } = req.body;
   if (!fipId) return res.sendStatus(400);
   if (!g.muted) g.muted = [];
@@ -295,9 +417,10 @@ app.post('/groups/:groupId/muted', (req, res) => {
   res.sendStatus(200);
 });
 
-app.delete('/groups/:groupId/muted/:fipId', (req, res) => {
+app.delete('/groups/:groupId/muted/:fipId', express.json(), (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
+  if (!requireOwner(req, res, g)) return;
   if (!g.muted) g.muted = [];
   g.muted = g.muted.filter(id => id !== req.params.fipId);
   res.sendStatus(200);
@@ -309,7 +432,7 @@ app.get('/groups/:groupId/muted', (req, res) => {
   res.json(g.muted || []);
 });
 
-app.post('/groups/:groupId/messages', (req, res) => {
+app.post('/groups/:groupId/messages', bigBody, (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
   const { from, fromName, text, ts, type, question, options, votes } = req.body;
@@ -360,7 +483,7 @@ app.get('/groups/:groupId/announcements', (req, res) => {
   res.json(groupAnnouncements.get(req.params.groupId) || []);
 });
 
-app.post('/groups/:groupId/key/:memberFipId', (req, res) => {
+app.post('/groups/:groupId/key/:memberFipId', bigBody, (req, res) => {
   const g = groups.get(req.params.groupId);
   if (!g) return res.sendStatus(404);
   const { encryptedKey } = req.body;
@@ -378,7 +501,7 @@ app.get('/groups/:groupId/key/:memberFipId', (req, res) => {
 });
 
 // --- Pulse AI ---
-app.post('/ai/chat', async (req, res) => {
+app.post('/ai/chat', aiLimiter, async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(503).json({ error: 'Pulse AI henüz yapılandırılmadı.' });
 
@@ -408,12 +531,23 @@ app.post('/ai/chat', async (req, res) => {
 
 // --- Notifications ---
 app.post('/notifs/:fipId', (req, res) => {
-  const { title, body } = req.body;
+  const { title, body, ts } = req.body;
   if (!title || !body) return res.sendStatus(400);
   if (!userNotifs.has(req.params.fipId)) userNotifs.set(req.params.fipId, []);
   const list = userNotifs.get(req.params.fipId);
-  list.push({ title, body, ts: Date.now() });
+  const notifTs = ts || Date.now();
+  // Dedupe by (fipId, ts): reject if a notif with the same ts already exists.
+  if (list.some(n => n.ts === notifTs)) return res.status(409).json({ error: 'duplicate' });
+  list.push({ title, body, ts: notifTs });
   if (list.length > 50) list.splice(0, list.length - 50);
+  res.sendStatus(200);
+});
+
+app.delete('/notifs/:fipId/:ts', (req, res) => {
+  const list = userNotifs.get(req.params.fipId);
+  if (!list) return res.sendStatus(404);
+  const ts = Number(req.params.ts);
+  userNotifs.set(req.params.fipId, list.filter(n => n.ts !== ts));
   res.sendStatus(200);
 });
 
@@ -429,7 +563,7 @@ app.get('/notifs/:fipId', (req, res) => {
 });
 
 // --- Stories (v6.0.0) ---
-app.post('/stories/:fipId', (req, res) => {
+app.post('/stories/:fipId', bigBody, (req, res) => {
   const list = stories.get(req.params.fipId) || [];
   const item = { ...req.body, id: req.body.id || msgId() };
   // Remove expired before adding
@@ -497,6 +631,9 @@ app.post('/device-link/:ownerFipId/verify', (req, res) => {
   const ok = list[idx].code === code;
   if (ok) {
     deviceLinkStatus.set(requesterFipId, { status: 'linked' });
+    // Track deviceId -> requesterFipId so kick can target the right entry.
+    const linkedDeviceId = req.body.deviceId || `${req.params.ownerFipId}_${requesterFipId}`;
+    deviceIdToRequester.set(linkedDeviceId, requesterFipId);
     list.splice(idx, 1); // clean up pending
   } else if (attempts >= 3) {
     deviceLinkStatus.set(requesterFipId, { status: 'fake' });
@@ -513,10 +650,10 @@ app.post('/device-link/:ownerFipId/verify', (req, res) => {
 app.delete('/device-link/:ownerFipId/:deviceId', (req, res) => {
   // Kick a linked device (removes activity log + revokes link status; ban prevents re-link)
   deviceActivities.delete(`${req.params.ownerFipId}_${req.params.deviceId}`);
-  // deviceId format is `${ownerFipId}_${requesterFipId}_${ts}` for FAKE, but linked devices may store deviceId differently.
-  // Best-effort: clear any status entry that shares the requester FIP hint from the id.
-  for (const [reqFipId] of deviceLinkStatus) {
-    if (req.params.deviceId.includes(reqFipId)) deviceLinkStatus.set(reqFipId, { status: 'kicked' });
+  const requesterFipId = deviceIdToRequester.get(req.params.deviceId);
+  if (requesterFipId) {
+    deviceLinkStatus.set(requesterFipId, { status: 'kicked' });
+    deviceIdToRequester.delete(req.params.deviceId);
   }
   res.sendStatus(200);
 });

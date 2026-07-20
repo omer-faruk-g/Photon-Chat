@@ -184,6 +184,31 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v7.2.0': (
+        "### 🏛️ v7.2.0 — Server Refactor: Auth + Persistence + Performance\n\n"
+        "**Persistence eklendi (BÜYÜK):**\n"
+        "- 💾 Server 30 saniyede bir tüm state'i diske yazıyor\n"
+        "- 🔁 Restart/redeploy sonrası tüm mesaj/grup/hikaye/kimlik geri yükleniyor\n\n"
+        "**Güvenlik:**\n"
+        "- 🛡️ Helmet + CORS + compression + rate limit (300 req/dk global)\n"
+        "- 🛡️ AI endpoint stricter limit: 20/saat\n"
+        "- 🛡️ Owner-auth: kick/mute/unmute/mesaj-düzenle/mesaj-sil için `actor` fipId doğrulaması\n"
+        "- 🛡️ Global body limit 60MB → 256KB (büyük payload sadece medya endpoint'lerinde)\n"
+        "- 🛡️ Per-field caps: avatar 300KB, chat text 8KB\n"
+        "- 🛡️ /deactivate substring bug → düzeltildi (parçalara ayırıp eşleştiriyor)\n\n"
+        "**Performans:**\n"
+        "- ⚡ /lookup/:code artık O(1) reverse index ile\n"
+        "- ⚡ /groups/by-code/:code artık O(1) index ile\n"
+        "- ⚡ Compression middleware\n\n"
+        "**Client-server alignment:**\n"
+        "- 🔗 registerPresence artık E2E public key gönderiyor\n"
+        "- 🔗 /profile response'unda public key var\n"
+        "- 🔗 Friend request bio artık saklanıyor\n"
+        "- 🔗 sendTyping receiverServerUrl'e gidiyor (myServerUrl değil)\n"
+        "- 🔗 Notification dedupe (aynı ts reddediliyor)\n"
+        "- 🔗 DELETE /notifs/:fipId/:ts endpoint eklendi\n\n"
+        "⚠️ Server'ı Render'da mutlaka yeniden deploy et — npm install yapacak (helmet, cors, compression, express-rate-limit)."
+    ),
     'v7.1.0': (
         "### 🎯 v7.1.0 — 7 Ajan Denetim Sonucu 100+ Bug Fix\n\n"
         "**Kritik güvenlik & gizlilik:**\n"
@@ -296,8 +321,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0'}
 
 
 def make_body(tag):
