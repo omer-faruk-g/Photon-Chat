@@ -530,8 +530,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final msgId = _editingMsgId!;
       setState(() { _editingMsgId = null; _draftCtrl.clear(); _inputError = null; _replyToMsg = null; });
       try {
-        await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted);
-        await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted);
+        await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
+        await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Düzenleme başarısız: $e')));
       }
@@ -601,9 +601,9 @@ class _ChatScreenState extends State<ChatScreen> {
         Future.delayed(Duration(seconds: _disappearSeconds!), () async {
           if (!mounted) return;
           try {
-            await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId);
+            await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId, actor: widget.identity.fipId);
             if (!mounted) return;
-            await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId);
+            await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId, actor: widget.identity.fipId);
             if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
           } catch (_) { /* ignore disappearing delete failures */ }
         });
@@ -945,8 +945,8 @@ class _ChatScreenState extends State<ChatScreen> {
             onTap: () async {
               Navigator.pop(context);
               try {
-                await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId);
-                await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId);
+                await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
+                await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
               } catch (e) {
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Silme başarısız: $e')));
               }

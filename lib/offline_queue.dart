@@ -61,7 +61,7 @@ class QueuedMessage {
         receiverServerUrl: j['receiverServerUrl'] as String,
         from: j['from'] as String,
         text: j['text'] as String,
-        ts: j['ts'] as int,
+        ts: (j['ts'] as num?)?.toInt() ?? 0,
         replyToMsgId: j['replyToMsgId'] as String?,
         replyToFrom: j['replyToFrom'] as String?,
         replyToText: j['replyToText'] as String?,

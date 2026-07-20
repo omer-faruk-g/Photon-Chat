@@ -50,7 +50,8 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                     ])),
                     GestureDetector(
                       onTap: () async {
-                        await LocalStore.unstarMessage(m['msgId'] as String);
+                        final id = m['msgId'] as String?;
+                        if (id != null) await LocalStore.unstarMessage(id);
                         setState(() => _starred.removeAt(i));
                       },
                       child: Icon(Icons.close, color: PhotonColors.textDim, size: 18),

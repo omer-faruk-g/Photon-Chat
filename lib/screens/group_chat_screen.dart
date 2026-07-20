@@ -407,7 +407,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _rejectMember(Map<String, dynamic> req) async {
     setState(() => _pendingJoins.remove(req));
     try {
-      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, req['fromFipId'] as String);
+      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, (req['fromFipId'] as String?) ?? '');
     } catch (_) {
       if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
       if (mounted) _showToast('Reddedilemedi.');
@@ -417,7 +417,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _muteMember(GroupMember member) async {
     if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
     try {
-      await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       await PhotonApi.sendNotification(member.serverUrl, member.fipId,
           'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
       if (mounted) _showToast('${member.name} susturuldu.');
@@ -430,7 +430,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _unmuteMember(GroupMember member) async {
     if (mounted) setState(() => _mutedMembers.remove(member.fipId));
     try {
-      await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       if (mounted) _showToast('${member.name} susturma kaldırıldı.');
     } catch (_) {
       if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
@@ -442,7 +442,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final backup = List<GroupMember>.of(widget.group.members);
     if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
     try {
-      await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId);
+      await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       await PhotonApi.sendNotification(member.serverUrl, member.fipId,
           'Gruptan çıkarıldınız', '"${widget.group.name}" grubundan çıkarıldınız');
       // Persist member removal to disk.

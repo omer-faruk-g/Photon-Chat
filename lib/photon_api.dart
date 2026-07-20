@@ -76,15 +76,19 @@ class PhotonApi {
     return {};
   }
 
-  static Future<void> deleteMessage(String serverUrl, String chatKey, String msgId) async {
-    try { await http.delete(_u(serverUrl, '/chat/$chatKey/msg/$msgId')); } catch (_) {}
+  static Future<void> deleteMessage(String serverUrl, String chatKey, String msgId, {required String actor}) async {
+    try {
+      await http.delete(_u(serverUrl, '/chat/$chatKey/msg/$msgId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': actor}));
+    } catch (_) {}
   }
 
-  static Future<void> editMessage(String serverUrl, String chatKey, String msgId, String newText) async {
+  static Future<void> editMessage(String serverUrl, String chatKey, String msgId, String newText, {required String actor}) async {
     try {
       await http.put(_u(serverUrl, '/chat/$chatKey/msg/$msgId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'text': newText}));
+          body: jsonEncode({'text': newText, 'actor': actor}));
     } catch (_) {}
   }
 
@@ -310,22 +314,30 @@ class PhotonApi {
     return [];
   }
 
-  static Future<void> leaveGroup(String ownerServerUrl, String groupId, String fipId) async {
-    try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId')); } catch (_) {}
+  static Future<void> leaveGroup(String ownerServerUrl, String groupId, String fipId, {required String actor}) async {
+    try {
+      await http.delete(_u(ownerServerUrl, '/groups/$groupId/members/$fipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': actor}));
+    } catch (_) {}
   }
 
   // --- Group mute ---
 
-  static Future<void> muteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+  static Future<void> muteGroupMember(String ownerServerUrl, String groupId, String fipId, {required String actor}) async {
     try {
       await http.post(_u(ownerServerUrl, '/groups/$groupId/muted'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId}));
+          body: jsonEncode({'fipId': fipId, 'actor': actor}));
     } catch (_) {}
   }
 
-  static Future<void> unmuteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
-    try { await http.delete(_u(ownerServerUrl, '/groups/$groupId/muted/$fipId')); } catch (_) {}
+  static Future<void> unmuteGroupMember(String ownerServerUrl, String groupId, String fipId, {required String actor}) async {
+    try {
+      await http.delete(_u(ownerServerUrl, '/groups/$groupId/muted/$fipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': actor}));
+    } catch (_) {}
   }
 
   static Future<List<String>> getMutedMembers(String ownerServerUrl, String groupId) async {
