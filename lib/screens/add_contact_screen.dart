@@ -148,7 +148,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ARKADAŞİNİN 5 HANELİ KODU',
+                'ARKADAŞININ 5 HANELİ KODU',
                 style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),

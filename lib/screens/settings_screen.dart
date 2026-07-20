@@ -243,7 +243,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(color: PhotonColors.line, height: 1),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('CIHAZ SESLERI', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
+            child: Text('CİHAZ SESLERİ', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
           Expanded(
             child: ListView.builder(
               controller: scrollCtrl,
@@ -715,7 +715,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.wallpaper, color: PhotonColors.textDim, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Sohbet Duvar Kagidi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Sohbet Duvar Kâğıdı', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text(
                     ChatWallpaper.type == 'none' ? 'Varsayilan' : ChatWallpaper.type == 'color' ? 'Renk' : 'Resim',
                     style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
@@ -739,7 +739,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.star, color: Colors.amber, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Yildizli Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text('Yıldızlı Mesajlar', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text('Yildizladigin mesajlari gor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),

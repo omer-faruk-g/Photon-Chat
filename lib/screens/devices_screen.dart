@@ -277,12 +277,12 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
                 onPressed: () => _approveRequest(req),
               )),
               const SizedBox(width: 8),
-              ElevatedButton.icon(
+              Expanded(child: ElevatedButton.icon(
                 style: photonDangerButtonStyle(),
                 icon: const Icon(Icons.close, size: 16),
                 label: const Text('Reddet (FAKE)'),
                 onPressed: () => _rejectRequest(req),
-              ),
+              )),
             ]),
           ]),
         );

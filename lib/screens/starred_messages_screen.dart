@@ -26,11 +26,11 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yildizli Mesajlar')),
+      appBar: AppBar(title: const Text('Yıldızlı Mesajlar')),
       body: _loading
           ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
           : _starred.isEmpty
-          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Yildizli mesajin yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
+          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('Yıldızlı mesajın yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _starred.length,

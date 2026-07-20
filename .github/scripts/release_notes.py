@@ -184,6 +184,16 @@ CHANGELOGS = {
         "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
         "- 👤 Kişi bio'su artık profilden çekiliyor"
     ),
+    'v6.5.0': (
+        "### 🛠️ v6.5.0 — Kararlılık + UI\n\n"
+        "- 🔴 Chat/group poll loop crash → tüm mesaj güncellemesi duruyordu; try/catch + safe int cast\n"
+        "- 🔴 Cihaz istekleri kartında \"Reddet (FAKE)\" butonu dar telefonda taşıyordu — Expanded\n"
+        "- 🟠 Uygulama kilidi PIN göstergesi hep 6 nokta gösteriyordu — gerçek PIN uzunluğuna göre\n"
+        "- 🟠 Kontaklar ana ekranda 5 haneli kodun sağ tarafı kesiliyordu — leadingWidth 88\n"
+        "- 🟠 Ana ekranda alt bar (Kişi Ekle / Grup) telefon jest çubuğu altına giriyordu — SafeArea inset\n"
+        "- 🟠 Hikaye görüntüleyicide başlık progress bar üzerine biniyordu — düzeltildi\n"
+        "- 🎨 Türkçe diakritik düzeltmeleri: \"Yıldızlı Mesajlar\", \"Görsel Hikaye\", \"Sohbet Duvar Kâğıdı\", \"CİHAZ SESLERİ\", \"ARKADAŞININ 5 HANELİ KODU\""
+    ),
     'v6.4.0': (
         "### 🛡️ v6.4.0 — 5 Ajan Paralel Denetim (25+ Bug Fix)\n\n"
         "**Grup sohbeti:**\n"
@@ -230,8 +240,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0'}
 
 
 def make_body(tag):

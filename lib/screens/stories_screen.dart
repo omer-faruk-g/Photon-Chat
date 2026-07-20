@@ -58,7 +58,7 @@ class _StoriesRowState extends State<StoriesRow> {
         ),
         ListTile(
           leading: Icon(Icons.image, color: PhotonColors.accent),
-          title: Text('Gorsel Hikaye', style: TextStyle(color: PhotonColors.text)),
+          title: Text('Görsel Hikaye', style: TextStyle(color: PhotonColors.text)),
           onTap: () { Navigator.pop(context); _addImageStory(); },
         ),
       ])),
@@ -250,7 +250,7 @@ class _StoryViewerScreenState extends State<_StoryViewerScreen> {
             )),
           )),
           // Header
-          Positioned(top: 20, left: 16, right: 16, child: Row(children: [
+          Positioned(top: 28, left: 16, right: 16, child: Row(children: [
             Text(widget.authorName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(width: 8),
             Text(_formatAgo(story.ts), style: const TextStyle(color: Colors.white60, fontSize: 11)),

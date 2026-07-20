@@ -270,6 +270,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          leadingWidth: 88,
           leading: Tooltip(
             message: 'Kodunu kopyala',
             child: GestureDetector(
@@ -350,7 +351,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
             // Alt bar: iki düğme
             Positioned(
-              left: 16, right: 16, bottom: 20,
+              left: 16, right: 16, bottom: 20 + MediaQuery.of(context).padding.bottom,
               child: Row(
                 children: [
                   Expanded(

@@ -104,7 +104,7 @@ class _LockScreenState extends State<LockScreen> {
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(6, (i) => Container(
+          children: List.generate(_pinLen, (i) => Container(
             margin: const EdgeInsets.symmetric(horizontal: 6),
             width: 14,
             height: 14,

@@ -385,6 +385,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _poll() async {
     while (_alive) {
+      try {
       await OfflineQueue.instance.flush();
       if (mounted) setState(() {});
       final raw = await PhotonApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
@@ -401,14 +402,14 @@ class _ChatScreenState extends State<ChatScreen> {
         final msgReactions = reactions[msgIdVal] as Map<String, dynamic>? ?? {};
         final parsedReactions = msgReactions.map((k, v) => MapEntry(k, List<String>.from(v as List)));
         final replyTo = m['replyTo'] as Map<String, dynamic>?;
-        final ts = m['ts'] as int;
+        final ts = (m['ts'] as num?)?.toInt() ?? 0;
         // Skip disappeared messages
         if (!deleted && _disappearSeconds != null && ts + (_disappearSeconds! * 1000) < DateTime.now().millisecondsSinceEpoch) {
           continue;
         }
         msgs.add(_DisplayMessage(
           msgId: msgIdVal,
-          from: m['from'] as String,
+          from: (m['from'] as String?) ?? '',
           text: text,
           ts: ts,
           delivered: true,
@@ -420,7 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
           isNsfw: m['nsfw'] == true,
           fileData: m['fileData'] as String?,
           fileName: m['fileName'] as String?,
-          fileSize: m['fileSize'] as int?,
+          fileSize: (m['fileSize'] as num?)?.toInt(),
         ));
       }
       if (_alive && mounted) {
@@ -445,6 +446,9 @@ class _ChatScreenState extends State<ChatScreen> {
         if (hadNew) _scrollToBottom();
       }
       await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      } catch (_) {
+        // Swallow errors so poll loop keeps running; next tick tries again.
+      }
       await Future.delayed(const Duration(seconds: 2));
     }
   }

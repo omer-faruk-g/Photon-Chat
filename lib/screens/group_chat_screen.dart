@@ -258,6 +258,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _pollMessages() {
     Future<void> fetchOnce() async {
+      try {
       await OfflineQueue.instance.flush();
       final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
       // Merge: keep our locally optimistic messages that server hasn't returned yet.
@@ -282,8 +283,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final serverKeys = serverByKey.keys.toSet();
       final localOnly = _messages.where((m) => !serverKeys.contains(keyOf(m))).toList();
       final merged = [...msgs, ...localOnly];
-      merged.sort((a, b) => (a['ts'] as int).compareTo(b['ts'] as int));
+      merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
       if (mounted) setState(() => _messages = merged);
+      } catch (_) {}
     }
     fetchOnce();
     _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) => fetchOnce());
