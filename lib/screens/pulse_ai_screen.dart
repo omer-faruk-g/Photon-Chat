@@ -38,7 +38,13 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
     setState(() => _messages.add({'role': 'user', 'content': text}));
     _scrollToBottom();
 
-    final reply = await PhotonApi.chatWithPulseAI(widget.myServerUrl, List.from(_messages));
+    String reply;
+    try {
+      reply = await PhotonApi.chatWithPulseAI(widget.myServerUrl, List.from(_messages));
+    } catch (e) {
+      reply = '${AppLang.instance.t('error')}: $e';
+    }
+    if (!mounted) return;
 
     setState(() {
       _messages.add({'role': 'assistant', 'content': reply});

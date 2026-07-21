@@ -97,6 +97,7 @@ class _LockGateState extends State<_LockGate> with WidgetsBindingObserver {
 
   Future<void> _checkLock() async {
     final enabled = await AppLock.isEnabled();
+    if (!mounted) return;
     setState(() { _locked = enabled; _checking = false; });
   }
 

@@ -93,7 +93,7 @@ class _StoriesRowState extends State<StoriesRow> {
           ),
         ],
       ),
-    );
+    ).then((_) => ctrl.dispose());
   }
 
   Future<void> _addImageStory() async {

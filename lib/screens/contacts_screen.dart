@@ -225,7 +225,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ],
       )),
-    );
+    ).then((_) => ctrl.dispose());
   }
 
   void _openSettings() async {
@@ -267,9 +267,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final outgoing = _contacts.where((c) => c.status == 'pending_out').toList();
     final active = _contacts.where((c) => c.status == 'on').toList();
 
-    return PopScope(
+    return PopScope<Object?>(
       canPop: false,
-      onPopInvoked: (didPop) async { if (!didPop) await _handleExit(active); },
+      onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),

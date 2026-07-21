@@ -44,6 +44,7 @@ class _LockScreenState extends State<LockScreen> {
     if (_isLockedOut) return;
     final value = _type == 'pin' ? _input : _pattern.join('-');
     final ok = await AppLock.verify(value);
+    if (!mounted) return;
     if (ok) {
       _wrongTries = 0;
       widget.onUnlocked();
@@ -403,8 +404,9 @@ class _SetLockScreenState extends State<SetLockScreen> {
     } else {
       if (_pin == _confirmPin) {
         AppLock.enable('pin', _pin).then((_) {
+          if (!mounted) return;
           widget.onDone();
-          if (mounted) Navigator.pop(context);
+          Navigator.pop(context);
         });
       } else {
         setState(() { _error = AppLang.instance.t('pinsDontMatch'); _pin = ''; _confirmPin = null; });
@@ -425,8 +427,9 @@ class _SetLockScreenState extends State<SetLockScreen> {
           } else {
             if (p.join('-') == _confirmPattern!.join('-')) {
               AppLock.enable('pattern', p.join('-')).then((_) {
+                if (!mounted) return;
                 widget.onDone();
-                if (mounted) Navigator.pop(context);
+                Navigator.pop(context);
               });
             } else {
               setState(() { _error = AppLang.instance.t('patternsDontMatch'); _confirmPattern = null; _pattern = []; });

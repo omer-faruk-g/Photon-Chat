@@ -195,6 +195,32 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v9.1.0': (
+        "### 🛡️ v9.1.0 — 5-Ajan Kapsamlı Denetim + Fix\n\n"
+        "5 paralel ajan tüm kod tabanını okuyup düzeltti.\n\n"
+        "**İstemci:**\n"
+        "- STT & TTS ekrandan çıkınca duruyor (chat + grup chat memory leak)\n"
+        "- TextEditingController leak'leri düzeltildi (poll, announcement, stories)\n"
+        "- setState-after-dispose crash'leri: 10+ ekranda `mounted` guard eklendi\n"
+        "- createIdentity: setString artık await ediliyor\n"
+        "- JSON map cast crash düzeltildi (starred / stories)\n"
+        "- translate cache: hashCode collision'ı kaldırıldı, LRU 512 cap eklendi\n"
+        "- e2e force-unwrap crash düzeltildi (private key eksikse graceful hata)\n"
+        "- notification channel: hashCode collision → stable SHA1 prefix\n"
+        "- Server setup: klavye açık iken input taşıyordu → SingleChildScrollView\n\n"
+        "**Sunucu:**\n"
+        "- Auth: 18+ endpoint'te `actor` doğrulaması (spoofing engellendi)\n"
+        "- Middleware: legacy client uyumluluğu için `actor` fallback (from/fipId/vs.)\n"
+        "- Poll güvenliği: client-supplied `votes` reddediliyor, optionIndex sınırları\n"
+        "- Grup üyelik kontrolü: mesaj/oy için `isMember` doğrulaması\n"
+        "- Memory leak'ler: TTL/janitor + LRU cap'ler (typing, stories, notifs, dedupe)\n"
+        "- O(n) → indexed: reactions artık chatKey ile indekslenmiş\n"
+        "- Per-endpoint body limit'leri: `smallBody`/`medBody`/`bigBody`\n"
+        "- Input hardening: field whitelist, uzunluk cap'leri\n"
+        "- `msgId` group message response'unda döndürülüyor\n"
+        "- Notification spam dedupe iyileştirildi\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy et."
+    ),
     'v9.0.2': (
         "### 🚑 v9.0.2 — Kritik Hotfix (Grup Kodu + Dil Değiştirme)\n\n"
         "**Grup Kodu Sorunu Çözüldü:**\n"
@@ -415,8 +441,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0'}
 
 
 def make_body(tag):

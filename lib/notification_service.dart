@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,7 +42,8 @@ class NotificationService {
 
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'photon_chat_notifs_${soundUri.hashCode}',
+        // Use a collision-free channel id per sound URI (hashCode collides).
+        'photon_chat_notifs_${sha1.convert(utf8.encode(soundUri)).toString().substring(0, 12)}',
         'Photon Chat',
         channelDescription: 'Photon Chat bildirimleri',
         importance: Importance.high,

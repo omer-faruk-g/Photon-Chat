@@ -615,6 +615,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 GestureDetector(
                   onTap: () async {
                     await AppLock.disable();
+                    if (!mounted) return;
                     setState(() => _lockEnabled = false);
                   },
                   child: Padding(
@@ -745,6 +746,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () async {
               await Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperPickerScreen()));
               await ChatWallpaper.loadWallpaper();
+              if (!mounted) return;
               setState(() {});
             },
             child: Container(

@@ -396,6 +396,10 @@ class _ChatScreenState extends State<ChatScreen> {
     _readPollTimer?.cancel();
     _draftCtrl.dispose();
     _scrollCtrl.dispose();
+    // Stop any in-flight STT/TTS to avoid callbacks firing on a disposed State.
+    try { _speech.stop(); } catch (_) {}
+    try { _speech.cancel(); } catch (_) {}
+    try { _flutterTts.stop(); } catch (_) {}
     FontSizeNotifier.instance.removeListener(_onFontChanged);
     super.dispose();
   }

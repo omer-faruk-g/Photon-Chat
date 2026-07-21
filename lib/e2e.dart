@@ -49,7 +49,13 @@ Future<String> getMyPublicKeyBase64() async {
 /// İki tarafın shared secret'ından AES-GCM anahtarı türetir.
 Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64) async {
   final prefs = await SharedPreferences.getInstance();
-  final privBytes = base64.decode(prefs.getString(_kPrivKeyPref)!);
+  var privB64 = prefs.getString(_kPrivKeyPref);
+  if (privB64 == null) {
+    await ensureE2EKeypair();
+    privB64 = prefs.getString(_kPrivKeyPref);
+    if (privB64 == null) throw StateError('E2E private key unavailable');
+  }
+  final privBytes = base64.decode(privB64);
   final theirPubBytes = base64.decode(theirPublicKeyBase64);
 
   final algo = X25519();

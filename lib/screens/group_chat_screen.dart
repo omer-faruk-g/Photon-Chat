@@ -84,6 +84,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _annTimer?.cancel();
     _msgCtrl.dispose();
     _scroll.dispose();
+    try { _speech.stop(); } catch (_) {}
+    try { _speech.cancel(); } catch (_) {}
+    try { _flutterTts.stop(); } catch (_) {}
     FontSizeNotifier.instance.removeListener(_onFontChanged);
     super.dispose();
   }
@@ -733,7 +736,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           child: Text(AppLang.instance.t('sendShort')),
         ),
       ],
-    ));
+    )).then((_) => ctrl.dispose());
   }
 
   void _showPollDialog() {
@@ -823,7 +826,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ],
         );
       }),
-    );
+    ).then((_) {
+      questionCtrl.dispose();
+      for (final c in optCtrls) { try { c.dispose(); } catch (_) {} }
+    });
   }
 
   Widget _buildPollMessage(Map<String, dynamic> m) {

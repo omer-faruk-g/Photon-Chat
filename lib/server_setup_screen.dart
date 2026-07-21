@@ -83,8 +83,13 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     return Scaffold(
       backgroundColor: PhotonColors.bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 28,
+            right: 28,
+            top: 28,
+            bottom: 28 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

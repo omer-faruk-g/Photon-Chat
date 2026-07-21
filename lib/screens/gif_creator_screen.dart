@@ -39,6 +39,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
 
     setState(() { _scanning = true; _error = null; });
     final isNsfw = await NsfwScanner.hasImageViolation(bytes);
+    if (!mounted) return;
     setState(() => _scanning = false);
 
     if (isNsfw) {

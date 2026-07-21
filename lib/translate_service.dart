@@ -4,6 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class TranslateService {
   static final Map<String, String> _cache = {};
+  static const int _maxCacheEntries = 512;
+
+  static void _cachePut(String key, String value) {
+    if (_cache.length >= _maxCacheEntries) {
+      // Drop the oldest entry (Dart maps preserve insertion order).
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[key] = value;
+  }
 
   /// Translate text using Google Translate free endpoint.
   /// Target language comes from SharedPreferences 'knk_lang_v1' (default 'tr').
@@ -11,7 +20,8 @@ class TranslateService {
     final prefs = await SharedPreferences.getInstance();
     final target = targetLang ?? prefs.getString('knk_lang_v1') ?? 'tr';
 
-    final cacheKey = '${text.hashCode}_$target';
+    // Full text in cache key — hashCode collides for distinct strings.
+    final cacheKey = '$target $text';
     if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!;
 
     try {
@@ -24,7 +34,7 @@ class TranslateService {
         final data = jsonDecode(response.body);
         final translated =
             (data[0] as List).map((e) => e[0] as String).join('');
-        _cache[cacheKey] = translated;
+        _cachePut(cacheKey, translated);
         return translated;
       }
       return text;
@@ -37,7 +47,7 @@ class TranslateService {
   /// so callers can rollback the language switch instead of silently
   /// caching the source-language text.
   static Future<String> translateStrict(String text, {required String targetLang}) async {
-    final cacheKey = '${text.hashCode}_$targetLang';
+    final cacheKey = '$targetLang $text';
     if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!;
     final url = Uri.parse(
       'https://translate.googleapis.com/translate_a/single'
@@ -50,7 +60,7 @@ class TranslateService {
     final data = jsonDecode(response.body);
     final translated = (data[0] as List).map((e) => e[0] as String).join('');
     if (translated.trim().isEmpty) throw StateError('empty translation');
-    _cache[cacheKey] = translated;
+    _cachePut(cacheKey, translated);
     return translated;
   }
 }

@@ -101,7 +101,7 @@ class LocalStore {
 
   static Future<FipBlock> createIdentity({FipBlock? existing}) async {
     final fip = existing ?? FipBlock.generate();
-    (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
+    await (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
     return fip;
   }
 
@@ -149,7 +149,7 @@ class LocalStore {
   static Future<List<Map<String, dynamic>>> loadStarredMessages() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kStarredMsgsKey);
     if (raw == null) return [];
-    return List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    return (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   static Future<void> _saveStarredMessages(List<Map<String, dynamic>> msgs) async =>
@@ -177,7 +177,7 @@ class LocalStore {
   static Future<List<Map<String, dynamic>>> loadStories() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kStoriesKey);
     if (raw == null) return [];
-    final list = List<Map<String, dynamic>>.from(jsonDecode(raw) as List);
+    final list = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     final now = DateTime.now().millisecondsSinceEpoch;
     list.removeWhere((s) => ((s['expiresAt'] as num?)?.toInt() ?? 0) < now);
     return list;

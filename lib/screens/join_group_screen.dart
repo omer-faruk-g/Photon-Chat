@@ -97,6 +97,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           if (r != null) { data = r; foundServer = cand; break; }
         } catch (_) {}
       }
+      if (!mounted) return;
       if (data == null || foundServer == null) {
         setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
         return;
@@ -118,7 +119,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       );
       if (mounted) Navigator.pop(context, group);
     } catch (e) {
-      setState(() { _error = '${AppLang.instance.t('error')}: $e'; _loading = false; });
+      if (mounted) setState(() { _error = '${AppLang.instance.t('error')}: $e'; _loading = false; });
     }
   }
 

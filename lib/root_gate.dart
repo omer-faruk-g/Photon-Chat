@@ -74,6 +74,7 @@ class RootGateState extends State<RootGate> {
     final identity = await LocalStore.loadIdentity();
     final name = await LocalStore.loadDisplayName();
     final guideSeen = await LocalStore.isGuideSeen();
+    if (!mounted) return;
     setState(() {
       _myServerUrl = serverUrl;
       _identity = identity;

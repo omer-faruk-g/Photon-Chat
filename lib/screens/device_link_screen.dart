@@ -61,6 +61,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
       requesterFipId: widget.identity.fipId,
       requesterName: widget.displayName,
     );
+    if (!mounted) return;
     setState(() { _loading = false; _requestSent = true; _attempt = 1; });
   }
 
@@ -81,8 +82,10 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
     );
 
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
 
     final status = await PhotonApi.getDeviceLinkStatus(widget.serverUrl, widget.identity.fipId);
+    if (!mounted) return;
     final result = status?['status'] as String? ?? 'pending';
 
     setState(() => _verifying = false);

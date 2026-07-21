@@ -56,9 +56,9 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
     final code = DeviceManager.generateCodeWithLength(codeLength);
     await PhotonApi.respondDeviceLink(widget.myServerUrl, widget.identity.fipId,
         requesterFipId: req.requesterFipId, status: 'code_sent', code: code);
+    if (!mounted) return;
     setState(() => _activeCode = code);
 
-    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
