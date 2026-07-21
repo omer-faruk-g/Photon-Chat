@@ -65,56 +65,100 @@ class AppLang extends ChangeNotifier {
     {'code': 'fil', 'name': 'Filipino', 'flag': '🇵🇭'},
   ];
 
-  Future<void> setLang(String lang) async {
-    _lang = lang;
-    _translated.clear();
+  double _translateProgress = 0.0;
+  double get translateProgress => _translateProgress;
+  String _translateStatus = '';
+  String get translateStatus => _translateStatus;
+
+  /// Returns true on success, false on failure (in which case the previous
+  /// language is preserved so the UI is never stuck on Turkish "translated" text).
+  Future<bool> setLang(String lang) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, lang);
-
+    // Fast path: Turkish base — no network needed.
     if (lang == 'tr') {
+      _lang = lang;
+      _translated.clear();
+      await prefs.setString(_key, lang);
       notifyListeners();
-      return;
+      return true;
     }
-
+    // Cached translation exists — instant switch.
     final cached = prefs.getString('$_cachePrefix$lang');
     if (cached != null) {
       try {
         final map = (jsonDecode(cached) as Map).cast<String, String>();
-        _translated.addAll(map);
+        _lang = lang;
+        _translated
+          ..clear()
+          ..addAll(map);
+        await prefs.setString(_key, lang);
         notifyListeners();
-        return;
+        return true;
       } catch (_) {}
     }
 
+    // No cache — must translate all keys. Show progress screen.
+    final previousLang = _lang;
+    final previousMap = Map<String, String>.from(_translated);
     _translatingUi = true;
+    _translateProgress = 0.0;
+    _translateStatus = _baseTr['translateStarting'] ?? 'Çeviri başlıyor…';
     notifyListeners();
 
-    await _translateAllKeys(lang, prefs);
-
+    final ok = await _translateAllKeysStrict(lang, prefs);
+    if (ok) {
+      _lang = lang;
+      await prefs.setString(_key, lang);
+    } else {
+      // Rollback — never leave the app on an untranslated fake language.
+      _translated
+        ..clear()
+        ..addAll(previousMap);
+      _lang = previousLang;
+    }
     _translatingUi = false;
+    _translateProgress = 0.0;
     notifyListeners();
+    return ok;
   }
 
-  Future<void> _translateAllKeys(String lang, SharedPreferences prefs) async {
+  Future<bool> _translateAllKeysStrict(String lang, SharedPreferences prefs) async {
     final allValues = _baseTr.values.toList();
     final allKeys = _baseTr.keys.toList();
-
-    final batch = allValues.join('\n||||\n');
+    final newMap = <String, String>{};
+    // Try batch first: fast if it works.
     try {
-      final result = await TranslateService.translate(batch, targetLang: lang);
+      final batch = allValues.join('\n||||\n');
+      final result = await TranslateService.translateStrict(batch, targetLang: lang);
       final parts = result.split('\n||||\n');
       if (parts.length == allKeys.length) {
         for (var i = 0; i < allKeys.length; i++) {
-          _translated[allKeys[i]] = parts[i].trim();
+          newMap[allKeys[i]] = parts[i].trim();
         }
-      } else {
-        for (var i = 0; i < allKeys.length; i++) {
-          final tr = await TranslateService.translate(allValues[i], targetLang: lang);
-          _translated[allKeys[i]] = tr;
-        }
+        _translated
+          ..clear()
+          ..addAll(newMap);
+        await prefs.setString('$_cachePrefix$lang', jsonEncode(_translated));
+        return true;
       }
-      await prefs.setString('$_cachePrefix$lang', jsonEncode(_translated));
     } catch (_) {}
+    // Batch failed — fall back to per-key translation with progress.
+    try {
+      for (var i = 0; i < allKeys.length; i++) {
+        final tr = await TranslateService.translateStrict(allValues[i], targetLang: lang);
+        newMap[allKeys[i]] = tr;
+        _translateProgress = (i + 1) / allKeys.length;
+        _translateStatus = 'Çeviriliyor: ${i + 1} / ${allKeys.length}';
+        if (i % 5 == 0) notifyListeners();
+      }
+      _translated
+        ..clear()
+        ..addAll(newMap);
+      await prefs.setString('$_cachePrefix$lang', jsonEncode(_translated));
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> loadLang() async {

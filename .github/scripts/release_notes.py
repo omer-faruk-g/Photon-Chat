@@ -195,6 +195,21 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v9.0.2': (
+        "### 🚑 v9.0.2 — Kritik Hotfix (Grup Kodu + Dil Değiştirme)\n\n"
+        "**Grup Kodu Sorunu Çözüldü:**\n"
+        "- Grubun kodunu girdiğinde artık 4 farklı server dener:\n"
+        "  1. Elle girdiğin server URL (varsa)\n"
+        "  2. Bridge lookup (photon-chat.onrender.com)\n"
+        "  3. Kendi sunucun (fallback)\n"
+        "  4. Photon bridge sunucu (last-resort)\n"
+        "- Böylece bridge cache boşsa veya grup eski sürümde oluşturulmuşsa da bulunur\n\n"
+        "**Dil Değiştirme Gerçekten Çeviriyor:**\n"
+        "- 🐛 v9.0.1 ve öncesi: Google Translate fail olunca ORİJİNAL Türkçe metni cache'e yazıyordu — bu yüzden İngilizce seçince hala Türkçe görüyordun\n"
+        "- ✨ Şimdi: fail olursa cache'e YAZMIYOR, önceki dile geri dönüyor, snackbar gösteriyor\n"
+        "- ✨ Full-screen loading dialog: canlı çeviri ilerlemesi (\"X / Y çeviriliyor\") gösterir\n"
+        "- ✨ Kişi başka bir ekrana atılmıyor ama modal dialog ekranı kaplar ve durum yazısı sürekli güncellenir"
+    ),
     'v9.0.1': (
         "### 🔥 v9.0.1 — Kritik Hotfix\n\n"
         "- 🐛 **Küfür filtresi \"selam\" gibi normal kelimeleri küfür sayıyordu** — word boundary eklendi\n"
@@ -400,8 +415,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2'}
 
 
 def make_body(tag):

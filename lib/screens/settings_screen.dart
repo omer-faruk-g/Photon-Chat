@@ -366,14 +366,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _switchLang(String code) async {
+    if (AppLang.instance.lang == code) return;
+    // Open a modal that listens to AppLang so it shows live progress.
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AnimatedBuilder(
+        animation: AppLang.instance,
+        builder: (_, __) {
+          final progress = AppLang.instance.translateProgress;
+          return Dialog(
+            backgroundColor: PhotonColors.panel,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                CircularProgressIndicator(color: PhotonColors.accent, value: progress > 0 ? progress : null),
+                const SizedBox(height: 16),
+                Text('Dil / Language', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  AppLang.instance.translateStatus.isNotEmpty
+                    ? AppLang.instance.translateStatus
+                    : (progress > 0 ? '${(progress * 100).toInt()}%' : 'Çeviri hazırlanıyor…'),
+                  style: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+    final ok = await AppLang.instance.setLang(code);
+    if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Çeviri başarısız — internet bağlantısını kontrol et.'),
+        backgroundColor: PhotonColors.danger,
+      ));
+    }
+    if (mounted) setState(() {});
+  }
+
   Widget _buildLangChip(String code, String label) {
     final isActive = AppLang.instance.lang == code;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          AppLang.instance.setLang(code);
-          setState(() {});
-        },
+        onTap: () => _switchLang(code),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
@@ -424,8 +464,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: isActive ? Icon(Icons.check_circle, color: PhotonColors.accent, size: 20) : null,
                       onTap: () {
                         Navigator.pop(ctx);
-                        AppLang.instance.setLang(lang['code']!);
-                        setState(() {});
+                        _switchLang(lang['code']!);
                       },
                     );
                   },

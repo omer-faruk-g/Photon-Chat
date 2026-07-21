@@ -32,4 +32,25 @@ class TranslateService {
       return text;
     }
   }
+
+  /// Strict variant used for UI batch translation. Throws on any failure
+  /// so callers can rollback the language switch instead of silently
+  /// caching the source-language text.
+  static Future<String> translateStrict(String text, {required String targetLang}) async {
+    final cacheKey = '${text.hashCode}_$targetLang';
+    if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!;
+    final url = Uri.parse(
+      'https://translate.googleapis.com/translate_a/single'
+      '?client=gtx&sl=auto&tl=$targetLang&dt=t&q=${Uri.encodeComponent(text)}',
+    );
+    final response = await http.get(url).timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw StateError('Translate HTTP ${response.statusCode}');
+    }
+    final data = jsonDecode(response.body);
+    final translated = (data[0] as List).map((e) => e[0] as String).join('');
+    if (translated.trim().isEmpty) throw StateError('empty translation');
+    _cache[cacheKey] = translated;
+    return translated;
+  }
 }

@@ -69,24 +69,39 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
 
     setState(() { _loading = true; _error = null; });
 
-    // If server URL is not given, try to resolve it via the global bridge.
-    // Groups now auto-register their code on creation (v8.3), so a plain
-    // 7-digit code is enough.
-    if (server.isEmpty || !server.startsWith('http')) {
-      final resolved = await PhotonApi.lookupServerOnBridge(code);
-      if (resolved != null) {
-        server = resolved;
-      } else {
-        setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
-        return;
-      }
+    // Try multiple servers in order:
+    // 1) explicit server URL if user typed one
+    // 2) bridge lookup for the code
+    // 3) user's own server (in case the group lives on the same server)
+    final candidates = <String>[];
+    if (server.startsWith('http')) candidates.add(server);
+    final bridgeHit = await PhotonApi.lookupServerOnBridge(code);
+    if (bridgeHit != null && !candidates.contains(bridgeHit)) candidates.add(bridgeHit);
+    if (widget.myServerUrl.startsWith('http') && !candidates.contains(widget.myServerUrl)) {
+      candidates.add(widget.myServerUrl);
+    }
+    // Also try the bridge itself as a last-resort catch-all
+    if (!candidates.contains('https://photon-chat.onrender.com')) {
+      candidates.add('https://photon-chat.onrender.com');
+    }
+    if (candidates.isEmpty) {
+      setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
+      return;
     }
     try {
-      final data = await PhotonApi.getGroupByCode(server, code);
-      if (data == null) {
+      Map<String, dynamic>? data;
+      String? foundServer;
+      for (final cand in candidates) {
+        try {
+          final r = await PhotonApi.getGroupByCode(cand, code);
+          if (r != null) { data = r; foundServer = cand; break; }
+        } catch (_) {}
+      }
+      if (data == null || foundServer == null) {
         setState(() { _error = AppLang.instance.t('groupNotFound'); _loading = false; });
         return;
       }
+      server = foundServer;
       final groupId   = data['groupId'] as String;
       final groupName = data['name']    as String? ?? AppLang.instance.t('group');
       final groupDesc = data['description'] as String? ?? '';
