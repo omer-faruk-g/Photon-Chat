@@ -270,6 +270,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       // Preserve local optimistic votes on poll bubbles: if server hasn't yet
       // recorded a vote we optimistically applied, merge it back in so the
       // voter doesn't see their choice flicker away.
+      final now = DateTime.now().millisecondsSinceEpoch;
       for (final local in _messages) {
         final k = keyOf(local);
         final srv = serverByKey[k];
@@ -280,11 +281,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             srvVotes.putIfAbsent(e.key, () => e.value);
           }
           srv['votes'] = srvVotes;
+          // Keep local poll fields (question/options) if server strips them
+          if ((srv['question'] as String?)?.isEmpty ?? true) srv['question'] = local['question'];
+          if ((srv['options'] as List?)?.isEmpty ?? true) srv['options'] = local['options'];
         }
       }
       final serverKeys = serverByKey.keys.toSet();
-      final localOnly = _messages.where((m) => !serverKeys.contains(keyOf(m))).toList();
-      final merged = [...msgs, ...localOnly];
+      // Poll bubbles created in the last 10s: keep them regardless — even if
+      // the server returned them, prefer local (so poll never flashes empty).
+      final localOnly = _messages.where((m) {
+        if (serverKeys.contains(keyOf(m))) {
+          final ts = (m['ts'] as num?)?.toInt() ?? 0;
+          if (m['type'] == 'poll' && (now - ts) < 10000) return true;
+          return false;
+        }
+        return true;
+      }).toList();
+      // Drop server entries superseded by fresh local polls
+      final localKeepKeys = localOnly.map(keyOf).toSet();
+      final msgsFiltered = msgs.where((m) => !localKeepKeys.contains(keyOf(m))).toList();
+      final merged = [...msgsFiltered, ...localOnly];
       merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
       if (mounted) setState(() => _messages = merged);
       } catch (_) {}

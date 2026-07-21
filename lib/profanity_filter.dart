@@ -45,8 +45,11 @@ const _words = [
   'whore',
 ];
 
+// Word-boundary aware match so "selam" doesn't hit "am", "orospu çocuğu"
+// still matches, etc. Uses Unicode letter lookaround because Dart's \b is
+// ASCII-only.
 final _profanityPattern = RegExp(
-  _words.map(RegExp.escape).join('|'),
+  '(?<![\\p{L}\\p{N}])(?:${_words.map(RegExp.escape).join('|')})(?![\\p{L}\\p{N}])',
   caseSensitive: false,
   unicode: true,
 );
