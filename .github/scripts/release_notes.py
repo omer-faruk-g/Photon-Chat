@@ -196,6 +196,13 @@ CHANGELOGS = {
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
     'v9.1.0': (
+        "### 🙏 Özür\n\n"
+        "> Geliştirici ekibin rehavete kapılıp doğru kod yazamamalarından özür diler, "
+        "bir daha böyle bir sorun olmaması için sıkı cezalar vermiş olup sizi "
+        "önemsediğimizi tekrardan söylemekte olup tekrardan özür dileriz.\n"
+        "> \n"
+        "> — Proje sahibi: **omer-faruk-g**\n\n"
+        "---\n\n"
         "### 🛡️ v9.1.0 — 5-Ajan Kapsamlı Denetim + Fix\n\n"
         "5 paralel ajan tüm kod tabanını okuyup düzeltti.\n\n"
         "**İstemci:**\n"
