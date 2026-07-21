@@ -195,6 +195,27 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v9.0.0': (
+        "### 🎉 v9.0.0 — Grup QR Kodu + Bridge Auto-Lookup\n\n"
+        "**Küçük bir özür:** v8.2.0 ve v8.3.0 build hataları nedeniyle yayınlanamadı. "
+        "İçerikleri bu sürümde toplu olarak sunuluyor. Kusura bakma 🙏\n\n"
+        "---\n\n"
+        "**📱 Grup davet QR kodu:**\n"
+        "- Grup sahibi menüden \"Davet Linki\" seçince artık büyük QR kod görünüyor\n"
+        "- Karşı taraf kamerayla tarayınca her şey otomatik doldurulur\n\n"
+        "**🎯 Gruba QR ile katılma:**\n"
+        "- Gruba Katıl ekranında sağ üstte QR butonu\n"
+        "- Tara → server URL otomatik dolar → istek gönderilir\n\n"
+        "**🔗 Sadece 7 haneli kod yeter:**\n"
+        "- Grup oluşturulunca kod otomatik bridge'e kayıt olur (photon-chat.onrender.com)\n"
+        "- Gruba katılırken sunucu URL'i girmene gerek yok — bridge'den otomatik çekilir\n"
+        "- Contacts açıkken grup kodları her 5 saniyede bir bridge'e yenilenir (server snapshot restart'ından sonra da erişilebilir kalır)\n\n"
+        "**🎛️ QR scan iyileştirmeleri:**\n"
+        "- Dual-mode: kişi (5 hane) vs grup (photon:// URI) — geçersiz QR reddedilir\n"
+        "- Kamera ekranı ortasında hedefleme kutusu\n\n"
+        "**🐛 Build fixler:**\n"
+        "- v8.2/v8.3'te const wrapper etrafında runtime metod çağrısı hataları düzeltildi"
+    ),
     'v8.3.0': (
         "### 🎯 v8.3.0 — Sadece Grup Kodu Yeter (Bridge Lookup)\n\n"
         "Artık gruba katılmak için sunucu URL'i girmene gerek yok.\n\n"
@@ -372,8 +393,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0'}
 
 
 def make_body(tag):
