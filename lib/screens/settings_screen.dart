@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     if (bytes.length > 200 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(AppLang.instance.t('photoTooLarge'))));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('photoTooLarge'))));
       return;
     }
     final b64 = base64Encode(bytes);
@@ -868,7 +868,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ElevatedButton(
                   style: photonDangerButtonStyle(),
                   onPressed: () => setState(() => _confirming = true),
-                  child: const SizedBox(width: double.infinity, child: Text(AppLang.instance.t('deleteAccountButton'), textAlign: TextAlign.center)),
+                  child: SizedBox(width: double.infinity, child: Text(AppLang.instance.t('deleteAccountButton'), textAlign: TextAlign.center)),
                 )
               else
                 Row(children: [
