@@ -66,6 +66,14 @@ class PhotonApp extends StatelessWidget {
         title: 'Photon Chat',
         debugShowCheckedModeBanner: false,
         theme: PhotonTheme.instance.isDark ? photonTheme : photonLightTheme,
+        // Apply the user's chosen font size globally to EVERY Text widget.
+        builder: (ctx, child) {
+          final mq = MediaQuery.of(ctx);
+          return MediaQuery(
+            data: mq.copyWith(textScaler: TextScaler.linear(FontSizeNotifier.instance.scale)),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const _LockGate(),
       ),
     );

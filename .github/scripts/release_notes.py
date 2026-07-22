@@ -195,6 +195,21 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.0.0': (
+        "### 🎉 v10.0.0 — Yazı Boyutu Tüm Uygulamaya Uygulanıyor\n\n"
+        "**Kritik düzeltme:**\n"
+        "- 🐛 Yazı boyutu ayarı sadece chat mesajlarını değiştiriyordu — şimdi **TÜM uygulamayı** etkiliyor\n"
+        "- ✨ MaterialApp seviyesinde `MediaQuery.textScaler` — her Text widget'ı ölçekleniyor\n"
+        "- 📏 Ölçek: Küçük = ×0.85, Orta = ×1.0, Büyük = ×1.20\n"
+        "- ⚡ Ayarı değiştirir değiştirmez tüm ekranlar anında güncellenir (rebuild)\n\n"
+        "**Ayrıca v9.2.0 tüm iyileştirmeleri dahil:**\n"
+        "- Grup oluşturma hata mesajı gerçek nedeni gösteriyor\n"
+        "- Avatar HD (512×512 @ %88)\n"
+        "- Çeviri ~8× hızlı (8 paralel istek)\n"
+        "- v9.1.0'daki 5-ajan denetim düzeltmeleri (STT/TTS dispose, mounted guards, translate cache, e2e crash, notif channel)\n"
+        "- Server v9.1.0: auth, memory management, indexed reactions, per-endpoint body limits\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy et."
+    ),
     'v9.2.0': (
         "### ✨ v9.2.0 — Grup Adı + HD Avatar + 8× Hızlı Çeviri\n\n"
         "**Grup oluşturma sorunu çözüldü:**\n"
@@ -462,8 +477,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0'}
 
 
 def make_body(tag):
