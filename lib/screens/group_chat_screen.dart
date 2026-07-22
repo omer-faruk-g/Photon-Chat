@@ -428,7 +428,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _rejectMember(Map<String, dynamic> req) async {
     setState(() => _pendingJoins.remove(req));
     try {
-      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, (req['fromFipId'] as String?) ?? '');
+      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, (req['fromFipId'] as String?) ?? '', actor: widget.identity.fipId);
     } catch (_) {
       if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
       if (mounted) _showToast('Reddedilemedi.');
@@ -666,7 +666,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   child: ElevatedButton.icon(
                     style: photonPrimaryButtonStyle(),
                     icon: const Icon(Icons.copy, size: 16),
-                    label: const Text('Kopyala'),
+                    label: Text(AppLang.instance.t('justCopy')),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: link));
                       Navigator.pop(context);
@@ -928,7 +928,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               if (v == 'invite') _showInviteLink();
             },
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text('Davet Linki', style: TextStyle(color: PhotonColors.text))])),
+              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), const SizedBox(width: 8), Text(AppLang.instance.t('inviteLink'), style: TextStyle(color: PhotonColors.text))])),
               if (widget.group.isOwner) ...[
                 PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text))])),
                 PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text))])),

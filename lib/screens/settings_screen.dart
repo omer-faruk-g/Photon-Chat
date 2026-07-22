@@ -219,7 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Varsayilan + Sessiz
           ListTile(
             leading: Icon('Varsayilan' == _notifSound ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: PhotonColors.accent),
-            title: Text('Varsayilan', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('defaultSound'), style: TextStyle(color: PhotonColors.text)),
             onTap: () async {
               SoundPicker.stopSound();
               Navigator.pop(ctx);
@@ -231,7 +231,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: Icon('Sessiz' == _notifSound ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: PhotonColors.accent),
-            title: Text('Sessiz', style: TextStyle(color: PhotonColors.text)),
+            title: Text(AppLang.instance.t('silent'), style: TextStyle(color: PhotonColors.text)),
             onTap: () async {
               SoundPicker.stopSound();
               Navigator.pop(ctx);
@@ -781,7 +781,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(AppLang.instance.t('starredMessagesLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text('Yildizladigin mesajlari gor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('starredMessagesSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),
@@ -886,7 +886,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                   icon: const Icon(Icons.copy, size: 15),
-                  label: const Text('Kodunu Kopyala', style: TextStyle(fontSize: 13)),
+                  label: Text(AppLang.instance.t('copyCode'), style: const TextStyle(fontSize: 13)),
                   onPressed: () => Clipboard.setData(ClipboardData(text: widget.identity.code)),
                 ),
               ),
@@ -927,7 +927,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           OutlinedButton(
             style: photonGhostButtonStyle(),
             onPressed: () => Navigator.pop(context),
-            child: const SizedBox(width: double.infinity, child: Text('Geri', textAlign: TextAlign.center)),
+            child: SizedBox(width: double.infinity, child: Text(AppLang.instance.t('back'), textAlign: TextAlign.center)),
           ),
         ],
       ),

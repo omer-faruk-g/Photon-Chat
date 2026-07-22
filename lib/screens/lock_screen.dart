@@ -100,7 +100,7 @@ class _LockScreenState extends State<LockScreen> {
       children: [
         Icon(Icons.lock_outline, color: PhotonColors.accent, size: 48),
         const SizedBox(height: 16),
-        Text('PIN Girin', style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
+        Text(AppLang.instance.t('enterPin'), style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         if (_error != null) Text(_error!, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
         const SizedBox(height: 24),

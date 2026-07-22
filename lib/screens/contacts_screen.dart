@@ -193,7 +193,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Hikaye Olustur', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        title: Text(AppLang.instance.t('createStory'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(
             controller: ctrl, autofocus: true, maxLines: 3, maxLength: 200,
@@ -201,7 +201,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             decoration: InputDecoration(hintText: 'Ne dusunuyorsun?', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
           ),
           const SizedBox(height: 12),
-          Text('Arka plan rengi', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          Text(AppLang.instance.t('backgroundColor'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(colors.length, (i) => GestureDetector(
             onTap: () => ss(() => selectedColor = i),
@@ -212,7 +212,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ))),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Iptal', style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim))),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -221,7 +221,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
               final stories = await StoryManager.loadStories();
               if (mounted) setState(() => _stories = stories);
             },
-            child: Text('Paylas', style: TextStyle(color: PhotonColors.accent)),
+            child: Text(AppLang.instance.t('share'), style: TextStyle(color: PhotonColors.accent)),
           ),
         ],
       )),
@@ -255,7 +255,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       ),
     );
     if (keep == false) {
-      for (final c in active) await PhotonApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId));
+      for (final c in active) await PhotonApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId), actor: widget.identity.fipId);
     }
     SystemNavigator.pop();
   }

@@ -56,13 +56,20 @@ const MAX_REGISTRY = 100_000;
 // `myFipId`. Populate `req.body.actor` from the first matching key so every
 // downstream `req.body.actor === X` check keeps working without exception.
 app.use((req, res, next) => {
-  if (req.body && !req.body.actor) {
-    req.body.actor = req.body.from
-      || req.body.fromFipId
-      || req.body.fipId
-      || req.body.myFipId
-      || req.body.requesterFipId
-      || null;
+  if (req.body) {
+    if (!req.body.actor) {
+      req.body.actor = req.body.from
+        || req.body.fromFipId
+        || req.body.fipId
+        || req.body.myFipId
+        || req.body.requesterFipId
+        || null;
+    }
+    // Legacy alias: client historically sends `from` for DM sends; server
+    // destructures `fromFipId`. Populate one from the other so old and new
+    // clients both work without per-endpoint churn.
+    if (!req.body.fromFipId && req.body.from) req.body.fromFipId = req.body.from;
+    if (!req.body.from && req.body.fromFipId) req.body.from = req.body.fromFipId;
   }
   next();
 });
@@ -317,10 +324,13 @@ app.post('/chat/:chatKey', bigBody, (req, res) => {
   const msgs = chats.get(key);
   const id = msgId();
   // Whitelist fields rather than spreading arbitrary body.
-  const { attachment, replyTo, ts, type } = req.body;
+  const { attachment, replyTo, ts, type, imageData, nsfw, fileName, fileData, fileSize } = req.body;
   msgs.push({
-    fromFipId, toFipId, fromName, text: typeof text === 'string' ? text : '',
+    // Store both `from` and `fromFipId` so downstream author checks
+    // (delete/edit) and client code that reads either name work.
+    from: fromFipId, fromFipId, toFipId, fromName, text: typeof text === 'string' ? text : '',
     attachment, replyTo, ts: ts || Date.now(), type,
+    imageData, nsfw, fileName, fileData, fileSize,
     msgId: id,
   });
   if (msgs.length > 200) msgs.splice(0, msgs.length - 200);
@@ -802,10 +812,11 @@ app.post('/stories/:fipId', bigBody, (req, res) => {
   const now = Date.now();
   const filtered = list.filter(s => (s.expiresAt || 0) > now);
   if (filtered.length >= MAX_STORIES_PER_USER) filtered.splice(0, filtered.length - (MAX_STORIES_PER_USER - 1));
-  // Whitelist known fields, drop actor.
-  const { id, mediaType, media, caption, expiresAt, ts } = req.body;
+  // Whitelist known fields, drop actor. Client sends `type`/`content`/`authorFipId`/`authorName`/`bgColor`.
+  const { id, type, content, authorFipId, authorName, bgColor, mediaType, media, caption, expiresAt, ts } = req.body;
   const item = {
     id: id || msgId(),
+    type, content, authorFipId, authorName, bgColor,
     mediaType, media, caption,
     expiresAt: expiresAt || (now + 24 * 60 * 60 * 1000),
     ts: ts || now,

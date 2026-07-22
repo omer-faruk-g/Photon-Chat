@@ -177,7 +177,7 @@ class StoriesScreen extends StatelessWidget {
   const StoriesScreen({super.key, required this.stories, this.initialIndex = 0});
   @override
   Widget build(BuildContext context) {
-    if (stories.isEmpty) return const Scaffold(body: Center(child: Text('Hikaye bulunamadi')));
+    if (stories.isEmpty) return Scaffold(body: Center(child: Text(AppLang.instance.t('storyNotFound'))));
     final startIdx = initialIndex.clamp(0, stories.length - 1);
     return _StoryViewerScreen(stories: stories, authorName: stories[startIdx].authorName, startIndex: startIdx);
   }
@@ -277,7 +277,7 @@ class _StoryViewerScreenState extends State<_StoryViewerScreen> {
       final bytes = base64Decode(b64);
       return Image.memory(bytes, fit: BoxFit.contain);
     } catch (_) {
-      return const Text('Gorsel yuklenemedi', style: TextStyle(color: Colors.white60));
+      return Text(AppLang.instance.t('imageLoadFailedShort'), style: const TextStyle(color: Colors.white60));
     }
   }
 

@@ -202,8 +202,12 @@ class PhotonApi {
     return [];
   }
 
-  static Future<void> deleteChat(String serverUrl, String chatKey) async {
-    try { await http.delete(_u(serverUrl, '/chat/$chatKey')); } catch (_) {}
+  static Future<void> deleteChat(String serverUrl, String chatKey, {required String actor}) async {
+    try {
+      await http.delete(_u(serverUrl, '/chat/$chatKey'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': actor}));
+    } catch (_) {}
   }
 
   static Future<void> deactivate(String myServerUrl, String fipId) async {
@@ -296,8 +300,12 @@ class PhotonApi {
     } catch (_) {}
   }
 
-  static Future<void> rejectGroupMember(String myServerUrl, String groupId, String fipId) async {
-    try { await http.delete(_u(myServerUrl, '/groups/$groupId/join-requests/$fipId')); } catch (_) {}
+  static Future<void> rejectGroupMember(String myServerUrl, String groupId, String fipId, {required String actor}) async {
+    try {
+      await http.delete(_u(myServerUrl, '/groups/$groupId/join-requests/$fipId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': actor}));
+    } catch (_) {}
   }
 
   static Future<Map<String, dynamic>?> getGroupMembers(String ownerServerUrl, String groupId) async {
@@ -364,11 +372,11 @@ class PhotonApi {
 
   // --- Group key (E2E for groups) ---
 
-  static Future<void> sendGroupKey(String ownerServerUrl, String groupId, String memberFipId, String encryptedKey) async {
+  static Future<void> sendGroupKey(String ownerServerUrl, String groupId, String memberFipId, String encryptedKey, {required String actor}) async {
     try {
       await http.post(_u(ownerServerUrl, '/groups/$groupId/key/$memberFipId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'encryptedKey': encryptedKey}));
+          body: jsonEncode({'encryptedKey': encryptedKey, 'actor': actor}));
     } catch (_) {}
   }
 
@@ -469,7 +477,7 @@ class PhotonApi {
     try {
       await http.post(_u(serverUrl, '/device-link/$ownerFipId/respond'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'requesterFipId': requesterFipId, 'status': status, 'code': code}));
+          body: jsonEncode({'requesterFipId': requesterFipId, 'status': status, 'code': code, 'actor': ownerFipId}));
     } catch (_) {}
   }
 
@@ -492,12 +500,12 @@ class PhotonApi {
   }
 
   static Future<void> logDeviceActivity(String serverUrl, String ownerFipId, {
-    required String deviceId, required String action, String detail = '',
+    required String deviceId, required String action, String detail = '', required String actor,
   }) async {
     try {
       await http.post(_u(serverUrl, '/device-activity/$ownerFipId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'deviceId': deviceId, 'action': action, 'detail': detail, 'ts': DateTime.now().millisecondsSinceEpoch}));
+          body: jsonEncode({'deviceId': deviceId, 'action': action, 'detail': detail, 'ts': DateTime.now().millisecondsSinceEpoch, 'actor': actor}));
     } catch (_) {}
   }
 
@@ -511,7 +519,9 @@ class PhotonApi {
 
   static Future<void> kickDevice(String serverUrl, String ownerFipId, String deviceId) async {
     try {
-      await http.delete(_u(serverUrl, '/device-link/$ownerFipId/$deviceId'));
+      await http.delete(_u(serverUrl, '/device-link/$ownerFipId/$deviceId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': ownerFipId}));
     } catch (_) {}
   }
 
@@ -519,7 +529,7 @@ class PhotonApi {
     try {
       await http.post(_u(serverUrl, '/device-ban/$ownerFipId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'bannedFipId': bannedFipId}));
+          body: jsonEncode({'bannedFipId': bannedFipId, 'actor': ownerFipId}));
     } catch (_) {}
   }
 
@@ -558,7 +568,7 @@ class PhotonApi {
     try {
       await http.post(_u(serverUrl, '/stories/$fipId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(storyData));
+          body: jsonEncode({...storyData, 'actor': fipId}));
     } catch (_) {}
   }
 
@@ -571,7 +581,11 @@ class PhotonApi {
   }
 
   static Future<void> deleteStory(String serverUrl, String fipId, String storyId) async {
-    try { await http.delete(_u(serverUrl, '/stories/$fipId/$storyId')); } catch (_) {}
+    try {
+      await http.delete(_u(serverUrl, '/stories/$fipId/$storyId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': fipId}));
+    } catch (_) {}
   }
 
   static Future<String> chatWithPulseAI(String myServerUrl, List<Map<String, String>> messages) async {

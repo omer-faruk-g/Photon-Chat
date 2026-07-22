@@ -195,6 +195,29 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.1.0': (
+        "### 🔧 v10.1.0 — Baştan Sona Sunucu & İstemci Denetimi\n\n"
+        "Client ve server arasında sessizce 403 döndüren birçok endpoint bulundu ve düzeltildi:\n\n"
+        "**Server ↔ Client uyumsuzlukları (kritik):**\n"
+        "- 🐛 DM gönderirken server `fromFipId` bekliyordu, client `from` gönderiyordu → 400 hatası. Middleware ikisini de aliasliyor.\n"
+        "- 🐛 DM mesajları server-side `imageData/nsfw/fileName/fileData/fileSize` alanlarını depolamıyordu → resim/dosya kaybı.\n"
+        "- 🐛 Hikaye postu server tarafında `type/content/authorFipId/authorName/bgColor` alanlarını atıyordu → contact hikayeleri gelmiyordu.\n\n"
+        "**Auth `actor` eksikleri (hepsi 403 dönüyordu):**\n"
+        "- 🐛 `deleteChat` — sohbet silme\n"
+        "- 🐛 `rejectGroupMember` — katılım isteği reddi\n"
+        "- 🐛 `respondDeviceLink` — cihaz eşleştirme yanıtı\n"
+        "- 🐛 `logDeviceActivity` — cihaz aktivite kaydı\n"
+        "- 🐛 `kickDevice` — cihaz atma\n"
+        "- 🐛 `banDeviceOnServer` — cihaz banı\n"
+        "- 🐛 `sendGroupKey` — grup anahtarı yayını\n"
+        "- 🐛 `postStory` / `deleteStory` — hikaye ekleme/silme\n\n"
+        "**Kalan çevrilmemiş metinler:**\n"
+        "- ✅ Kilit: 'PIN Girin'\n"
+        "- ✅ Ayarlar: 'Varsayılan', 'Sessiz', 'Kodunu Kopyala', 'Geri', 'Yıldızlanan mesajlar' alt yazısı\n"
+        "- ✅ Grup: 'Kopyala', 'Davet Linki'\n"
+        "- ✅ Rehber: 'Hikaye Oluştur', 'Arka plan rengi', 'İptal', 'Paylaş'\n"
+        "- ✅ Hikaye: 'Hikaye bulunamadı', 'Görsel yüklenemedi'"
+    ),
     'v10.0.3': (
         "### 🌐 v10.0.3 — Kalan Çevrilmeyen Metinler (Hikaye + Güncelleme + Ayarlar)\n\n"
         "**Hikaye ekranı:**\n"
@@ -515,8 +538,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0'}
 
 
 def make_body(tag):
