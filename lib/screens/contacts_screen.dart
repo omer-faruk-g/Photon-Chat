@@ -60,6 +60,24 @@ class _ContactsScreenState extends State<ContactsScreen> {
     await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg ?? '', avatar: avatar ?? '');
     _sync();
     _groupSync();
+    _presenceLoop();
+  }
+
+  Future<void> _presenceLoop() async {
+    // Re-register presence periodically so a server cold-start (Render free
+    // tier sleeps after 15 min idle) doesn't leave you looking offline to your
+    // contacts once the server wakes up with an empty users map.
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 45));
+      if (!mounted) return;
+      try {
+        final avatar = await LocalStore.loadAvatar();
+        final statusMsg = await LocalStore.loadStatusMsg();
+        await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId,
+            widget.identity.code, widget.displayName,
+            statusMsg: statusMsg, avatar: avatar);
+      } catch (_) {}
+    }
   }
 
   void _showToast(String msg) {
@@ -85,15 +103,21 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
     }
     for (final c in _contacts.where((c) => c.status == 'on').toList()) {
+      // Contact's presence lookup may miss if their server is cold-starting
+      // (Render free tier sleeps after 15 min). One miss must NOT delete the
+      // contact — mark them offline, retry next sync. Only give up if the
+      // contact's user record itself is gone (profile fetch succeeds and
+      // returns null status? — we treat this as still-present for safety).
       final active = await PhotonApi.isActive(c.serverUrl, c.fipId);
-      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _online.remove(c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); continue; }
-      _online[c.fipId] = true;
-      final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
-      if (profile != null) {
-        c.avatar = (profile['avatar'] as String?) ?? '';
-        c.statusMsg = (profile['statusMsg'] as String?) ?? '';
-        c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
-        c.bio = (profile['bio'] as String?) ?? '';
+      _online[c.fipId] = active;
+      if (active) {
+        final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
+        if (profile != null) {
+          c.avatar = (profile['avatar'] as String?) ?? '';
+          c.statusMsg = (profile['statusMsg'] as String?) ?? '';
+          c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
+          c.bio = (profile['bio'] as String?) ?? '';
+        }
       }
     }
     await LocalStore.saveContacts(_contacts);
@@ -246,11 +270,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       context: context, barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        title: Text(AppLang.instance.t('keepChatsQuestion'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: Text(AppLang.instance.t('deactivateWarn'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('noDestroy'), style: TextStyle(color: PhotonColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Evet, sakla', style: TextStyle(color: PhotonColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('yesKeep'), style: TextStyle(color: PhotonColors.accent))),
         ],
       ),
     );
@@ -272,7 +296,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), // brand name — not translated
           actions: [IconButton(icon: Icon(Icons.settings, color: PhotonColors.text), onPressed: _openSettings)],
         ),
         body: Stack(
@@ -303,7 +327,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 const SizedBox(height: 20),
 
                 if (incoming.isNotEmpty) ...[
-                  _SectionTitle('Davetler', count: incoming.length),
+                  _SectionTitle(AppLang.instance.t('invites'), count: incoming.length),
                   ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
                   const SizedBox(height: 16),
                 ],
@@ -325,7 +349,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
                     decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
+                    child: Text(AppLang.instance.t('noGroupsYet'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
                   ),
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
               ],
@@ -378,7 +402,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.group, size: 16),
-                      label: const Text('Grup'),
+                      label: Text(AppLang.instance.t('groups')),
                     ),
                   ),
                 ],

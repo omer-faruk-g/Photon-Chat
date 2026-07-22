@@ -195,6 +195,16 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.1.2': (
+        "### 🚑 v10.1.2 — Sohbet Kaybı Önlendi + Presence Yenileme + i18n\n\n"
+        "**Kritik bug'lar:**\n"
+        "- 🐛 **Sunucu geçici olarak yavaşladığında kişilerin siliniyordu.** Render free tier'ın 15 dk uyku sonrası yavaş cevap vermesi, `isActive` çağrısını false döndürüyor ve rehber senkronu kişiyi kalıcı olarak siliyordu. Artık silmek yerine sadece offline işaretleniyor; bir sonraki senkda geri gelir.\n"
+        "- 🐛 **Kendi presence'ın yenilenmiyordu.** Sunucu cold-start sonrası users map boşalınca kişilerin seni offline görüyordu. Artık her 45 sn'de bir presence otomatik yenileniyor.\n"
+        "- 🐛 **Anket birleştirme mantığı** daha da sağlamlaştırıldı: msgId + (ts,from) çift eşleşme, poll type/question/options her durumda korunuyor.\n\n"
+        "**Çevrilmemiş metinler:**\n"
+        "- ✅ Ayarlar: 'YAZI BOYUTU' başlığı, 'Orta' font seçeneği, 'Yan cihazlar…' alt yazı, 'Dil / Language' dialog başlığı, 'Çeviri hazırlanıyor…', 'Çeviri başarısız…' snackbar, cihaz yönetimi alt yazı.\n"
+        "- ✅ Rehber: 'Sohbetler kaydedilsin mi?', 'Evet, sakla', 'Davetler', 'Henüz bir grubun yok', 'Grup' tuşu.\n"
+    ),
     'v10.1.1': (
         "### 🩹 v10.1.1 — Anket + Kendi Grubuna Katılma + Buton Konumu\n\n"
         "- 🐛 **Anket boş mesaja dönüşüyordu:** Sunucudan gelen mesaj birleştirme mantığı dayanıksızdı. Artık local'de anket olarak işaretlenen mesajın `type/question/options` alanları asla düşmüyor — sunucu restart olsa bile.\n"
@@ -544,8 +554,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2'}
 
 
 def make_body(tag):

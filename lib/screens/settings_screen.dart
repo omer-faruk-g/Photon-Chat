@@ -383,12 +383,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 CircularProgressIndicator(color: PhotonColors.accent, value: progress > 0 ? progress : null),
                 const SizedBox(height: 16),
-                Text('Dil / Language', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700)),
+                Text(AppLang.instance.t('language'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text(
                   AppLang.instance.translateStatus.isNotEmpty
                     ? AppLang.instance.translateStatus
-                    : (progress > 0 ? '${(progress * 100).toInt()}%' : 'Çeviri hazırlanıyor…'),
+                    : (progress > 0 ? '${(progress * 100).toInt()}%' : AppLang.instance.t('translationPreparing')),
                   style: TextStyle(color: PhotonColors.textDim, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
@@ -402,7 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) Navigator.of(context, rootNavigator: true).pop();
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Çeviri başarısız — internet bağlantısını kontrol et.'),
+        content: Text(AppLang.instance.t('translationFailed')),
         backgroundColor: PhotonColors.danger,
       ));
     }
@@ -644,12 +644,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('YAZI BOYUTU', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text(AppLang.instance.t('fontSizeSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
               const SizedBox(height: 10),
               Row(children: [
                 _buildFontSizeChip('kucuk', AppLang.instance.t('smallSize')),
                 const SizedBox(width: 8),
-                _buildFontSizeChip('orta', 'Orta'),
+                _buildFontSizeChip('orta', AppLang.instance.t('mediumSize')),
                 const SizedBox(width: 8),
                 _buildFontSizeChip('buyuk', AppLang.instance.t('bigSize')),
               ]),
@@ -733,7 +733,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(AppLang.instance.t('deviceManagement'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text('Yan cihazlar, fake hesaplar ve bağlantı istekleri', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('deviceManagementSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),

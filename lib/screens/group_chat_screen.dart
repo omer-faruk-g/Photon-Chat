@@ -315,7 +315,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         // findServerMatch already patched srv, so it's safe to drop local.
         return false;
       }).toList();
-      final keptKeys = <String>{for (final m in localOnly) keyOf(m), for (final m in localOnly) 'tf:${m['ts']}_${m['from']}'};
+      final keptKeys = <String>{};
+      for (final m in localOnly) {
+        keptKeys.add(keyOf(m));
+        keptKeys.add('tf:${m['ts']}_${m['from']}');
+      }
       final msgsFiltered = msgs.where((m) => !keptKeys.contains(keyOf(m)) && !keptKeys.contains('tf:${m['ts']}_${m['from']}')).toList();
       final merged = [...msgsFiltered, ...localOnly];
       merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
