@@ -499,8 +499,8 @@ class _PulseAiCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Pulse AI', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
-            Text('Yapay zeka asistanın · Sor, sohbet et', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+            Text(AppLang.instance.t('pulseAiTitle'), style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
+            Text(AppLang.instance.t('pulseAiSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
           ])),
           Icon(Icons.chevron_right, color: PhotonColors.accent, size: 20),
         ],

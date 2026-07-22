@@ -78,7 +78,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
             child: Text('⚡', style: TextStyle(fontSize: 14)),
           ),
           const SizedBox(width: 10),
-          Text('Pulse AI'),
+          Text(AppLang.instance.t('pulseAiTitle')),
         ]),
       ),
       backgroundColor: PhotonColors.bg,
@@ -103,7 +103,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                             child: Text('⚡', style: TextStyle(fontSize: 30)),
                           ),
                           const SizedBox(height: 16),
-                          Text('Pulse AI', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
+                          Text(AppLang.instance.t('pulseAiTitle'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
                           const SizedBox(height: 8),
                           Text(
                             AppLang.instance.t('pulseAiWelcome'),

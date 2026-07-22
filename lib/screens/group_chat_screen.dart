@@ -216,7 +216,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
         const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Sesli Mesaj', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
           if (transcript.isNotEmpty)
             Text(transcript, style: TextStyle(color: PhotonColors.text.withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
         ])),

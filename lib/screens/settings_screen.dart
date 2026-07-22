@@ -208,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(padding: const EdgeInsets.all(16), child: Row(children: [
             Icon(Icons.notifications_active, color: PhotonColors.accent, size: 20),
             const SizedBox(width: 10),
-            Text('Bildirim Sesi Sec', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+            Text(AppLang.instance.t('pickNotifSound'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
             const Spacer(),
             GestureDetector(
               onTap: () { SoundPicker.stopSound(); Navigator.pop(ctx); },
@@ -679,8 +679,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Icon(Icons.mic, color: PhotonColors.textDim, size: 18),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Sesli Mesaj (STT)', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text('Konuşarak mesaj yaz. "Gönder" diyince otomatik gönderir. Mikrofon izni gerekir.', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.5)),
+                Text(AppLang.instance.t('sttTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(AppLang.instance.t('sttDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.5)),
               ])),
               Switch(
                 value: _sttEnabled,
@@ -756,9 +756,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.wallpaper, color: PhotonColors.textDim, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Sohbet Duvar Kâğıdı', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('chatWallpaperTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text(
-                    ChatWallpaper.type == 'none' ? 'Varsayilan' : ChatWallpaper.type == 'color' ? 'Renk' : 'Resim',
+                    ChatWallpaper.type == 'none' ? AppLang.instance.t('wallpaperTypeDefault') : ChatWallpaper.type == 'color' ? AppLang.instance.t('wallpaperTypeColor') : AppLang.instance.t('wallpaperTypeImage'),
                     style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
                   ),
                 ])),
@@ -799,7 +799,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Icon(Icons.notifications_active, color: PhotonColors.textDim, size: 18),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Bildirim Sesi', style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('notifSoundTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text(_notifSound, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
