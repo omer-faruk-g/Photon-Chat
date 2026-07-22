@@ -55,7 +55,7 @@ class _StoriesRowState extends State<StoriesRow> {
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
           leading: Icon(Icons.text_fields, color: PhotonColors.accent),
-          title: Text('Metin Hikaye', style: TextStyle(color: PhotonColors.text)),
+          title: Text(AppLang.instance.t('textStory'), style: TextStyle(color: PhotonColors.text)),
           onTap: () { Navigator.pop(context); _addTextStory(); },
         ),
         ListTile(
@@ -73,14 +73,14 @@ class _StoriesRowState extends State<StoriesRow> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
-        title: Text('Metin Hikaye', style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        title: Text(AppLang.instance.t('textStory'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
         content: TextField(
           controller: ctrl, autofocus: true, maxLines: 3, maxLength: 200,
           style: TextStyle(color: PhotonColors.text),
-          decoration: InputDecoration(hintText: 'Hikayeni yaz...', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+          decoration: InputDecoration(hintText: AppLang.instance.t('writeStoryHint'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Iptal', style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim))),
           ElevatedButton(
             style: photonPrimaryButtonStyle(),
             onPressed: () async {
@@ -89,7 +89,7 @@ class _StoriesRowState extends State<StoriesRow> {
               await StoryManager.postStory(serverUrl: widget.myServerUrl, fipId: widget.identity.fipId, authorName: widget.displayName, type: 'text', content: ctrl.text.trim());
               _load();
             },
-            child: const Text('Paylas'),
+            child: Text(AppLang.instance.t('share')),
           ),
         ],
       ),
@@ -106,7 +106,7 @@ class _StoriesRowState extends State<StoriesRow> {
       return;
     }
     if (await NsfwScanner.hasImageViolation(bytes)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uygunsuz icerik tespit edildi — paylasilmadi.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('nsfwBlocked'))));
       return;
     }
     final b64 = base64Encode(bytes);
@@ -125,7 +125,7 @@ class _StoriesRowState extends State<StoriesRow> {
       return SizedBox(
         height: 90,
         child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), children: [
-          _storyCircle(label: 'Hikayeni Ekle', icon: Icons.add, onTap: _addStory),
+          _storyCircle(label: AppLang.instance.t('addYourStory'), icon: Icons.add, onTap: _addStory),
         ]),
       );
     }
@@ -133,7 +133,7 @@ class _StoriesRowState extends State<StoriesRow> {
       height: 90,
       child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), children: [
         _storyCircle(
-          label: 'Hikayem',
+          label: AppLang.instance.t('myStory'),
           icon: _myStories.isEmpty ? Icons.add : null,
           hasStory: _myStories.isNotEmpty,
           onTap: _myStories.isNotEmpty ? () => _viewStories(_myStories, widget.displayName) : _addStory,

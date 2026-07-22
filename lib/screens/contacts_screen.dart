@@ -447,7 +447,7 @@ class _ProfileStrip extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('KODUM  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                        Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
                         Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
                         const SizedBox(width: 4),
                         Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),

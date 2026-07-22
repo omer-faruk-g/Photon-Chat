@@ -710,7 +710,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 underline: const SizedBox(),
                 style: TextStyle(color: PhotonColors.text, fontSize: 13),
                 items: [
-                  DropdownMenuItem(value: 'male', child: Text('Erkek', style: TextStyle(color: PhotonColors.text))),
+                  DropdownMenuItem(value: 'male', child: Text(AppLang.instance.t('male'), style: TextStyle(color: PhotonColors.text))),
                   DropdownMenuItem(value: 'female', child: Text(AppLang.instance.t('female'), style: TextStyle(color: PhotonColors.text))),
                 ],
                 onChanged: (v) async {

@@ -195,6 +195,21 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.0.3': (
+        "### 🌐 v10.0.3 — Kalan Çevrilmeyen Metinler (Hikaye + Güncelleme + Ayarlar)\n\n"
+        "**Hikaye ekranı:**\n"
+        "- ✅ \"Hikayem\", \"Hikayeni Ekle\", \"Metin Hikaye\" ve hint yazısı\n"
+        "- ✅ Iptal / Paylaş butonları\n"
+        "- ✅ Uygunsuz içerik snackbar mesajı\n\n"
+        "**Rehber / Ayarlar:**\n"
+        "- ✅ Rehberdeki KODUM etiketi\n"
+        "- ✅ Sesli asistan cinsiyet dropdown'undaki \"Erkek\" seçeneği\n"
+        "- ✅ Dil seçicideki dil adları (Türkçe / İngilizce / Almanca ...)\n\n"
+        "**Güncelleme diyaloğu:**\n"
+        "- ✅ \"Güncelleme Mevcut\", \"Güncelle\", \"İndir\", \"Sonra\"\n"
+        "- ✅ İndirme yüzdesi + \"Hazırlanıyor\" + hata metinleri\n\n"
+        "Artık dil değiştirdiğinde bu ekranların hepsi hedef dile geçiyor."
+    ),
     'v10.0.2': (
         "### 🛠️ v10.0.2 — Küfür Filtresi + Konuşma Karışması Fix\n\n"
         "**Konuşma karışması:**\n"
@@ -500,8 +515,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3'}
 
 
 def make_body(tag):

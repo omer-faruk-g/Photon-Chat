@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import 'theme.dart';
+import 'i18n.dart';
 
 class UpdateChecker {
   static const _releasesApi = 'https://api.github.com/repos/omer-faruk-g/Photon-Chat/releases/latest';
@@ -117,7 +118,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       if (mounted) setState(() { _downloading = false; _progress = null; });
       await OpenFile.open(path);
     } catch (e) {
-      if (mounted) setState(() { _downloading = false; _progress = null; _error = 'İndirme başarısız. Tarayıcıdan güncelle.'; });
+      if (mounted) setState(() { _downloading = false; _progress = null; _error = AppLang.instance.t('updateFailed'); });
     }
   }
 
@@ -135,7 +136,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       title: Row(children: [
         const Text('🚀 ', style: TextStyle(fontSize: 18)),
-        Expanded(child: Text('Güncelleme Mevcut', style: TextStyle(color: PhotonColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
+        Expanded(child: Text(AppLang.instance.t('updateAvailable'), style: TextStyle(color: PhotonColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
       ]),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -162,7 +163,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             LinearProgressIndicator(value: _progress, backgroundColor: PhotonColors.line, color: PhotonColors.accent),
             const SizedBox(height: 6),
             Text(
-              _progress != null ? '%${(_progress! * 100).toStringAsFixed(0)} indiriliyor…' : 'Hazırlanıyor…',
+              _progress != null ? AppLang.instance.t('updateDownloading').replaceAll('{p}', (_progress! * 100).toStringAsFixed(0)) : AppLang.instance.t('updatePreparing'),
               style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
             ),
           ],
@@ -177,19 +178,19 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           : [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Sonra', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                child: Text(AppLang.instance.t('updateLater'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
               ),
               if (isAndroid && hasApk)
                 ElevatedButton(
                   style: photonPrimaryButtonStyle(),
                   onPressed: _downloadAndInstall,
-                  child: const Text('Güncelle'),
+                  child: Text(AppLang.instance.t('updateNow')),
                 )
               else
                 ElevatedButton(
                   style: photonPrimaryButtonStyle(),
                   onPressed: _openBrowser,
-                  child: const Text('İndir'),
+                  child: Text(AppLang.instance.t('updateDownload')),
                 ),
             ],
     );
