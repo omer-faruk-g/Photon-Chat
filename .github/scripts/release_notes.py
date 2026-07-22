@@ -195,6 +195,12 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.1.1': (
+        "### 🩹 v10.1.1 — Anket + Kendi Grubuna Katılma + Buton Konumu\n\n"
+        "- 🐛 **Anket boş mesaja dönüşüyordu:** Sunucudan gelen mesaj birleştirme mantığı dayanıksızdı. Artık local'de anket olarak işaretlenen mesajın `type/question/options` alanları asla düşmüyor — sunucu restart olsa bile.\n"
+        "- 🐛 **Kendi grup kodunla katılmayı deniyorsan:** Artık \"Bu grup zaten senin. Kendi grubuna katılamazsın.\" uyarısı çıkıyor. Zaten üye olduğun bir grup için de ayrı uyarı var.\n"
+        "- 🐛 **Grup davet menüsündeki 'Kopyala/Paylaş' tuşları çok aşağıdaydı** — parmakla ulaşılamıyordu. Tuşlar en yukarı taşındı, sheet altı gesture-nav çubuğu için ekstra boşluk alıyor, QR kod aşağıda."
+    ),
     'v10.1.0': (
         "### 🔧 v10.1.0 — Baştan Sona Sunucu & İstemci Denetimi\n\n"
         "Client ve server arasında sessizce 403 döndüren birçok endpoint bulundu ve düzeltildi:\n\n"
@@ -538,8 +544,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1'}
 
 
 def make_body(tag):

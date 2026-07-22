@@ -267,42 +267,56 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       await OfflineQueue.instance.flush();
       final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
       // Merge: keep our locally optimistic messages that server hasn't returned yet.
-      // A message is considered "same" if it has same ts and from.
-      String keyOf(Map m) => '${m['ts']}_${m['from']}';
+      // Two-step match: prefer msgId when the server has assigned one; fall back
+      // to (ts, from) for the optimistic window before the server has replied.
+      String keyOf(Map m) {
+        final mid = m['msgId'] as String?;
+        if (mid != null && mid.isNotEmpty) return 'id:$mid';
+        return 'tf:${m['ts']}_${m['from']}';
+      }
       final serverByKey = {for (final m in msgs) keyOf(m): m};
-      // Preserve local optimistic votes on poll bubbles: if server hasn't yet
-      // recorded a vote we optimistically applied, merge it back in so the
-      // voter doesn't see their choice flicker away.
-      final now = DateTime.now().millisecondsSinceEpoch;
+      final serverByTf = <String, Map<String, dynamic>>{};
+      for (final m in msgs) {
+        serverByTf['tf:${m['ts']}_${m['from']}'] = m;
+      }
+      // Rescue any local poll whose fields the server dropped (e.g. after a
+      // restart). Poll fields are irreplaceable — text messages can afford to
+      // lose fields, polls cannot.
+      Map<String, dynamic>? findServerMatch(Map local) {
+        final byKey = serverByKey[keyOf(local)];
+        if (byKey != null) return byKey;
+        return serverByTf['tf:${local['ts']}_${local['from']}'];
+      }
       for (final local in _messages) {
-        final k = keyOf(local);
-        final srv = serverByKey[k];
-        if (srv != null && local['type'] == 'poll' && srv['type'] == 'poll') {
+        final srv = findServerMatch(local);
+        if (srv == null) continue;
+        // If local was a poll, make sure server-side keeps looking like a poll.
+        if (local['type'] == 'poll') {
+          srv['type'] = 'poll';
+          if ((srv['question'] as String?)?.isEmpty ?? true) srv['question'] = local['question'];
+          if ((srv['options'] as List?)?.isEmpty ?? true) srv['options'] = local['options'];
+          // Merge optimistic votes.
           final localVotes = Map<String, dynamic>.from(local['votes'] as Map? ?? {});
           final srvVotes = Map<String, dynamic>.from(srv['votes'] as Map? ?? {});
           for (final e in localVotes.entries) {
             srvVotes.putIfAbsent(e.key, () => e.value);
           }
           srv['votes'] = srvVotes;
-          // Keep local poll fields (question/options) if server strips them
-          if ((srv['question'] as String?)?.isEmpty ?? true) srv['question'] = local['question'];
-          if ((srv['options'] as List?)?.isEmpty ?? true) srv['options'] = local['options'];
         }
       }
-      final serverKeys = serverByKey.keys.toSet();
-      // Poll bubbles created in the last 10s: keep them regardless — even if
-      // the server returned them, prefer local (so poll never flashes empty).
+      // A local message is superseded once the server returns something with
+      // the same msgId OR (ts, from). Polls always win locally (server fields
+      // may not include type after a cold start).
       final localOnly = _messages.where((m) {
-        if (serverKeys.contains(keyOf(m))) {
-          final ts = (m['ts'] as num?)?.toInt() ?? 0;
-          if (m['type'] == 'poll' && (now - ts) < 10000) return true;
-          return false;
-        }
-        return true;
+        final srv = findServerMatch(m);
+        if (srv == null) return true;
+        // If we optimistically flagged this as a poll, make sure the server
+        // record we're about to render still carries the poll fields —
+        // findServerMatch already patched srv, so it's safe to drop local.
+        return false;
       }).toList();
-      // Drop server entries superseded by fresh local polls
-      final localKeepKeys = localOnly.map(keyOf).toSet();
-      final msgsFiltered = msgs.where((m) => !localKeepKeys.contains(keyOf(m))).toList();
+      final keptKeys = <String>{for (final m in localOnly) keyOf(m), for (final m in localOnly) 'tf:${m['ts']}_${m['from']}'};
+      final msgsFiltered = msgs.where((m) => !keptKeys.contains(keyOf(m)) && !keptKeys.contains('tf:${m['ts']}_${m['from']}')).toList();
       final merged = [...msgsFiltered, ...localOnly];
       merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
       if (mounted) setState(() => _messages = merged);
@@ -633,34 +647,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: PhotonColors.panel,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            // Extra bottom room so action buttons sit above the gesture nav bar.
+            bottom: MediaQuery.of(ctx).viewPadding.bottom + 32,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(AppLang.instance.t('groupInviteQr'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
-              const SizedBox(height: 16),
-              // QR code — recipient scans and joins directly, no server URL to type.
-              Center(child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                child: QrImageView(data: link, size: 200, backgroundColor: Colors.white),
-              )),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: PhotonColors.bg,
-                  border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace'), textAlign: TextAlign.center),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // Action buttons up top so they're always thumb-reachable.
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
@@ -692,6 +694,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ),
                 ),
               ]),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: PhotonColors.bg,
+                  border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace'), textAlign: TextAlign.center),
+              ),
+              const SizedBox(height: 16),
+              Center(child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: QrImageView(data: link, size: 180, backgroundColor: Colors.white),
+              )),
             ],
           ),
         ),

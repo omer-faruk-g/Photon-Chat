@@ -67,6 +67,22 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       return;
     }
 
+    // Prevent joining your own group — check against locally-stored groups.
+    try {
+      final myGroups = await LocalStore.loadGroups();
+      final own = myGroups.any((g) => g.groupCode == code &&
+          (g.isOwner || g.ownerFipId == widget.identity.fipId));
+      if (own) {
+        setState(() { _error = AppLang.instance.t('cannotJoinOwnGroup'); _loading = false; });
+        return;
+      }
+      final already = myGroups.any((g) => g.groupCode == code);
+      if (already) {
+        setState(() { _error = AppLang.instance.t('alreadyInGroup'); _loading = false; });
+        return;
+      }
+    } catch (_) {}
+
     setState(() { _loading = true; _error = null; });
 
     // Try multiple servers in order:

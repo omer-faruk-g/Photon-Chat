@@ -719,6 +719,8 @@ class AppLang extends ChangeNotifier {
     'backgroundColor': 'Arka plan rengi',
     'storyNotFound': 'Hikaye bulunamadı',
     'imageLoadFailedShort': 'Görsel yüklenemedi',
+    'cannotJoinOwnGroup': 'Bu grup zaten senin. Kendi grubuna katılamazsın.',
+    'alreadyInGroup': 'Bu gruba zaten katıldın.',
     'manageFrequentMessages': 'Sık kullanılan mesajları yönet',
     'yourAddressLabel': 'SENİN ADRESİN',
     'thisDeviceFipBlock': 'BU CİHAZIN FIP BLOĞU',
