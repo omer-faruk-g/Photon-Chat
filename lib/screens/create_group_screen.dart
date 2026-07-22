@@ -34,7 +34,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (name.isEmpty) { setState(() => _error = AppLang.instance.t('groupNameEmpty')); return; }
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await PhotonApi.createGroup(
+      final (data, err) = await PhotonApi.createGroup(
         widget.myServerUrl,
         ownerFipId: widget.identity.fipId,
         ownerName: widget.displayName,
@@ -43,7 +43,13 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         description: _descCtrl.text.trim(),
       );
       if (!mounted) return;
-      if (data == null) { setState(() { _error = AppLang.instance.t('groupCreateFailed'); _loading = false; }); return; }
+      if (data == null) {
+        setState(() {
+          _error = err != null ? '${AppLang.instance.t('groupCreateFailed')}: $err' : AppLang.instance.t('groupCreateFailed');
+          _loading = false;
+        });
+        return;
+      }
       // Register group code on bridge so members can join by code alone (no server URL to type).
       await PhotonApi.registerOnBridge(data['groupCode'] as String, widget.myServerUrl);
       if (!mounted) return;

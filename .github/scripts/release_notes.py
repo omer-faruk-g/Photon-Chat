@@ -195,6 +195,20 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v9.2.0': (
+        "### ✨ v9.2.0 — Grup Adı + HD Avatar + 8× Hızlı Çeviri\n\n"
+        "**Grup oluşturma sorunu çözüldü:**\n"
+        "- 🐛 \"Grup oluşturulamadı\" hatası artık gerçek sebebi gösteriyor (HTTP kod + server error)\n"
+        "- 🔗 Client legacy compat: `actor`+`fipId`+`from` alanları hep gönderiyor (eski/yeni server ayırt etmiyor)\n\n"
+        "**Avatar HD kalitesi:**\n"
+        "- 📷 128×128 @ %40 → **512×512 @ %88**\n"
+        "- 💾 İstemci: 200KB → 300KB, sunucu: 300KB → 500KB\n\n"
+        "**Çeviri ~8× daha hızlı:**\n"
+        "- ⚡ Batch fail'inde artık 8 paralel istek (önce sequential)\n"
+        "- 🎯 500 anahtar için 4-5 sn (önceden 30-40 sn)\n"
+        "- 📊 Full-screen modal: canlı ilerleme (\"Çeviriliyor: X / Y\")\n"
+        "- 🔄 Fail'de transactional rollback + snackbar"
+    ),
     'v9.1.0': (
         "### 🙏 Özür\n\n"
         "> Geliştirici ekibin rehavete kapılıp doğru kod yazamamalarından özür diler, "
@@ -448,8 +462,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0'}
 
 
 def make_body(tag):

@@ -212,7 +212,8 @@ function msgId() {
 app.post('/presence', bigBody, (req, res) => {
   const { fipId, code, name, publicKey, serverUrl, statusMsg, avatar, bio } = req.body;
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
-  if (avatar && typeof avatar === 'string' && avatar.length > 300_000) {
+  // v9.2: HD avatars — ~300KB raw → 400KB base64. Cap at 500KB.
+  if (avatar && typeof avatar === 'string' && avatar.length > 500_000) {
     return res.status(413).json({ error: 'avatar too large' });
   }
   const prev = users.get(fipId);

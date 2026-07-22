@@ -142,14 +142,22 @@ class AppLang extends ChangeNotifier {
         return true;
       }
     } catch (_) {}
-    // Batch failed — fall back to per-key translation with progress.
+    // Batch failed — parallel per-key (8 concurrent) with live progress.
     try {
-      for (var i = 0; i < allKeys.length; i++) {
-        final tr = await TranslateService.translateStrict(allValues[i], targetLang: lang);
-        newMap[allKeys[i]] = tr;
-        _translateProgress = (i + 1) / allKeys.length;
-        _translateStatus = 'Çeviriliyor: ${i + 1} / ${allKeys.length}';
-        if (i % 5 == 0) notifyListeners();
+      var done = 0;
+      const concurrency = 8;
+      for (var i = 0; i < allKeys.length; i += concurrency) {
+        final chunk = <Future<void>>[];
+        for (var j = i; j < i + concurrency && j < allKeys.length; j++) {
+          chunk.add(TranslateService.translateStrict(allValues[j], targetLang: lang).then((tr) {
+            newMap[allKeys[j]] = tr;
+            done++;
+            _translateProgress = done / allKeys.length;
+            _translateStatus = 'Çeviriliyor: $done / ${allKeys.length}';
+          }));
+        }
+        await Future.wait(chunk);
+        notifyListeners();
       }
       _translated
         ..clear()

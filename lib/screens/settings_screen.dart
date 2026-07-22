@@ -77,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 40, maxWidth: 128, maxHeight: 128);
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 88, maxWidth: 512, maxHeight: 512);
     if (file == null) return;
     final bytes = await file.readAsBytes();
 
@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    if (bytes.length > 200 * 1024) {
+    if (bytes.length > 300 * 1024) { // v9.2: bumped for HD avatars
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('photoTooLarge'))));
       return;
     }

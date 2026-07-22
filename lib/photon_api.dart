@@ -234,16 +234,30 @@ class PhotonApi {
 
   // --- Group API ---
 
-  static Future<Map<String, dynamic>?> createGroup(String myServerUrl, {
+  static Future<(Map<String, dynamic>?, String?)> createGroup(String myServerUrl, {
     required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl, String description = '',
   }) async {
     try {
       final r = await http.post(_u(myServerUrl, '/groups'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name, 'ownerServerUrl': ownerServerUrl, 'description': description}));
-      if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body) as Map<String, dynamic>;
-    } catch (_) {}
-    return null;
+          body: jsonEncode({
+            'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name,
+            'ownerServerUrl': ownerServerUrl, 'description': description,
+            // Legacy/new server compat
+            'actor': ownerFipId, 'fipId': ownerFipId, 'from': ownerFipId,
+          })).timeout(const Duration(seconds: 20));
+      if (r.statusCode == 200 || r.statusCode == 201) {
+        return (jsonDecode(r.body) as Map<String, dynamic>, null);
+      }
+      String reason = 'HTTP ${r.statusCode}';
+      try {
+        final body = jsonDecode(r.body);
+        if (body is Map && body['error'] is String) reason = '${body['error']} (HTTP ${r.statusCode})';
+      } catch (_) {}
+      return (null, reason);
+    } catch (e) {
+      return (null, 'Ağ hatası: $e');
+    }
   }
 
   static Future<Map<String, dynamic>?> getGroupByCode(String ownerServerUrl, String code) async {
