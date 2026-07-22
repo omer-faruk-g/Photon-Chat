@@ -1007,17 +1007,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     final isMe = m['from'] == myFipId;
                     final msgId = m['msgId'] as String? ?? '';
                     final rawText = m['text'] as String? ?? '';
+                    // v10.0.2: composite key so messages with empty msgId don't collide
+                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}';
                     String displayText;
-                    if (_filtered.containsKey(msgId)) {
-                      displayText = _filtered[msgId]!;
+                    if (_filtered.containsKey(cacheKey)) {
+                      displayText = _filtered[cacheKey]!;
                     } else {
                       displayText = filterProfanity(rawText);
                       if (displayText == rawText) {
                         filterProfanityAsync(rawText).then((v) {
-                          if (v != rawText && mounted) setState(() => _filtered[msgId] = v);
+                          if (v != rawText && mounted) setState(() => _filtered[cacheKey] = v);
                         });
                       } else {
-                        _filtered[msgId] = displayText;
+                        _filtered[cacheKey] = displayText;
                       }
                     }
                     final fromName = m['fromName'] as String? ?? '';

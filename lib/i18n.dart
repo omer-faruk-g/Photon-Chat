@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'translate_service.dart';
+import 'profanity_filter.dart';
 
 class AppLang extends ChangeNotifier {
   static final AppLang instance = AppLang._();
@@ -79,6 +80,7 @@ class AppLang extends ChangeNotifier {
       _lang = lang;
       _translated.clear();
       await prefs.setString(_key, lang);
+      await reloadProfanityForCurrentLang();
       notifyListeners();
       return true;
     }
@@ -92,6 +94,7 @@ class AppLang extends ChangeNotifier {
           ..clear()
           ..addAll(map);
         await prefs.setString(_key, lang);
+        await reloadProfanityForCurrentLang();
         notifyListeners();
         return true;
       } catch (_) {}
@@ -109,6 +112,7 @@ class AppLang extends ChangeNotifier {
     if (ok) {
       _lang = lang;
       await prefs.setString(_key, lang);
+      await reloadProfanityForCurrentLang();
     } else {
       // Rollback — never leave the app on an untranslated fake language.
       _translated

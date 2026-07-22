@@ -659,18 +659,21 @@ class _ChatScreenState extends State<ChatScreen> {
         final m = _messages[i];
         final mine = m.from == widget.identity.fipId;
         String displayText;
+        // v10.0.2: cache key includes ts+from so messages with empty msgId
+        // don't share a slot and clobber each other on new profanity match.
+        final cacheKey = '${m.msgId}_${m.ts}_${m.from}';
         if (m.deleted) {
           displayText = '\u{1F5D1} Bu mesaj silindi.';
-        } else if (_filtered.containsKey(m.msgId)) {
-          displayText = _filtered[m.msgId]!;
+        } else if (_filtered.containsKey(cacheKey)) {
+          displayText = _filtered[cacheKey]!;
         } else {
           displayText = filterProfanity(m.text);
           if (displayText == m.text) {
             filterProfanityAsync(m.text).then((v) {
-              if (v != m.text && mounted) setState(() => _filtered[m.msgId] = v);
+              if (v != m.text && mounted) setState(() => _filtered[cacheKey] = v);
             });
           } else {
-            _filtered[m.msgId] = displayText;
+            _filtered[cacheKey] = displayText;
           }
         }
         // Disappearing message suffix
