@@ -43,15 +43,20 @@ class TranslateService {
     }
   }
 
-  /// Strict variant used for UI batch translation. Throws on any failure
-  /// so callers can rollback the language switch instead of silently
-  /// caching the source-language text.
-  static Future<String> translateStrict(String text, {required String targetLang}) async {
-    final cacheKey = '$targetLang $text';
+  /// Strict variant used for UI string translation. Throws on any failure so
+  /// callers can roll back the language switch instead of silently caching the
+  /// source-language text.
+  ///
+  /// [sourceLang] defaults to Turkish because every UI string starts life in
+  /// `_baseTr`. Auto-detection guesses wrong on short isolated tokens — "Dil",
+  /// "Erkek" and "KODUM" all came back unchanged — which shipped untranslated
+  /// labels into otherwise fully translated screens.
+  static Future<String> translateStrict(String text, {required String targetLang, String sourceLang = 'tr'}) async {
+    final cacheKey = '$sourceLang>$targetLang $text';
     if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!;
     final url = Uri.parse(
       'https://translate.googleapis.com/translate_a/single'
-      '?client=gtx&sl=auto&tl=$targetLang&dt=t&q=${Uri.encodeComponent(text)}',
+      '?client=gtx&sl=$sourceLang&tl=$targetLang&dt=t&q=${Uri.encodeComponent(text)}',
     );
     final response = await http.get(url).timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {

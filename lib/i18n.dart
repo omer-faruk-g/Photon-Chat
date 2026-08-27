@@ -126,42 +126,77 @@ class AppLang extends ChangeNotifier {
     return ok;
   }
 
+  static const _batchSeparator = '\n||||\n';
+
+  /// Strings per batched request. The previous code put *every* value in one
+  /// request, which blew past the endpoint's URL limit — so the batch always
+  /// failed and every switch fell back to one request per string. With 417 keys
+  /// that was 417 round-trips: slow enough to take over a minute, and enough
+  /// volume to get rate-limited mid-switch. Chunking keeps each URL small while
+  /// cutting the request count by ~20x.
+  static const _batchSize = 20;
+
   Future<bool> _translateAllKeysStrict(String lang, SharedPreferences prefs) async {
     final allValues = _baseTr.values.toList();
     final allKeys = _baseTr.keys.toList();
     final newMap = <String, String>{};
-    // Try batch first: fast if it works.
-    try {
-      final batch = allValues.join('\n||||\n');
-      final result = await TranslateService.translateStrict(batch, targetLang: lang);
-      final parts = result.split('\n||||\n');
-      if (parts.length == allKeys.length) {
-        for (var i = 0; i < allKeys.length; i++) {
-          newMap[allKeys[i]] = parts[i].trim();
-        }
-        _translated
-          ..clear()
-          ..addAll(newMap);
-        await prefs.setString('$_cachePrefix$lang', jsonEncode(_translated));
-        return true;
-      }
-    } catch (_) {}
-    // Batch failed — parallel per-key (8 concurrent) with live progress.
-    try {
-      var done = 0;
+    final total = allKeys.length;
+    var done = 0;
+
+    void reportProgress() {
+      _translateProgress = total == 0 ? 1.0 : done / total;
+      // Deliberately reads the base map rather than t(): during a switch the
+      // target language is not active yet, so this stays in the language the
+      // user is still looking at.
+      _translateStatus = '${_baseTr['translating'] ?? 'Çeviriliyor'} $done / $total';
+    }
+
+    // Per-string fallback for a chunk the batched request could not round-trip.
+    Future<void> translateIndividually(Iterable<int> indexes) async {
       const concurrency = 8;
-      for (var i = 0; i < allKeys.length; i += concurrency) {
-        final chunk = <Future<void>>[];
-        for (var j = i; j < i + concurrency && j < allKeys.length; j++) {
-          chunk.add(TranslateService.translateStrict(allValues[j], targetLang: lang).then((tr) {
-            newMap[allKeys[j]] = tr;
+      final list = indexes.toList();
+      for (var i = 0; i < list.length; i += concurrency) {
+        final inFlight = <Future<void>>[];
+        for (var j = i; j < i + concurrency && j < list.length; j++) {
+          final k = list[j];
+          inFlight.add(TranslateService.translateStrict(allValues[k], targetLang: lang).then((tr) {
+            newMap[allKeys[k]] = tr;
             done++;
-            _translateProgress = done / allKeys.length;
-            _translateStatus = 'Çeviriliyor: $done / ${allKeys.length}';
+            reportProgress();
           }));
         }
-        await Future.wait(chunk);
+        await Future.wait(inFlight);
         notifyListeners();
+      }
+    }
+
+    try {
+      for (var start = 0; start < total; start += _batchSize) {
+        final end = start + _batchSize < total ? start + _batchSize : total;
+        final indexes = [for (var i = start; i < end; i++) i];
+        var batched = false;
+        try {
+          final joined = [for (final i in indexes) allValues[i]].join(_batchSeparator);
+          final result = await TranslateService.translateStrict(joined, targetLang: lang);
+          final parts = result.split(_batchSeparator);
+          // Only trust the batch when the separator survived intact; otherwise
+          // the pieces would be misaligned and every label would be wrong.
+          if (parts.length == indexes.length) {
+            for (var n = 0; n < indexes.length; n++) {
+              newMap[allKeys[indexes[n]]] = parts[n].trim();
+            }
+            done += indexes.length;
+            batched = true;
+          }
+        } catch (_) {
+          // fall through to the per-string path for this chunk only
+        }
+        if (batched) {
+          reportProgress();
+          notifyListeners();
+        } else {
+          await translateIndividually(indexes);
+        }
       }
       _translated
         ..clear()

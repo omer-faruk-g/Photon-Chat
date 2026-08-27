@@ -42,7 +42,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _bioCtrl = TextEditingController();
   bool _savingBio = false;
   String _voiceGender = 'male';
+  // Stored as the literal sentinels 'Varsayilan' / 'Sessiz', or a device
+  // ringtone's own name. The sentinels are identifiers, not display text — they
+  // stayed Turkish on every other language until they were mapped through i18n
+  // at render time. Ringtone names come from the OS and are shown verbatim.
   String _notifSound = 'Varsayilan';
+  String get _notifSoundLabel {
+    if (_notifSound == 'Varsayilan') return AppLang.instance.t('defaultSound');
+    if (_notifSound == 'Sessiz') return AppLang.instance.t('silent');
+    return _notifSound;
+  }
   String _fontSize = 'orta';
   bool _lockEnabled = false;
 
@@ -805,7 +814,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(AppLang.instance.t('notifSoundTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(_notifSound, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(_notifSoundLabel, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),

@@ -148,7 +148,14 @@ class OfflineQueue {
         ? {'msgId': msg.replyToMsgId, 'from': msg.replyToFrom, 'text': msg.replyToText}
         : null;
 
-    // Send to own server
+    // `contactServerUrl` is the peer's server; entries queued before that field
+    // existed fall back to receiverServerUrl so old queues still drain. When the
+    // two are the same server, post once — twice would store two copies of one
+    // message. The addressing fields ride along on the peer's copy so their
+    // server can raise the "new message" notification.
+    final peerUrl = msg.toFipId == null ? null : (msg.contactServerUrl ?? msg.receiverServerUrl);
+    final peerIsSameServer = peerUrl == msg.receiverServerUrl;
+
     final (ok1, _) = await PhotonApi.sendMessage(
       receiverServerUrl: msg.receiverServerUrl,
       chatKey: msg.chatKey,
@@ -156,15 +163,14 @@ class OfflineQueue {
       text: msg.text,
       ts: msg.ts,
       replyTo: replyData,
+      toFipId: peerIsSameServer ? msg.toFipId : null,
+      senderName: peerIsSameServer ? msg.senderName : null,
     );
     if (!ok1) throw const SocketException('Failed to reach server');
 
-    // Send to contact server (if toFipId is set, this is the contact copy).
-    // Fall back to receiverServerUrl for entries queued before contactServerUrl
-    // existed, so old queues still drain somewhere instead of throwing.
-    if (msg.toFipId != null) {
+    if (peerUrl != null && !peerIsSameServer) {
       await PhotonApi.sendMessage(
-        receiverServerUrl: msg.contactServerUrl ?? msg.receiverServerUrl,
+        receiverServerUrl: peerUrl,
         chatKey: msg.chatKey,
         from: msg.from,
         text: msg.text,

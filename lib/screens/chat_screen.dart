@@ -98,6 +98,16 @@ class _ChatScreenState extends State<ChatScreen> {
   // Feature: Quick replies
   List<String> _quickReplies = [];
   bool _showQuickReplies = false;
+  /// Each message is written to our server and to the contact's so both sides
+  /// can read it from their own. When both accounts live on the same server
+  /// those are one and the same, and posting twice stored two copies — the
+  /// chat then showed every message doubled.
+  bool get _sameServer => widget.contact.serverUrl == widget.myServerUrl;
+
+  /// Distinct servers a message must reach, in delivery order (ours first).
+  List<String> get _deliveryTargets =>
+      _sameServer ? [widget.myServerUrl] : [widget.myServerUrl, widget.contact.serverUrl];
+
   double get _msgFontSize => FontSizeNotifier.instance.msgFontSize;
   void _onFontChanged() { if (mounted) setState(() {}); }
 
@@ -275,15 +285,18 @@ class _ChatScreenState extends State<ChatScreen> {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = markNsfw ? AppLang.instance.t('sensitiveImageTag') : AppLang.instance.t('photoTag');
     final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
-    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
-    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    }
 
     if (markNsfw) {
       final warnTs = ts + 1;
       final warnText = AppLang.instance.t('nsfwSystemWarning');
-      await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
-      // Also mirror the warning to my own server so the sender sees it in their own poll.
-      await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+      // Mirrored to both servers so sender and recipient each see it in their
+      // own poll — once each, not twice when they share a server.
+      for (final url in _deliveryTargets) {
+        await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+      }
     }
   }
 
@@ -310,8 +323,9 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
     }
-    await PhotonApi.sendFileMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
-    await PhotonApi.sendFileMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendFileMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    }
   }
 
   Future<void> _openGifCreator() async {
@@ -324,8 +338,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final ts = DateTime.now().millisecondsSinceEpoch;
     final displayText = caption.isNotEmpty ? caption : '[GIF]';
     final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
-    await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
-    await PhotonApi.sendMessage(receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    }
   }
 
   void _startListening() async {
@@ -603,9 +618,14 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() { _replyToMsg = null; });
 
     try {
+      final senderName = _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId;
+      // On a shared server this single write is also the recipient's copy, so
+      // it has to carry the addressing fields the second write would have.
       final (ok, myMsgId) = await PhotonApi.sendMessage(
           receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
-          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData);
+          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+          toFipId: _sameServer ? widget.contact.fipId : null,
+          senderName: _sameServer ? senderName : null);
       if (!ok) throw const SocketException('Server unreachable');
 
       final newMsg = _DisplayMessage(
@@ -618,10 +638,16 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
       _scrollToBottom();
 
-      final (deliveredToContact, _) = await PhotonApi.sendMessage(
-          receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
-          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
-          toFipId: widget.contact.fipId, senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId);
+      final bool deliveredToContact;
+      if (_sameServer) {
+        deliveredToContact = ok;
+      } else {
+        final (delivered, _) = await PhotonApi.sendMessage(
+            receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
+            from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+            toFipId: widget.contact.fipId, senderName: senderName);
+        deliveredToContact = delivered;
+      }
 
       if (mounted) {
         setState(() {
@@ -656,13 +682,17 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _enqueueOffline(String encryptedText, int ts, Map<String, dynamic>? replyData, String plainText) async {
-    await OfflineQueue.instance.enqueue(QueuedMessage(
-      chatKey: _chatKey, receiverServerUrl: widget.myServerUrl,
-      from: widget.identity.fipId, text: encryptedText, ts: ts,
-      replyToMsgId: replyData?['msgId'] as String?,
-      replyToFrom: replyData?['from'] as String?,
-      replyToText: replyData?['text'] as String?,
-    ));
+    // On a shared server the recipient copy below is the only entry needed —
+    // queueing both would drain into two (or three) copies of one message.
+    if (!_sameServer) {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: _chatKey, receiverServerUrl: widget.myServerUrl,
+        from: widget.identity.fipId, text: encryptedText, ts: ts,
+        replyToMsgId: replyData?['msgId'] as String?,
+        replyToFrom: replyData?['from'] as String?,
+        replyToText: replyData?['text'] as String?,
+      ));
+    }
     await OfflineQueue.instance.enqueue(QueuedMessage(
       chatKey: _chatKey, receiverServerUrl: widget.contact.serverUrl,
       contactServerUrl: widget.contact.serverUrl,
