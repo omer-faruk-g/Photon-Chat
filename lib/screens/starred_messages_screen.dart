@@ -53,6 +53,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                       onTap: () async {
                         final id = m['msgId'] as String?;
                         if (id != null) await LocalStore.unstarMessage(id);
+                        if (!mounted) return;
                         setState(() => _starred.removeAt(i));
                       },
                       child: Icon(Icons.close, color: PhotonColors.textDim, size: 18),

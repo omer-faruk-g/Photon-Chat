@@ -36,6 +36,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
     }
     final b64 = base64Encode(bytes);
     await ChatWallpaper.saveWallpaper('image', b64);
+    if (!mounted) return;
     setState(() {
       _selectedType = 'image';
       _selectedValue = b64;
@@ -44,6 +45,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
 
   Future<void> _selectNone() async {
     await ChatWallpaper.saveWallpaper('none', '');
+    if (!mounted) return;
     setState(() {
       _selectedType = 'none';
       _selectedValue = '';
@@ -53,6 +55,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
   Future<void> _selectColor(Color color) async {
     final hex = color.value.toRadixString(16).padLeft(8, '0');
     await ChatWallpaper.saveWallpaper('color', hex);
+    if (!mounted) return;
     setState(() {
       _selectedType = 'color';
       _selectedValue = hex;
