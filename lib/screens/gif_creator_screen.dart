@@ -30,20 +30,21 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
 
   Future<void> _addFrame() async {
     if (_frames.length >= 8) {
-      setState(() => _error = 'En fazla 8 kare eklenebilir');
+      setState(() => _error = AppLang.instance.t('gifMaxFrames'));
       return;
     }
     final xfile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (xfile == null) return;
     final bytes = await xfile.readAsBytes();
 
+    if (!mounted) return;
     setState(() { _scanning = true; _error = null; });
     final isNsfw = await NsfwScanner.hasImageViolation(bytes);
     if (!mounted) return;
     setState(() => _scanning = false);
 
     if (isNsfw) {
-      setState(() => _error = '⛔ Bu görsel uygunsuz içerik taşıyor — eklenemez.');
+      setState(() => _error = AppLang.instance.t('gifFrameNsfw'));
       return;
     }
     setState(() => _frames.add(bytes));
@@ -55,7 +56,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
 
   Future<void> _createAndSend() async {
     if (_frames.isEmpty) {
-      setState(() => _error = 'En az 1 kare gerekli');
+      setState(() => _error = AppLang.instance.t('gifNeedFrame'));
       return;
     }
 
@@ -63,7 +64,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
 
     // Metin küfür kontrolü
     if (caption.isNotEmpty && NsfwScanner.hasTextViolation(caption)) {
-      setState(() => _error = '⛔ Başlık uygunsuz içerik taşıyor — düzelt.');
+      setState(() => _error = AppLang.instance.t('gifCaptionNsfw'));
       return;
     }
 
@@ -72,8 +73,9 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
     try {
       // Kareleri yeniden tara (encoding öncesi son kontrol)
       final hasViolation = await NsfwScanner.hasAnyFrameViolation(_frames);
+      if (!mounted) return;
       if (hasViolation) {
-        setState(() { _encoding = false; _error = '⛔ Uygunsuz içerik tespit edildi — GIF oluşturulmadı.'; });
+        setState(() { _encoding = false; _error = AppLang.instance.t('gifNsfwBlocked'); });
         return;
       }
 
@@ -82,7 +84,8 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
       setState(() => _encoding = false);
       Navigator.pop(context, GifResult(gifBytes: gifBytes, caption: caption));
     } catch (e) {
-      setState(() { _encoding = false; _error = 'GIF oluşturulurken hata: $e'; });
+      if (!mounted) return;
+      setState(() { _encoding = false; _error = '${AppLang.instance.t('gifEncodeFailed')}: $e'; });
     }
   }
 

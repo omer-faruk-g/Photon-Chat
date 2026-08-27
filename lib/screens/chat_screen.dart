@@ -549,6 +549,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
       final msgId = _editingMsgId!;
+      if (!mounted) return;
       setState(() { _editingMsgId = null; _draftCtrl.clear(); _inputError = null; _replyToMsg = null; });
       try {
         await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
@@ -598,6 +599,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final replyData = _replyToMsg != null
         ? {'msgId': _replyToMsg!['msgId'], 'from': _replyToMsg!['from'], 'text': _replyToMsg!['text']}
         : null;
+    if (!mounted) return;
     setState(() { _replyToMsg = null; });
 
     try {
@@ -610,6 +612,9 @@ class _ChatScreenState extends State<ChatScreen> {
           msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
           ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
       _sentCache[myMsgId ?? '_$ts'] = newMsg;
+      // The send above is a network round-trip; the user may have left the
+      // chat while it was in flight.
+      if (!mounted) return;
       setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
       _scrollToBottom();
 

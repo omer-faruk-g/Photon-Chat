@@ -68,6 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _load() async {
     final avatar = await LocalStore.loadAvatar();
     final statusMsg = await LocalStore.loadStatusMsg();
+    if (!mounted) return;
     setState(() {
       _avatar = avatar;
       _statusMsg = statusMsg;
@@ -101,6 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     final b64 = base64Encode(bytes);
     await LocalStore.saveAvatar(b64);
+    if (!mounted) return;
     setState(() => _avatar = b64);
     await _syncPresence();
   }
@@ -109,6 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _savingStatus = true);
     final msg = _statusCtrl.text.trim();
     await LocalStore.saveStatusMsg(msg);
+    if (!mounted) return;
     setState(() { _statusMsg = msg; _savingStatus = false; });
     await _syncPresence();
   }
@@ -117,6 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _savingBio = true);
     final bio = _bioCtrl.text.trim();
     await LocalStore.saveBio(bio);
+    if (!mounted) return;
     setState(() { _bio = bio; _savingBio = false; });
   }
 
