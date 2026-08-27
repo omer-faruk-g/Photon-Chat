@@ -554,7 +554,7 @@ class _GroupRow extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
           const SizedBox(height: 2),
-          Text(group.isOwner ? 'Sahip · Kod: ${group.groupCode}' : 'Üye · Kod: ${group.groupCode}',
+          Text('${AppLang.instance.t(group.isOwner ? 'roleOwner' : 'roleMember')} · ${AppLang.instance.t('codeLabel')}: ${group.groupCode}',
               style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
           if (group.description.isNotEmpty) ...[
             const SizedBox(height: 2),
@@ -611,7 +611,7 @@ class _EmptyState extends StatelessWidget {
       const SizedBox(height: 8),
       Text(AppLang.instance.t('emptyContacts'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
       const SizedBox(height: 6),
-      Text('Arkadaşının 5 haneli kodunu girerek kişi ekle.', textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
+      Text(AppLang.instance.t('emptyContactsHint'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
       ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: Text(AppLang.instance.t('addContact'))),
     ]),
@@ -686,7 +686,7 @@ class _ContactRow extends StatelessWidget {
                 ),
               ListTile(
                 leading: Icon(Icons.block, color: PhotonColors.danger),
-                title: Text('${contact.name} kullanıcısını engelle', style: TextStyle(color: PhotonColors.danger)),
+                title: Text('${contact.name} — ${AppLang.instance.t('blockUser')}', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () { Navigator.pop(context); onBlock(); },
               ),
               ListTile(
@@ -755,7 +755,7 @@ class _PendingOutRow extends StatelessWidget {
         Row(children: [
           SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
           const SizedBox(width: 6),
-          Text('Davet gönderildi · onay bekleniyor', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          Text(AppLang.instance.t('invitePendingApproval'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
         ]),
       ])),
     ]),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'e2e.dart';
+import 'i18n.dart';
 
 const String bridgeUrl = 'https://photon-chat.onrender.com';
 
@@ -262,7 +263,7 @@ class PhotonApi {
       } catch (_) {}
       return (null, reason);
     } catch (e) {
-      return (null, 'Ağ hatası: $e');
+      return (null, '${AppLang.instance.t('networkError')}: $e');
     }
   }
 
@@ -599,12 +600,12 @@ class PhotonApi {
       ).timeout(const Duration(seconds: 30));
       if (r.statusCode == 200) {
         final body = jsonDecode(r.body) as Map<String, dynamic>;
-        return body['reply'] as String? ?? 'Yanıt alınamadı.';
+        return body['reply'] as String? ?? AppLang.instance.t('aiNoReply');
       }
-      final err = jsonDecode(r.body)['error'] as String? ?? 'Bir hata oluştu.';
+      final err = jsonDecode(r.body)['error'] as String? ?? AppLang.instance.t('aiGenericError');
       return err;
     } catch (_) {
-      return 'Pulse AI\'e ulaşılamadı. Sunucu bağlantını kontrol et.';
+      return AppLang.instance.t('aiUnreachable');
     }
   }
 
