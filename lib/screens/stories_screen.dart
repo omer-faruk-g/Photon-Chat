@@ -164,7 +164,18 @@ class _StoriesRowState extends State<StoriesRow> {
             child: icon != null ? Icon(icon, color: PhotonColors.accent, size: 24) : Center(child: Text(label.isNotEmpty ? label[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold, fontSize: 20))),
           ),
           const SizedBox(height: 4),
-          SizedBox(width: 64, child: Text(label, style: TextStyle(color: PhotonColors.textDim, fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
+          // Two lines: "Hikayeni Ekle" / "Add Your Story" do not fit on one at
+          // this width and were rendering as "Add Your S…".
+          SizedBox(
+            width: 68,
+            child: Text(
+              label,
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 9.5, height: 1.15),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ]),
       ),
     );
