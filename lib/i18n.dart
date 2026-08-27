@@ -267,6 +267,8 @@ class AppLang extends ChangeNotifier {
     'save': 'Kaydet',
     'error': 'Hata',
     'no': 'Hayır',
+    'yes': 'Evet',
+    'pollBadge': 'ANKET',
     'ok': 'Tamam',
     // AppBar titles
     'devices': 'Cihazlar',

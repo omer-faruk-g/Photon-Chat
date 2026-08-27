@@ -771,7 +771,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _showPollDialog() {
     final questionCtrl = TextEditingController();
     final optCtrls = [
-      TextEditingController(text: 'Evet'),
+      TextEditingController(text: AppLang.instance.t('yes')),
       TextEditingController(text: AppLang.instance.t('no')),
     ];
 
@@ -875,7 +875,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         Row(children: [
           Icon(Icons.poll, color: PhotonColors.accent, size: 14),
           const SizedBox(width: 6),
-          Text('ANKET', style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          Text(AppLang.instance.t('pollBadge'), style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
           const SizedBox(width: 6),
           Text(m['fromName'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
         ]),
