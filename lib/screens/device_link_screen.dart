@@ -103,6 +103,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
       if (_attempt >= _maxAttempts) {
         await DeviceManager.saveDeviceRole('fake');
         await DeviceManager.saveMainDeviceFip(widget.ownerFipId);
+        if (!mounted) return;
         setState(() => _permanentFake = true);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

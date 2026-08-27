@@ -48,6 +48,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final blockList = await LocalStore.loadBlockList();
     final statusMsg = await LocalStore.loadStatusMsg();
     final avatar = await LocalStore.loadAvatar();
+    if (!mounted) return;
     setState(() {
       _contacts = savedContacts;
       _groups = savedGroups;
@@ -141,6 +142,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _accept(Contact c) async {
+    if (!mounted) return;
     setState(() => c.status = 'on');
     await LocalStore.saveContacts(_contacts);
     await PhotonApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
@@ -154,6 +156,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _blockContact(Contact c) async {
     await LocalStore.blockUser(c.fipId);
+    if (!mounted) return;
     setState(() {
       _blockList.add(c.fipId);
       _contacts.removeWhere((x) => x.fipId == c.fipId);
