@@ -327,7 +327,7 @@ app.post('/chat/:chatKey', bigBody, (req, res) => {
   if (!isNonEmptyString(fromFipId, 128)) return res.sendStatus(400);
   // Only the sender may post as themselves.
   if (actor !== fromFipId) return res.sendStatus(403);
-  // ChatKey must include the sender (chatKeys are `${a}_${b}` sorted).
+  // ChatKey must include the sender (chatKeys are `${a}__${b}`, sorted).
   if (!chatHasParticipant(key, fromFipId)) return res.sendStatus(403);
   if (typeof text === 'string' && text.length > 8000) {
     return res.status(413).json({ error: 'text too long' });
