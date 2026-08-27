@@ -300,43 +300,68 @@ class _ContactsScreenState extends State<ContactsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), // brand name — not translated
-          actions: [IconButton(icon: Icon(Icons.settings, color: PhotonColors.text), onPressed: _openSettings)],
+          actions: [
+            // Pulse AI lost its card on the home screen; this keeps it one tap away.
+            IconButton(
+              icon: Icon(Icons.bolt, color: PhotonColors.accent),
+              tooltip: AppLang.instance.t('pulseAiTitle'),
+              onPressed: _openPulseAI,
+            ),
+            // Own avatar doubles as the settings entry point.
+            Padding(
+              padding: const EdgeInsets.only(right: 12, left: 4),
+              child: GestureDetector(
+                onTap: _openSettings,
+                child: _AvatarWidget(name: widget.displayName, avatar: _myAvatar, size: 32, on: true),
+              ),
+            ),
+          ],
         ),
         body: Stack(
           children: [
             ListView(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 100 + MediaQuery.of(context).padding.bottom),
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 100 + MediaQuery.of(context).padding.bottom),
               children: [
-                // Hikayeler
-                StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
-                const SizedBox(height: 12),
-
-                // Profil şeridi
-                _ProfileStrip(
-                  name: widget.displayName,
-                  code: widget.identity.code,
-                  avatar: _myAvatar,
-                  statusMsg: _myStatusMsg,
-                  onTap: _openSettings,
-                  onCopyCode: () {
-                    Clipboard.setData(ClipboardData(text: widget.identity.code));
-                    _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
-                  },
+                // Own code, right-aligned under the avatar. Replaces the old
+                // full-height profile card.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: widget.identity.code));
+                      _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: PhotonColors.accent.withOpacity(0.08),
+                        border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                        Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
+                      ]),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
-                // Pulse AI
-                _PulseAiCard(onTap: _openPulseAI),
-                const SizedBox(height: 20),
+                StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
+                const SizedBox(height: 14),
 
+                // Invites still get their own block — they need a decision, so
+                // they must not blend into the list below.
                 if (incoming.isNotEmpty) ...[
                   _SectionTitle(AppLang.instance.t('invites'), count: incoming.length),
                   ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                 ],
 
-                _SectionTitle(AppLang.instance.t('contacts'), count: active.length),
-                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty)
+                // One unified list: contacts and groups, no section headers.
+                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty && _groups.isEmpty)
                   _EmptyState(onAdd: _openAddScreen),
                 ...active.map((c) => _ContactRow(
                   contact: c,
@@ -344,17 +369,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   onTap: () => _openChat(c),
                   onBlock: () => _blockContact(c),
                 )),
-                ...outgoing.map((c) => _PendingOutRow(contact: c)),
-                const SizedBox(height: 24),
-
-                _SectionTitle(AppLang.instance.t('groups'), count: _groups.length),
-                if (_groups.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-                    decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: Text(AppLang.instance.t('noGroupsYet'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
-                  ),
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
+                ...outgoing.map((c) => _PendingOutRow(contact: c)),
               ],
             ),
 
@@ -428,113 +444,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 }
 
-// ─── Profil Şeridi ───────────────────────────────────────────────────────────
-
-class _ProfileStrip extends StatelessWidget {
-  final String name, code, avatar, statusMsg;
-  final VoidCallback onTap, onCopyCode;
-  const _ProfileStrip({required this.name, required this.code, required this.avatar, required this.statusMsg, required this.onTap, required this.onCopyCode});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: PhotonColors.panel,
-        border: Border.all(color: PhotonColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onTap,
-            child: _AvatarWidget(name: name, avatar: avatar, size: 52, on: true),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
-                if (statusMsg.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(statusMsg, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: onCopyCode,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: PhotonColors.accent.withOpacity(0.08),
-                      border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
-                        Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
-                        const SizedBox(width: 4),
-                        Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.settings_outlined, color: PhotonColors.textDim, size: 20),
-            onPressed: onTap,
-            tooltip: AppLang.instance.t('settings'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Yardımcı Widget'lar ────────────────────────────────────────────────────
-
-class _PulseAiCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PulseAiCard({required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: PhotonColors.accent.withOpacity(0.07),
-        border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: PhotonColors.accent.withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
-            ),
-            child: const Text('⚡', style: TextStyle(fontSize: 20)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(AppLang.instance.t('pulseAiTitle'), style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
-            Text(AppLang.instance.t('pulseAiSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
-          ])),
-          Icon(Icons.chevron_right, color: PhotonColors.accent, size: 20),
-        ],
-      ),
-    ),
-  );
-}
 
 class _GroupRow extends StatelessWidget {
   final Group group;
@@ -549,13 +459,11 @@ class _GroupRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+      // Same shape as a contact row — icon trailing — so the merged list reads
+      // as one column instead of two visually different kinds of row.
       child: Row(children: [
-        Container(width: 46, height: 46, alignment: Alignment.center,
-            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.group, color: PhotonColors.accent, size: 22)),
-        const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
+          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
           Text('${AppLang.instance.t(group.isOwner ? 'roleOwner' : 'roleMember')} · ${AppLang.instance.t('codeLabel')}: ${group.groupCode}',
               style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
@@ -564,14 +472,17 @@ class _GroupRow extends StatelessWidget {
             Text(group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ])),
-        if (pendingCount > 0)
+        if (pendingCount > 0) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(12)),
             child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
-        const SizedBox(width: 6),
-        Icon(Icons.chevron_right, color: PhotonColors.textDim),
+          const SizedBox(width: 8),
+        ],
+        Container(width: 46, height: 46, alignment: Alignment.center,
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.group, color: PhotonColors.accent, size: 22)),
       ]),
     ),
   );
@@ -709,7 +620,19 @@ class _ContactRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+        // Avatar sits on the trailing edge so the names line up flush left and
+        // the row reads as a single label, per the agreed layout.
         child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Text(
+              isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
+              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          ])),
+          const SizedBox(width: 12),
           Stack(children: [
             _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: true),
             Positioned(
@@ -724,17 +647,6 @@ class _ContactRow extends StatelessWidget {
               ),
             ),
           ]),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 2),
-            Text(
-              isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
-              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-            ),
-          ])),
-          Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 18),
         ]),
       ),
     ),

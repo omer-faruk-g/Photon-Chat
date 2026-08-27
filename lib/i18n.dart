@@ -240,7 +240,6 @@ class AppLang extends ChangeNotifier {
   }
 
   static const Map<String, String> _baseTr = {
-    'contacts': 'Kişiler',
     'addContact': 'Kişi Ekle',
     'settings': 'Ayarlar',
     'writeMessage': 'Mesaj yaz…',
@@ -607,7 +606,6 @@ class AppLang extends ChangeNotifier {
     'notifSoundTitle': 'Bildirim Sesi',
     'pickNotifSound': 'Bildirim Sesi Seç',
     'pulseAiTitle': 'Pulse AI',
-    'pulseAiSubtitle': 'Yapay zeka asistanın · Sor, sohbet et',
     'myStory': 'Hikayem',
     'kodum': 'KODUM',
     'male': 'Erkek',
@@ -690,7 +688,6 @@ class AppLang extends ChangeNotifier {
     'keepChatsQuestion': 'Sohbetler kaydedilsin mi?',
     'yesKeep': 'Evet, sakla',
     'invites': 'Davetler',
-    'noGroupsYet': 'Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.',
     'manageFrequentMessages': 'Sık kullanılan mesajları yönet',
     'yourAddressLabel': 'SENİN ADRESİN',
     'thisDeviceFipBlock': 'BU CİHAZIN FIP BLOĞU',
