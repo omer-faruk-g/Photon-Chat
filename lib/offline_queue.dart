@@ -7,6 +7,10 @@ import 'photon_api.dart';
 class QueuedMessage {
   final String chatKey;
   final String receiverServerUrl;
+  /// Peer's own server. Without this the queued copy meant for the recipient
+  /// was posted back to our own server, so a message written while offline
+  /// never reached them. Null on entries queued before this field existed.
+  final String? contactServerUrl;
   final String from;
   final String text;
   final int ts;
@@ -24,6 +28,7 @@ class QueuedMessage {
   QueuedMessage({
     required this.chatKey,
     required this.receiverServerUrl,
+    this.contactServerUrl,
     required this.from,
     required this.text,
     required this.ts,
@@ -42,6 +47,7 @@ class QueuedMessage {
   Map<String, dynamic> toJson() => {
         'chatKey': chatKey,
         'receiverServerUrl': receiverServerUrl,
+        if (contactServerUrl != null) 'contactServerUrl': contactServerUrl,
         'from': from,
         'text': text,
         'ts': ts,
@@ -59,6 +65,7 @@ class QueuedMessage {
   factory QueuedMessage.fromJson(Map<String, dynamic> j) => QueuedMessage(
         chatKey: j['chatKey'] as String,
         receiverServerUrl: j['receiverServerUrl'] as String,
+        contactServerUrl: j['contactServerUrl'] as String?,
         from: j['from'] as String,
         text: j['text'] as String,
         ts: (j['ts'] as num?)?.toInt() ?? 0,
@@ -152,10 +159,12 @@ class OfflineQueue {
     );
     if (!ok1) throw const SocketException('Failed to reach server');
 
-    // Send to contact server (if toFipId is set, this is the contact copy)
+    // Send to contact server (if toFipId is set, this is the contact copy).
+    // Fall back to receiverServerUrl for entries queued before contactServerUrl
+    // existed, so old queues still drain somewhere instead of throwing.
     if (msg.toFipId != null) {
       await PhotonApi.sendMessage(
-        receiverServerUrl: msg.receiverServerUrl,
+        receiverServerUrl: msg.contactServerUrl ?? msg.receiverServerUrl,
         chatKey: msg.chatKey,
         from: msg.from,
         text: msg.text,

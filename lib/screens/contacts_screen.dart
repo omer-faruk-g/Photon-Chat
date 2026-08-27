@@ -93,7 +93,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
       if (!_contacts.any((c) => c.fipId == fromFipId)) {
-        _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? 'Bilinmeyen',
+        _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? AppLang.instance.t('unknown'),
             code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in'));
       }
     }
@@ -131,7 +131,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       try {
         // Re-register the group's code on the bridge each cycle so members
         // can join by code alone (bridge is in-memory; survives via snapshot).
-        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl);
+        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
         final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
         if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
       } catch (_) {}
@@ -144,7 +144,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     setState(() => c.status = 'on');
     await LocalStore.saveContacts(_contacts);
     await PhotonApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
-    _showToast('${c.name} arkadaş listene eklendi.');
+    _showToast('${c.name} ${AppLang.instance.t('friendAddedSuffix')}');
   }
 
   Future<void> _decline(Contact c) async {
@@ -159,7 +159,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _contacts.removeWhere((x) => x.fipId == c.fipId);
     });
     await LocalStore.saveContacts(_contacts);
-    _showToast('${c.name} engellendi.');
+    _showToast('${c.name} ${AppLang.instance.t('blockedSuffix')}');
   }
 
   Future<void> _openAddScreen() async {
@@ -169,7 +169,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (result != null) {
       setState(() => _contacts.add(result));
       await LocalStore.saveContacts(_contacts);
-      _showToast('${result.name} kullanıcısına davet gönderildi.');
+      _showToast('${result.name} ${AppLang.instance.t('inviteSentSuffix')}');
     }
   }
 
@@ -180,7 +180,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (result != null) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
-      _showToast('Grup oluşturuldu: ${result.name}');
+      _showToast('${AppLang.instance.t('groupCreatedPrefix')}: ${result.name}');
     }
   }
 
@@ -191,7 +191,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (result != null) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
-      _showToast('${result.name} grubuna katılma isteği gönderildi.');
+      _showToast('${result.name} ${AppLang.instance.t('joinRequestSentSuffix')}');
     }
   }
 
@@ -222,7 +222,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           TextField(
             controller: ctrl, autofocus: true, maxLines: 3, maxLength: 200,
             style: TextStyle(color: PhotonColors.text),
-            decoration: InputDecoration(hintText: 'Ne dusunuyorsun?', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+            decoration: InputDecoration(hintText: AppLang.instance.t('whatAreYouThinking'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
           ),
           const SizedBox(height: 12),
           Text(AppLang.instance.t('backgroundColor'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
@@ -317,7 +317,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   onTap: _openSettings,
                   onCopyCode: () {
                     Clipboard.setData(ClipboardData(text: widget.identity.code));
-                    _showToast('Kodun kopyalandı: ${widget.identity.code}');
+                    _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
                   },
                 ),
                 const SizedBox(height: 16),
@@ -485,7 +485,7 @@ class _ProfileStrip extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.settings_outlined, color: PhotonColors.textDim, size: 20),
             onPressed: onTap,
-            tooltip: 'Ayarlar',
+            tooltip: AppLang.instance.t('settings'),
           ),
         ],
       ),
@@ -633,7 +633,7 @@ class _RequestRow extends StatelessWidget {
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
         const SizedBox(height: 2),
-        Text('Kod: ${contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+        Text('${AppLang.instance.t('codeLabel')}: ${contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
       ])),
       Column(children: [
         SizedBox(height: 30, child: ElevatedButton(

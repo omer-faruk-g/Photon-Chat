@@ -106,7 +106,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum izni reddedildi.')));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionDenied'))));
         return;
       }
     }
@@ -434,12 +434,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await PhotonApi.acceptGroupMember(widget.group.ownerServerUrl, widget.group.groupId,
         fipId: req['fromFipId'] as String,
-        name: req['fromName'] as String? ?? 'Bilinmeyen',
+        name: req['fromName'] as String? ?? AppLang.instance.t('unknown'),
         serverUrl: req['fromServerUrl'] as String? ?? '',
       );
     } catch (_) {
       if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
-      if (mounted) _showToast('Kabul edilemedi.');
+      if (mounted) _showToast(AppLang.instance.t('acceptFailedShort'));
     }
   }
 
@@ -449,7 +449,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, (req['fromFipId'] as String?) ?? '', actor: widget.identity.fipId);
     } catch (_) {
       if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
-      if (mounted) _showToast('Reddedilemedi.');
+      if (mounted) _showToast(AppLang.instance.t('rejectFailedShort'));
     }
   }
 
@@ -458,8 +458,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       await PhotonApi.sendNotification(member.serverUrl, member.fipId,
-          'Susturuldunuz', '"${widget.group.name}" grubunda susturuldunuz');
-      if (mounted) _showToast('${member.name} susturuldu.');
+          AppLang.instance.t('mutedTitle'),
+          '"${widget.group.name}" ${AppLang.instance.t('mutedBodySuffix')}',
+          actor: widget.identity.fipId);
+      if (mounted) _showToast('${member.name} ${AppLang.instance.t('mutedUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() => _mutedMembers.remove(member.fipId));
       if (mounted) _showToast(AppLang.instance.t('muteFailed'));
@@ -483,7 +485,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
       await PhotonApi.sendNotification(member.serverUrl, member.fipId,
-          AppLang.instance.t('removedFromGroupTitle'), '"${widget.group.name}" ${AppLang.instance.t('removedFromGroupBodySuffix')}');
+          AppLang.instance.t('removedFromGroupTitle'),
+          '"${widget.group.name}" ${AppLang.instance.t('removedFromGroupBodySuffix')}',
+          actor: widget.identity.fipId);
       // Persist member removal to disk.
       final storedGroups = await LocalStore.loadGroups();
       final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
@@ -514,9 +518,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
           Text(AppLang.instance.t('joinRequests'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 16),
-          if (_pendingJoins.isEmpty) Text('Bekleyen istek yok.', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+          if (_pendingJoins.isEmpty) Text(AppLang.instance.t('noPendingRequests'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
           ..._pendingJoins.map((req) => ListTile(
-            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+            title: Text(req['fromName'] as String? ?? AppLang.instance.t('unknown'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () async { await _acceptMember(req); set(() {}); }),
               IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () async { await _rejectMember(req); set(() {}); }),
@@ -621,7 +625,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             title: Row(children: [
               Text(m.name, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
               if (isOwner) const SizedBox(width: 6),
-              if (isOwner) Text('(sahip)', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+              if (isOwner) Text(AppLang.instance.t('ownerLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
               if (m.isMod && !isOwner) const SizedBox(width: 6),
               if (m.isMod && !isOwner) Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -740,7 +744,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         controller: ctrl, autofocus: true,
         style: TextStyle(color: PhotonColors.text),
         maxLines: 3,
-        decoration: InputDecoration(hintText: 'Duyuru metni…', hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+        decoration: InputDecoration(hintText: AppLang.instance.t('announcementHint'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
@@ -782,7 +786,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 autofocus: true,
                 style: TextStyle(color: PhotonColors.text),
                 decoration: InputDecoration(
-                  hintText: 'Soru…',
+                  hintText: AppLang.instance.t('questionHint'),
                   hintStyle: TextStyle(color: PhotonColors.textDim),
                   filled: true, fillColor: PhotonColors.bg,
                   border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
@@ -1149,7 +1153,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       controller: _msgCtrl,
                       style: TextStyle(color: PhotonColors.text, fontSize: 14),
                       decoration: InputDecoration(
-                        hintText: 'Mesaj yaz…',
+                        hintText: AppLang.instance.t('writeMessage'),
                         hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(20)),

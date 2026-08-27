@@ -195,6 +195,45 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.2.0': (
+        "### 🚨 v10.2.0 — Özel Mesajlaşma Tamamen Kırıktı, Düzeltildi\n\n"
+        "Bu sürümde ilk kez sunucu gerçekten çalıştırılıp 99 otomatik testle sınandı. "
+        "İlk çalıştırmada 18 test patladı ve yıllardır gözden kaçan bir hata ortaya çıktı:\n\n"
+        "**🔴 KRİTİK — Özel mesaj gönderilemiyordu**\n"
+        "- Sohbet anahtarı `fip_aaa__fip_bbb` biçiminde (çift alt çizgi), ama sunucu tek alt "
+        "çizgiyle ayırıyordu. `fipId`'nin kendisi de `fip_...` olduğu için parçalanıyor ve "
+        "gönderen kişi kendi sohbetinin katılımcısı olarak **tanınmıyordu**.\n"
+        "- Sonuç: mesaj gönderme, resim, dosya, emoji tepkisi, okundu bilgisi, \"yazıyor…\" "
+        "ve sohbet silme — **hepsi 403 hatası** veriyordu.\n"
+        "- ✅ Artık doğru ayraçla kontrol ediliyor; 7 ayrı yerde düzeltildi.\n\n"
+        "**🔴 Çevrimdışı mesajlar karşı tarafa hiç ulaşmıyordu**\n"
+        "- Kuyruğa alınan kopya, karşı tarafın sunucusu yerine kendi sunucuna gönderiliyordu.\n"
+        "- ✅ Karşı tarafın sunucu adresi artık kuyrukta saklanıyor.\n\n"
+        "**🔴 Emoji tepkileri sunucu yeniden başlayınca kayboluyordu**\n"
+        "- Tepki indeksi, kayıt anahtarı yanlış yerden bölünerek kuruluyordu.\n"
+        "- ✅ İndeks artık doğrudan kaydediliyor; yeniden başlatma testiyle doğrulandı.\n\n"
+        "**🛡️ Güvenlik**\n"
+        "- Bridge kod kaydı artık sahiplenilmiş: başkası senin kodunu kendi sunucusuna "
+        "yönlendirip arkadaş isteklerini kapamaz.\n"
+        "- Bildirim gönderme kilitlendi: sadece kabul ettiğin kişiler sana bildirim yollayabilir "
+        "(daha önce fipId'ni bilen herkes spam atabiliyordu).\n"
+        "- Cihaz eşleştirme kodunda uzunluk sınırı.\n\n"
+        "**🐛 Diğer düzeltmeler**\n"
+        "- Sunucu uykudayken \"kişi cihazı kaldırdı\" yalan uyarısı çıkmıyor artık; "
+        "bağlantı iki kez denenip öyle karar veriliyor.\n"
+        "- Süresi dolan hikayeler telefonda yer kaplamaya devam ediyordu, artık siliniyor.\n\n"
+        "**🌐 Çeviri**\n"
+        "- **Dil seçicideki dil adları gerçekten çevriliyor artık** (v10.0.3'te eklenmiş ama "
+        "hiçbir yere bağlanmamıştı).\n"
+        "- Yeni mesaj bildirimi kullanıcının kendi dilinde geliyor (sunucu sabit Türkçe yolluyordu).\n"
+        "- Kalan 22 sabit Türkçe metin çeviriye alındı: silinen mesaj etiketi, \"düzenlendi\", "
+        "yıldızlama, \"Kime ilet?\", grup uyarıları, rehber bildirimleri, kilit ekranı, GIF ekranı.\n"
+        "- Kullanılmayan 125 çeviri anahtarı temizlendi → **dil değiştirme %24 daha hızlı**.\n\n"
+        "**🔧 Altyapı**\n"
+        "- Yayın öncesi otomatik kontrol eklendi: eksik/çift çeviri anahtarı, derlemeyi kıran "
+        "`const` kullanımı, bozuk parantez ve 99 sunucu testi artık her yayında çalışıyor. "
+        "Hatalı kod artık derlemeye bile giremiyor."
+    ),
     'v10.1.2': (
         "### 🚑 v10.1.2 — Sohbet Kaybı Önlendi + Presence Yenileme + i18n\n\n"
         "**Kritik bug'lar:**\n"
@@ -554,8 +593,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0'}
 
 
 def make_body(tag):

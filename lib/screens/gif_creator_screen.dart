@@ -134,7 +134,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
           Expanded(
             child: _frames.isEmpty
                 ? Center(
-                    child: Text('Galeriden fotoğraf ekle\n(en fazla 8 kare)',
+                    child: Text(AppLang.instance.t('gifFramesEmpty'),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.7)),
                   )
@@ -192,7 +192,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                   style: TextStyle(color: PhotonColors.text, fontSize: 14),
                   maxLength: 100,
                   decoration: InputDecoration(
-                    hintText: 'Başlık (isteğe bağlı)',
+                    hintText: AppLang.instance.t('gifCaptionHint'),
                     hintStyle: TextStyle(color: PhotonColors.textDim),
                     counterText: '',
                     border: InputBorder.none,

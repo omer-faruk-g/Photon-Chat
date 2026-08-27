@@ -295,7 +295,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
       appBar: AppBar(
         backgroundColor: PhotonColors.bg,
         leading: IconButton(icon: Icon(Icons.close, color: PhotonColors.text), onPressed: () => Navigator.pop(context)),
-        title: Text('Kilit Ayarla', style: TextStyle(color: PhotonColors.text, fontSize: 16)),
+        title: Text(AppLang.instance.t('setLock'), style: TextStyle(color: PhotonColors.text, fontSize: 16)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -391,7 +391,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(8)),
-              child: Text('Onayla', style: TextStyle(color: const Color(0xFF06251A), fontWeight: FontWeight.w700)),
+              child: Text(AppLang.instance.t('confirm'), style: TextStyle(color: const Color(0xFF06251A), fontWeight: FontWeight.w700)),
             ),
           ),
       ],

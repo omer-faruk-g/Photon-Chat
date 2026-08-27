@@ -51,7 +51,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         return;
       }
       // Register group code on bridge so members can join by code alone (no server URL to type).
-      await PhotonApi.registerOnBridge(data['groupCode'] as String, widget.myServerUrl);
+      await PhotonApi.registerOnBridge(data['groupCode'] as String, widget.myServerUrl, actor: widget.identity.fipId);
       if (!mounted) return;
       final group = Group(
         groupId: data['groupId'] as String,

@@ -14,6 +14,7 @@ import 'update_checker.dart';
 import 'photon_api.dart';
 import 'notification_service.dart';
 import 'device_manager.dart';
+import 'i18n.dart';
 
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
@@ -52,13 +53,29 @@ class RootGateState extends State<RootGate> {
       if (serverUrl == null || fipId == null) return;
       final notifs = await PhotonApi.getNotifications(serverUrl, fipId);
       for (final n in notifs) {
-        final title = n['title'] as String? ?? '';
-        final body = n['body'] as String? ?? '';
+        final title = _localizeNotif(n['title'] as String? ?? '', n);
+        final body = _localizeNotif(n['body'] as String? ?? '', n);
         if (title.isNotEmpty && body.isNotEmpty) {
           await NotificationService.show(title, body);
         }
       }
     });
+  }
+
+  /// Server-generated notifications carry locale-neutral `__TAG__` markers
+  /// instead of prose, so they can be rendered in whatever language this device
+  /// is set to. Anything that isn't a known tag is passed through unchanged
+  /// (user-authored text, and notifications from older servers).
+  String _localizeNotif(String raw, Map<String, dynamic> n) {
+    switch (raw) {
+      case '__NEW_MESSAGE__':
+        return AppLang.instance.t('notifNewMessageTitle');
+      case '__NEW_MESSAGE_FROM__':
+        final who = n['bodyName'] as String? ?? '';
+        return '$who ${AppLang.instance.t('notifNewMessageBodySuffix')}'.trim();
+      default:
+        return raw;
+    }
   }
 
   void _startKeepAlive(String serverUrl) {

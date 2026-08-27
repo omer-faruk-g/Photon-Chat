@@ -20,11 +20,12 @@ class PhotonApi {
 
   // --- Bridge: global kod rehberi ---
 
-  static Future<void> registerOnBridge(String code, String myServerUrl) async {
+  /// [actor] claims the code on the bridge so nobody else can repoint it.
+  static Future<void> registerOnBridge(String code, String myServerUrl, {String? actor}) async {
     try {
       await http.post(_u(bridgeUrl, '/registry/register'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'code': code, 'serverUrl': myServerUrl}));
+          body: jsonEncode({'code': code, 'serverUrl': myServerUrl, if (actor != null) 'actor': actor}));
     } catch (_) {}
   }
 
@@ -48,7 +49,7 @@ class PhotonApi {
       }
       await http.post(_u(myServerUrl, '/presence'), headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl, 'statusMsg': statusMsg, 'avatar': avatar, 'bio': bio, if (pk != null) 'publicKey': pk}));
-      await registerOnBridge(code, myServerUrl);
+      await registerOnBridge(code, myServerUrl, actor: fipId);
     } catch (_) {}
   }
 
@@ -182,11 +183,12 @@ class PhotonApi {
 
   // --- Notifications ---
 
-  static Future<void> sendNotification(String serverUrl, String fipId, String title, String body) async {
+  /// [actor] must be someone [fipId] has accepted, or the server returns 403.
+  static Future<void> sendNotification(String serverUrl, String fipId, String title, String body, {required String actor}) async {
     try {
       await http.post(_u(serverUrl, '/notifs/$fipId'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'title': title, 'body': body}));
+          body: jsonEncode({'title': title, 'body': body, 'actor': actor}));
     } catch (_) {}
   }
 

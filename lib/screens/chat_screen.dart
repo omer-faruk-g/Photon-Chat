@@ -474,15 +474,28 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Consecutive failed presence probes. One miss is almost always a sleeping
+  // server, so we only flip the contact to "inactive" after several in a row.
+  int _presenceMisses = 0;
+  static const _presenceMissLimit = 3;
+
   Future<void> _pollContactStatus() async {
     while (_alive) {
       try {
         final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+        if (active) {
+          _presenceMisses = 0;
+        } else {
+          _presenceMisses++;
+        }
+        final treatAsActive = active || _presenceMisses < _presenceMissLimit;
         if (_alive && mounted) {
-          if (active != _contactActive) setState(() => _contactActive = active);
+          if (treatAsActive != _contactActive) setState(() => _contactActive = treatAsActive);
           if (active != _contactOnline) setState(() => _contactOnline = active);
         }
-      } catch (_) {}
+      } catch (_) {
+        // Network error is not evidence the contact is gone.
+      }
       await Future.delayed(const Duration(seconds: 5));
     }
   }
@@ -549,8 +562,22 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _inputError = null);
 
     if (!_contactActive) {
-      final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
-      if (!active) { if (mounted) { setState(() => _contactActive = false); _showDeactivatedDialog(); } return; }
+      // A single miss usually means their server is cold-starting (Render free
+      // tier sleeps after 15 min), not that they deleted their account. Probe
+      // twice before accusing them of being gone.
+      var active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      if (!active) {
+        await PhotonApi.pingServer(widget.contact.serverUrl);
+        await Future.delayed(const Duration(seconds: 2));
+        active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      }
+      if (!active) {
+        if (!mounted) return;
+        setState(() => _contactActive = false);
+        _showDeactivatedDialog();
+        return;
+      }
+      if (!mounted) return;
       setState(() => _contactActive = true);
     }
 
@@ -630,6 +657,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ));
     await OfflineQueue.instance.enqueue(QueuedMessage(
       chatKey: _chatKey, receiverServerUrl: widget.contact.serverUrl,
+      contactServerUrl: widget.contact.serverUrl,
       from: widget.identity.fipId, text: encryptedText, ts: ts,
       replyToMsgId: replyData?['msgId'] as String?,
       replyToFrom: replyData?['from'] as String?,
@@ -663,7 +691,7 @@ class _ChatScreenState extends State<ChatScreen> {
         // don't share a slot and clobber each other on new profanity match.
         final cacheKey = '${m.msgId}_${m.ts}_${m.from}';
         if (m.deleted) {
-          displayText = '\u{1F5D1} Bu mesaj silindi.';
+          displayText = '\u{1F5D1} ${AppLang.instance.t('messageDeleted')}';
         } else if (_filtered.containsKey(cacheKey)) {
           displayText = _filtered[cacheKey]!;
         } else {
@@ -759,7 +787,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     Row(mainAxisSize: MainAxisSize.min, children: [
                       if (m.edited && !m.deleted)
-                        Text('d\u00FCzenlendi \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.5), fontSize: 9)),
+                        Text('${AppLang.instance.t('editedLabel')} \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.5), fontSize: 9)),
                       Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 9.5)),
                       if (mine && !m.deleted) ...[
                         const SizedBox(width: 4),
@@ -927,7 +955,7 @@ class _ChatScreenState extends State<ChatScreen> {
               future: LocalStore.loadStarredMessages(),
               builder: (ctx, snap) {
                 final isStarred = (snap.data ?? []).any((s) => s['msgId'] == m.msgId);
-                return Text(isStarred ? 'Yildizi Kaldir' : 'Yildizla', style: TextStyle(color: PhotonColors.text));
+                return Text(isStarred ? AppLang.instance.t('unstar') : AppLang.instance.t('star'), style: TextStyle(color: PhotonColors.text));
               },
             ),
             onTap: () async {
@@ -977,7 +1005,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Kime ilet?', style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Text(AppLang.instance.t('forwardToWhom'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
             ),
             Divider(color: PhotonColors.line, height: 1),
             if (active.isEmpty)

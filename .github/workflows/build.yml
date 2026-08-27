@@ -12,7 +12,26 @@ on:
         default: 'v1.0.0'
 
 jobs:
+  # Cheap gate in front of the ~10 min Android build: catches missing i18n keys,
+  # duplicate keys, const-wrapping-a-runtime-call, and server regressions before
+  # any toolchain spins up.
+  verify:
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static checks (Dart client)
+        run: node tool/verify.js
+      - name: Server integration tests
+        run: |
+          cd server && npm install --no-audit --no-fund && cd ..
+          node tool/server_test.js
+
   build-android:
+    needs: verify
     if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:
@@ -161,6 +180,7 @@ jobs:
           path: PhotonChat-Android.apk
 
   build-windows:
+    needs: verify
     if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: windows-2022
     steps:
@@ -228,6 +248,7 @@ jobs:
             PhotonChat-Windows-Setup.exe
 
   build-linux:
+    needs: verify
     if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:

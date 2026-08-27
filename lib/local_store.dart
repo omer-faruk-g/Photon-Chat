@@ -175,11 +175,18 @@ class LocalStore {
 
   // --- Stories ---
   static Future<List<Map<String, dynamic>>> loadStories() async {
-    final raw = (await SharedPreferences.getInstance()).getString(_kStoriesKey);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kStoriesKey);
     if (raw == null) return [];
     final list = (jsonDecode(raw) as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final before = list.length;
     final now = DateTime.now().millisecondsSinceEpoch;
     list.removeWhere((s) => ((s['expiresAt'] as num?)?.toInt() ?? 0) < now);
+    // Persist the prune. Filtering only on read left expired stories (which
+    // carry base64 image payloads) in storage forever.
+    if (list.length != before) {
+      await prefs.setString(_kStoriesKey, jsonEncode(list));
+    }
     return list;
   }
 

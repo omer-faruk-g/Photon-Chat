@@ -460,7 +460,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final isActive = AppLang.instance.lang == lang['code'];
                     return ListTile(
                       leading: Text(lang['flag']!, style: const TextStyle(fontSize: 24)),
-                      title: Text(lang['name']!, style: TextStyle(color: PhotonColors.text, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+                      title: Text(AppLang.instance.languageLabel(lang['code']!, lang['name']!),
+                          style: TextStyle(color: PhotonColors.text, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
                       trailing: isActive ? Icon(Icons.check_circle, color: PhotonColors.accent, size: 20) : null,
                       onTap: () {
                         Navigator.pop(ctx);

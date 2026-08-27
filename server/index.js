@@ -105,6 +105,21 @@ function isMember(g, fipId) {
   return !!(g && g.members && g.members.find(m => m.fipId === fipId));
 }
 
+// Chat keys come from chatKeyFor() in lib/fip.dart: the two fipIds sorted and
+// joined with a DOUBLE underscore. fipIds are themselves `fip_<hex>`, i.e. they
+// contain a single underscore — so splitting the key on '_' shreds them and no
+// participant ever matches. That made every authenticated /chat endpoint answer
+// 403 to its own legitimate caller. Split on the real separator instead.
+function chatHasParticipant(chatKey, fipId) {
+  if (typeof chatKey !== 'string' || typeof fipId !== 'string' || !fipId) return false;
+  if (chatKey.split('__').includes(fipId)) return true;
+  // Tolerate keys built by older clients that used a single separator, while
+  // still requiring the id to occupy a whole segment.
+  return chatKey === fipId
+    || chatKey.startsWith(`${fipId}_`)
+    || chatKey.endsWith(`_${fipId}`);
+}
+
 // --- Persistence ---
 const SNAPSHOT_FILE = process.env.SNAPSHOT_FILE || '/tmp/photon-snapshot.json';
 
@@ -125,16 +140,12 @@ function loadSnapshot() {
     for (const [k, v] of Object.entries(raw.groups || {})) { groups.set(k, v); if (v && v.groupCode) groupCodeIndex.set(v.groupCode, k); }
     for (const [k, v] of Object.entries(raw.registry || {})) registry.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReads || {})) chatReads.set(k, v);
-    for (const [k, v] of Object.entries(raw.chatReactions || {})) {
-      chatReactions.set(k, v);
-      const under = k.lastIndexOf('_');
-      if (under > 0) {
-        const chatKey = k.slice(0, under);
-        const mid = k.slice(under + 1);
-        if (!reactionsByChat.has(chatKey)) reactionsByChat.set(chatKey, new Set());
-        reactionsByChat.get(chatKey).add(mid);
-      }
-    }
+    for (const [k, v] of Object.entries(raw.chatReactions || {})) chatReactions.set(k, v);
+    // The index is persisted directly. It used to be rebuilt by splitting the
+    // composite `${chatKey}_${msgId}` key at the last underscore, but msgIds
+    // are themselves `${ts}_${rand}` — so the split landed inside the msgId and
+    // every reaction became unreachable after a restart.
+    for (const [k, v] of Object.entries(raw.reactionsByChat || {})) reactionsByChat.set(k, new Set(v));
     for (const [k, v] of Object.entries(raw.userNotifs || {})) userNotifs.set(k, v);
     for (const [k, v] of Object.entries(raw.groupAnnouncements || {})) groupAnnouncements.set(k, v);
     for (const [k, v] of Object.entries(raw.stories || {})) stories.set(k, v);
@@ -160,6 +171,7 @@ function saveSnapshot() {
       registry: mapToObj(registry),
       chatReads: mapToObj(chatReads),
       chatReactions: mapToObj(chatReactions),
+      reactionsByChat: mapToObj(reactionsByChat),
       userNotifs: mapToObj(userNotifs),
       groupAnnouncements: mapToObj(groupAnnouncements),
       stories: mapToObj(stories),
@@ -316,7 +328,7 @@ app.post('/chat/:chatKey', bigBody, (req, res) => {
   // Only the sender may post as themselves.
   if (actor !== fromFipId) return res.sendStatus(403);
   // ChatKey must include the sender (chatKeys are `${a}_${b}` sorted).
-  if (!key.split('_').includes(fromFipId)) return res.sendStatus(403);
+  if (!chatHasParticipant(key, fromFipId)) return res.sendStatus(403);
   if (typeof text === 'string' && text.length > 8000) {
     return res.status(413).json({ error: 'text too long' });
   }
@@ -343,7 +355,10 @@ app.post('/chat/:chatKey', bigBody, (req, res) => {
       lastAutoNotif.set(dedupeKey, now);
       if (!userNotifs.has(toFipId)) userNotifs.set(toFipId, []);
       const nlist = userNotifs.get(toFipId);
-      nlist.push({ title: 'Yeni mesaj', body: `${fromName} size mesaj attı`, ts: now });
+      // Locale-neutral tags — the client renders them in the user's own
+      // language. Sending Turkish text here showed Turkish notifications to
+      // users who had switched the app to another language.
+      nlist.push({ title: '__NEW_MESSAGE__', body: '__NEW_MESSAGE_FROM__', bodyName: fromName, ts: now });
       if (nlist.length > 50) nlist.splice(0, nlist.length - 50);
     }
   }
@@ -353,7 +368,7 @@ app.post('/chat/:chatKey', bigBody, (req, res) => {
 app.delete('/chat/:chatKey', medBody, (req, res) => {
   const key = req.params.chatKey;
   const actor = req.body && req.body.actor;
-  if (!actor || !key.split('_').includes(actor)) return res.sendStatus(403);
+  if (!chatHasParticipant(key, actor)) return res.sendStatus(403);
   chats.delete(key);
   // Clear reactions index for this chat.
   const idx = reactionsByChat.get(key);
@@ -397,7 +412,7 @@ app.post('/chat/:chatKey/msg/:msgId/react', (req, res) => {
   const { fipId, emoji, actor } = req.body;
   if (!isNonEmptyString(fipId, 128) || !isNonEmptyString(emoji, 32)) return res.sendStatus(400);
   if (actor !== fipId) return res.sendStatus(403);
-  if (!chatKey.split('_').includes(fipId)) return res.sendStatus(403);
+  if (!chatHasParticipant(chatKey, fipId)) return res.sendStatus(403);
   if (!chatReactions.has(key)) chatReactions.set(key, {});
   const r = chatReactions.get(key);
   if (!r[emoji]) r[emoji] = [];
@@ -434,7 +449,7 @@ app.post('/chat/:chatKey/read', (req, res) => {
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
   if (actor !== fipId) return res.sendStatus(403);
   const key = req.params.chatKey;
-  if (!key.split('_').includes(fipId)) return res.sendStatus(403);
+  if (!chatHasParticipant(key, fipId)) return res.sendStatus(403);
   if (!chatReads.has(key)) chatReads.set(key, {});
   chatReads.get(key)[fipId] = Date.now();
   res.sendStatus(200);
@@ -450,7 +465,7 @@ app.post('/typing/:chatKey', (req, res) => {
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
   if (actor !== fipId) return res.sendStatus(403);
   const key = req.params.chatKey;
-  if (!key.split('_').includes(fipId)) return res.sendStatus(403);
+  if (!chatHasParticipant(key, fipId)) return res.sendStatus(403);
   if (!typingMap.has(key)) {
     if (typingMap.size >= MAX_TYPING_KEYS) {
       // evict oldest key
@@ -483,7 +498,7 @@ app.post('/deactivate', (req, res) => {
   users.delete(fipId);
   requests.delete(fipId);
   accepted.delete(fipId);
-  [...chats.keys()].filter(k => k.split('_').includes(fipId)).forEach(k => {
+  [...chats.keys()].filter(k => chatHasParticipant(k, fipId)).forEach(k => {
     chats.delete(k);
     const idx = reactionsByChat.get(k);
     if (idx) {
@@ -492,7 +507,7 @@ app.post('/deactivate', (req, res) => {
     }
     chatReads.delete(k);
   });
-  [...typingMap.keys()].filter(k => k.split('_').includes(fipId)).forEach(k => typingMap.delete(k));
+  [...typingMap.keys()].filter(k => chatHasParticipant(k, fipId)).forEach(k => typingMap.delete(k));
   stories.delete(fipId);
   userNotifs.delete(fipId);
   for (const [, g] of groups) {
@@ -503,16 +518,31 @@ app.post('/deactivate', (req, res) => {
 });
 
 // --- Bridge registry ---
+// Entries are {serverUrl, owner}. `owner` is the fipId that first claimed the
+// code; only that fipId may point it somewhere else afterwards. Without this
+// anyone could repoint another user's code at their own server and intercept
+// friend requests. Legacy entries are bare strings (no owner) and stay claimable.
+function registryUrlOf(entry) {
+  if (!entry) return null;
+  return typeof entry === 'string' ? entry : entry.serverUrl;
+}
+function registryOwnerOf(entry) {
+  return entry && typeof entry === 'object' ? entry.owner || null : null;
+}
+
 app.post('/registry/register', (req, res) => {
-  const { code, serverUrl } = req.body;
+  const { code, serverUrl, actor } = req.body;
   if (!isNonEmptyString(code, 32) || !isNonEmptyString(serverUrl, 500)) return res.sendStatus(400);
+  const prev = registry.get(code);
+  const owner = registryOwnerOf(prev);
+  if (owner && owner !== actor) return res.status(403).json({ error: 'code claimed by another user' });
   if (registry.size >= MAX_REGISTRY && !registry.has(code)) return res.status(429).json({ error: 'registry full' });
-  registry.set(code, serverUrl);
+  registry.set(code, { serverUrl, owner: owner || (typeof actor === 'string' ? actor : null) });
   res.sendStatus(200);
 });
 
 app.get('/registry/lookup/:code', (req, res) => {
-  const serverUrl = registry.get(req.params.code);
+  const serverUrl = registryUrlOf(registry.get(req.params.code));
   if (!serverUrl) return res.sendStatus(404);
   res.json({ serverUrl });
 });
@@ -773,9 +803,16 @@ app.post('/ai/chat', aiLimiter, medBody, async (req, res) => {
 });
 
 // --- Notifications ---
+// Only someone the recipient has accepted may push a notification to them.
+// This endpoint was previously unauthenticated, so anyone who knew a fipId
+// could spam that user's notification tray. The auto-notify on POST /chat runs
+// in-process and does not go through here, so it is unaffected.
 app.post('/notifs/:fipId', (req, res) => {
-  const { title, body, ts } = req.body;
+  const { title, body, ts, actor } = req.body;
   if (!isNonEmptyString(title, 200) || !isNonEmptyString(body, 1000)) return res.sendStatus(400);
+  if (!isNonEmptyString(actor, 128)) return res.sendStatus(403);
+  const targetAccepted = accepted.get(req.params.fipId);
+  if (!targetAccepted || !targetAccepted.has(actor)) return res.sendStatus(403);
   if (!userNotifs.has(req.params.fipId)) userNotifs.set(req.params.fipId, []);
   const list = userNotifs.get(req.params.fipId);
   const notifTs = ts || Date.now();
@@ -869,6 +906,11 @@ app.post('/device-link/:ownerFipId/respond', medBody, (req, res) => {
   const { requesterFipId, status, code, actor } = req.body;
   if (actor !== req.params.ownerFipId) return res.sendStatus(403);
   if (!isNonEmptyString(requesterFipId, 128) || !isNonEmptyString(status, 32)) return res.sendStatus(400);
+  // `code` is optional (reject/kick send none) but must stay short when present
+  // — it is retained in memory per pending request.
+  if (code !== undefined && code !== null && (typeof code !== 'string' || code.length > 64)) {
+    return res.sendStatus(400);
+  }
   const list = deviceLinkRequests.get(req.params.ownerFipId) || [];
   const idx = list.findIndex(r => r.requesterFipId === requesterFipId);
   if (idx !== -1) {
