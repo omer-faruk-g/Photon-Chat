@@ -45,6 +45,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _annExpanded = false;
   final Map<String, String> _translations = {};
   final Map<String, String> _filtered = {};
+  // Messages already sent through the async cross-language profanity check.
+  final Set<String> _profanityChecked = {};
   final Set<String> _translating = {};
 
   final _flutterTts = FlutterTts();
@@ -1041,12 +1043,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       displayText = _filtered[cacheKey]!;
                     } else {
                       displayText = filterProfanity(rawText);
-                      if (displayText == rawText) {
+                      // Cache the clean result too — see chat_screen: not doing
+                      // so re-fired a Translate request per message on every
+                      // 2-second poll rebuild.
+                      _filtered[cacheKey] = displayText;
+                      if (displayText == rawText && _profanityChecked.add(cacheKey)) {
                         filterProfanityAsync(rawText).then((v) {
                           if (v != rawText && mounted) setState(() => _filtered[cacheKey] = v);
                         });
-                      } else {
-                        _filtered[cacheKey] = displayText;
                       }
                     }
                     final fromName = m['fromName'] as String? ?? '';

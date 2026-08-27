@@ -59,6 +59,9 @@ class _ChatScreenState extends State<ChatScreen> {
   int _prevMsgCount = 0;
   final Map<String, String> _translations = {};
   final Map<String, String> _filtered = {};
+  // Messages already sent through the async cross-language profanity check, so
+  // it runs at most once each rather than on every rebuild.
+  final Set<String> _profanityChecked = {};
   final Set<String> _translating = {};
 
   Timer? _typingDebounce;
@@ -696,12 +699,15 @@ class _ChatScreenState extends State<ChatScreen> {
           displayText = _filtered[cacheKey]!;
         } else {
           displayText = filterProfanity(m.text);
-          if (displayText == m.text) {
+          // Cache the clean result too. Previously only censored messages were
+          // stored, so every clean message re-entered this branch on each
+          // rebuild — and the poll loop rebuilds every 2s — firing a Google
+          // Translate round-trip per message, forever.
+          _filtered[cacheKey] = displayText;
+          if (displayText == m.text && _profanityChecked.add(cacheKey)) {
             filterProfanityAsync(m.text).then((v) {
               if (v != m.text && mounted) setState(() => _filtered[cacheKey] = v);
             });
-          } else {
-            _filtered[cacheKey] = displayText;
           }
         }
         // Disappearing message suffix

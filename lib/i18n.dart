@@ -588,6 +588,9 @@ class AppLang extends ChangeNotifier {
     'language_ko': 'Korece',
     // v10.2.0 — strings that were previously hardcoded in Turkish
     'translateStarting': 'Çeviri başlıyor…',
+    'msgEmpty': 'Boş mesaj gönderilemez.',
+    'msgTooLong': 'Mesaj en fazla {n} karakter olabilir.',
+    'msgNoLinks': 'Bağlantı veya görsel gönderemezsiniz.',
     'notifNewMessageTitle': 'Yeni mesaj',
     'notifNewMessageBodySuffix': 'size mesaj attı',
     'messageDeleted': 'Bu mesaj silindi.',
