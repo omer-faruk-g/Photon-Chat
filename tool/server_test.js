@@ -187,7 +187,10 @@ async function run() {
   check('owner may repoint own code', r.status === 200, `status ${r.status}`);
 
   // ---- groups ---------------------------------------------------------------
-  r = await POST('/groups', { ownerFipId: A.fipId, ownerName: A.name, name: 'Takim', ownerServerUrl: A.url, actor: A.fipId });
+  r = await POST('/groups', {
+    ownerFipId: A.fipId, ownerName: A.name, name: 'Takim',
+    ownerServerUrl: A.url, description: 'Proje ekibi', actor: A.fipId,
+  });
   check('create group', r.status === 200 && r.data.groupId, JSON.stringify(r.data));
   const gid = r.data && r.data.groupId;
   const gcode = r.data && r.data.groupCode;
@@ -197,6 +200,8 @@ async function run() {
 
   r = await GET(`/groups/by-code/${gcode}`);
   check('group by code', r.status === 200 && r.data.groupId === gid, JSON.stringify(r.data));
+  // The joiner reads description off this response; it used to always be empty.
+  check('group description reaches joiners', r.data && r.data.description === 'Proje ekibi', JSON.stringify(r.data));
 
   r = await POST(`/groups/${gid}/join-requests`, { fromFipId: B.fipId, fromName: B.name, fromServerUrl: B.url, actor: B.fipId });
   check('join request', r.status === 200, `status ${r.status}`);

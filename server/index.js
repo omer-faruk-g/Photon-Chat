@@ -549,7 +549,7 @@ app.get('/registry/lookup/:code', (req, res) => {
 
 // --- Groups ---
 app.post('/groups', (req, res) => {
-  const { ownerFipId, ownerName, name, ownerServerUrl, actor } = req.body;
+  const { ownerFipId, ownerName, name, ownerServerUrl, description, actor } = req.body;
   if (!isNonEmptyString(ownerFipId, 128) || !isNonEmptyString(name, 100)) return res.sendStatus(400);
   if (actor !== ownerFipId) return res.sendStatus(403);
   const groupId = `grp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -557,6 +557,9 @@ app.post('/groups', (req, res) => {
   groups.set(groupId, {
     groupId, groupCode,
     name: name.slice(0, 100),
+    // The client sends this on create and reads it back when joining by code.
+    // It used to be dropped here, so every joiner saw an empty description.
+    description: typeof description === 'string' ? description.slice(0, 120) : '',
     ownerFipId,
     ownerName: typeof ownerName === 'string' ? ownerName.slice(0, 100) : '',
     ownerServerUrl: typeof ownerServerUrl === 'string' ? ownerServerUrl.slice(0, 500) : '',
@@ -566,14 +569,14 @@ app.post('/groups', (req, res) => {
     groupKeys: {},
   });
   groupCodeIndex.set(groupCode, groupId);
-  res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl });
+  res.json({ groupId, groupCode, name, description: groups.get(groupId).description, ownerFipId, ownerServerUrl });
 });
 
 app.get('/groups/by-code/:code', (req, res) => {
   const groupId = groupCodeIndex.get(req.params.code);
   if (groupId) {
     const g = groups.get(groupId);
-    if (g) return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl });
+    if (g) return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, description: g.description || '', ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl });
   }
   res.sendStatus(404);
 });
