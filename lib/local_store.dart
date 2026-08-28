@@ -4,7 +4,9 @@ import 'fip.dart';
 
 class Contact {
   final String fipId;
-  final String name;
+  // Mutable: the contact sync refreshes it, so an alias or a rename reaches
+  // everyone who already added you instead of freezing at add time.
+  String name;
   final String code;
   final String serverUrl;
   String status;
