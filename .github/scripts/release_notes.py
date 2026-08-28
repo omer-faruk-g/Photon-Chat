@@ -195,6 +195,31 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.5.0': (
+        "### 🎭 v10.5.0 — Profil Ekranı ve Giriş Animasyonları\n\n"
+        "Artık bir profil ekranı var. Rehberde bir kişinin **avatarına** dokun, "
+        "sohbet başlığındaki avatara dokun ya da grup üye listesinden bir isme "
+        "dokun — o kişinin profili açılır. Kendi avatarına dokununca da kendi "
+        "profilin açılır, Ayarlar oradan bir dokunuş uzakta.\n\n"
+        "**Beş giriş animasyonu** eklendi. Animasyon profilin sahibine ait: "
+        "senin animasyonun varsa, profiline giren herkes onu görür.\n\n"
+        "| Animasyon | Ne yapar |\n|---|---|\n"
+        "| Piksel Yüz | Şişer ve patlayıp bilgileri saçar |\n"
+        "| Dalga | Dalgalar süpürür, geçtiği yerde bilgiler belirir |\n"
+        "| Balon | Dokununca patlar, bilgiler saçılıp yerine oturur |\n"
+        "| Kırık Ekran | Taş çarpar, çatlaklar profilin üstünde kalır |\n"
+        "| Spiral | Bilgiler döne döne merkeze gelir |\n\n"
+        "**Fiyatlar:** Tanesi 50₺, beşi birden 225₺. VIP katmanların tek alımda "
+        "indirim getiriyor (VIP %10 → PVip+ %25). Photon ve üstü katmanlara "
+        "**bir animasyon bedava** geliyor ve o animasyon kalıcı — aboneliğin "
+        "bitse bile sende kalır.\n\n"
+        "Animasyonlar tek tek satın alındığı için abonelikten bağımsız: "
+        "aldığın animasyon her zaman senin.\n\n"
+        "Uzun geldiyse ekrana dokunman yeterli, animasyon atlanır.\n\n"
+        "Seçim: **Ayarlar → Profil Animasyonu**\n\n"
+        "> Satın alma hâlâ Google Play'e bağlı değil; \"Satın Al\" şimdilik "
+        "\"Hizmet Dışıdır.\" diyor.\n"
+    ),
     'v10.4.0': (
         "### 💎 v10.4.0 — Dükkan ve VIP Katmanları\n\n"
         "8 kademeli aylık abonelik sistemi eklendi. Her katman kendinden öncekinin "
@@ -644,8 +669,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0'}
 
 
 def make_body(tag):

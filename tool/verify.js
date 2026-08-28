@@ -19,7 +19,7 @@ const I18N = path.join(LIB, 'i18n.dart');
 // a literal `.t('...')` call somewhere or it counts as dead.
 // `language_*` is reached through AppLang.languageLabel(); `vipAdds*` through
 // VipTier.addsKey. Neither appears as a literal .t('...') call.
-const DYNAMIC_KEY_PREFIXES = ['language_', 'vipAdds'];
+const DYNAMIC_KEY_PREFIXES = ['language_', 'vipAdds', 'animName_', 'animDesc_'];
 
 const problems = [];
 const notes = [];

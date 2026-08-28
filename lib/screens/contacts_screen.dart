@@ -18,6 +18,7 @@ import 'pulse_ai_screen.dart';
 import '../story_manager.dart';
 import '../vip.dart';
 import '../vip_text.dart';
+import 'profile_screen.dart';
 import 'shop_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -227,6 +228,38 @@ class _ContactsScreenState extends State<ContactsScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
   }
 
+  /// Your own profile. Opened from your avatar rather than jumping straight to
+  /// Settings, because your intro animation has to play for you as well.
+  Future<void> _openMyProfile() async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: widget.identity.fipId,
+        name: widget.displayName,
+        code: widget.identity.code,
+        avatar: _myAvatar,
+        isOnline: true,
+        isSelf: true,
+        onSettings: () { Navigator.pop(context); _openSettings(); },
+      ),
+    ));
+    if (mounted) _loadMyVip();
+  }
+
+  void _openContactProfile(Contact c) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: c.fipId,
+        name: c.name,
+        code: c.code,
+        avatar: c.avatar,
+        bio: c.bio,
+        statusMsg: c.statusMsg,
+        isOnline: _online[c.fipId] ?? false,
+        onMessage: () { Navigator.pop(context); _openChat(c); },
+      ),
+    ));
+  }
+
   Future<void> _openShop() async {
     await Navigator.push(context, MaterialPageRoute(
       builder: (_) => ShopScreen(fipId: widget.identity.fipId),
@@ -337,7 +370,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 12, left: 4),
               child: GestureDetector(
-                onTap: _openSettings,
+                onTap: _openMyProfile,
                 // Our own avatar follows the alias too: switching to one and
                 // still seeing your real initials in the app bar contradicts
                 // "the alias replaces your name everywhere".
@@ -432,6 +465,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   isOnline: _online[c.fipId] ?? false,
                   onTap: () => _openChat(c),
                   onBlock: () => _blockContact(c),
+                  onAvatarTap: () => _openContactProfile(c),
                 )),
                 ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
@@ -636,7 +670,11 @@ class _ContactRow extends StatelessWidget {
   final bool isOnline;
   final VoidCallback onTap;
   final VoidCallback onBlock;
-  const _ContactRow({required this.contact, required this.vip, required this.isOnline, required this.onTap, required this.onBlock});
+
+  /// Tapping the avatar opens the profile; tapping anywhere else opens the
+  /// chat, which is what the row did before profiles existed.
+  final VoidCallback onAvatarTap;
+  const _ContactRow({required this.contact, required this.vip, required this.isOnline, required this.onTap, required this.onBlock, required this.onAvatarTap});
   @override
   Widget build(BuildContext context) => GestureDetector(
     onLongPress: () {
@@ -717,7 +755,9 @@ class _ContactRow extends StatelessWidget {
             ),
           ])),
           const SizedBox(width: 12),
-          Stack(children: [
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Stack(children: [
             _AvatarWidget(name: vipDisplayName(vip, contact.name), avatar: contact.avatar, size: 46, on: true),
             Positioned(
               right: 0, bottom: 0,
@@ -731,6 +771,7 @@ class _ContactRow extends StatelessWidget {
               ),
             ),
           ]),
+          ),
         ]),
       ),
     ),

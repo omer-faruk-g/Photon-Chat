@@ -20,6 +20,7 @@ import 'lock_screen.dart';
 import '../font_size.dart';
 import '../vip.dart';
 import 'fake_name_screen.dart';
+import 'profile_anim_screen.dart';
 import 'shop_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -796,6 +797,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : AppLang.instance.t('vipLocked'),
                     style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
                   ),
+                ])),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Profil Animasyonu — profil açılırken oynayan efekt. Katmandan
+          // bağımsız: animasyonlar tek tek satın alınır, abonelik bitse de kalır.
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ProfileAnimScreen(fipId: widget.identity.fipId),
+              ));
+              if (mounted) setState(() {});
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.auto_awesome, color: PhotonColors.accent, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(AppLang.instance.t('animSettingsRow'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('animSettingsRowDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),

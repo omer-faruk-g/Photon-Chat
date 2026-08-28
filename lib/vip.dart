@@ -97,12 +97,20 @@ class VipStatus {
   /// Epoch millis the subscription lapses. Zero for [VipTier.none].
   final int expiresAt;
 
+  /// Wire id of the profile intro animation this person has selected, or ''.
+  ///
+  /// Rides along on the tier response so a contact list of N people still costs
+  /// one request. Bought outright, so unlike the alias it is NOT cleared when
+  /// the subscription lapses.
+  final String anim;
+
   const VipStatus({
     this.tier = VipTier.none,
     this.color,
     this.fakeName = '',
     this.fakeActive = false,
     this.expiresAt = 0,
+    this.anim = '',
   });
 
   static const none = VipStatus();
@@ -123,6 +131,7 @@ class VipStatus {
       fakeName: (j['fakeName'] as String?) ?? '',
       fakeActive: j['fakeActive'] == true,
       expiresAt: (j['expiresAt'] as num?)?.toInt() ?? 0,
+      anim: (j['anim'] as String?) ?? '',
     );
   }
 
@@ -132,6 +141,7 @@ class VipStatus {
         'fakeName': fakeName,
         'fakeActive': fakeActive,
         'expiresAt': expiresAt,
+        'anim': anim,
       };
 }
 

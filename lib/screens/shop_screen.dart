@@ -3,7 +3,9 @@ import '../i18n.dart';
 import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
+import '../profile_anim.dart';
 import '../vip.dart';
+import 'shop_anim_screen.dart';
 import 'shop_tier_screen.dart';
 
 /// Tier catalogue. Each row names only what that tier *adds* — showing the full
@@ -19,6 +21,7 @@ class ShopScreen extends StatefulWidget {
 
 class _ShopScreenState extends State<ShopScreen> {
   VipStatus _status = VipStatus.none;
+  AnimOwnership _anims = AnimOwnership.empty;
   bool _loading = true;
 
   /// TEMPORARY. Lets the owner move between tiers without a payment path while
@@ -42,10 +45,13 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Future<void> _load() async {
     final raw = await PhotonApi.getTier(widget.fipId);
+    final animRaw = await PhotonApi.getAnims(widget.fipId);
     final owner = await LocalStore.loadOwnerMode();
     if (!mounted) return;
     setState(() {
       _status = raw == null ? VipStatus.none : VipStatus.fromJson(raw);
+      _anims =
+          animRaw == null ? AnimOwnership.empty : AnimOwnership.fromJson(animRaw);
       _ownerMode = owner;
       _loading = false;
     });
@@ -116,6 +122,21 @@ class _ShopScreenState extends State<ShopScreen> {
                 ],
                 const SizedBox(height: 20),
                 ...VipTier.purchasable.map((t) => _tierRow(t, active)),
+                const SizedBox(height: 22),
+                Text(AppLang.instance.t('animSectionTitle'),
+                    style: TextStyle(
+                        color: PhotonColors.textDim,
+                        fontSize: 10,
+                        letterSpacing: 1.5)),
+                const SizedBox(height: 10),
+                ...ProfileAnim.purchasable.map((a) => _animRow(a, active)),
+                _animRow(null, active),
+                const SizedBox(height: 8),
+                Text(AppLang.instance.t('animFreeNote'),
+                    style: TextStyle(
+                        color: PhotonColors.textDim,
+                        fontSize: 11,
+                        height: 1.5)),
               ],
             ),
     );
@@ -253,6 +274,111 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ]),
       );
+
+  /// A single animation, or the five-pack when [anim] is null.
+  Widget _animRow(ProfileAnim? anim, VipTier active) {
+    final isBundle = anim == null;
+    final owned = isBundle ? _anims.hasAll : _anims.owns(anim);
+    final label = isBundle
+        ? AppLang.instance.t('animBundle')
+        : AppLang.instance.t(anim.nameKey);
+    final desc = isBundle
+        ? AppLang.instance.t('animBundleDesc')
+        : AppLang.instance.t(anim.descKey);
+    // The bundle is a flat price; the tier discount deliberately does not stack.
+    final price = isBundle
+        ? '$kAnimBundleTry₺'
+        : _formatTry(animPriceFor(active));
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ShopAnimScreen(
+                anim: anim,
+                fipId: widget.fipId,
+                tier: active,
+                owned: _anims,
+                accent: _status.color ?? PhotonColors.accent,
+                ownerMode: _ownerMode,
+              ),
+            ),
+          );
+          if (mounted) _load();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: PhotonColors.panel,
+            border: Border.all(
+              color: owned ? PhotonColors.accent : PhotonColors.line,
+              width: owned ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Flexible(
+                        child: Text(label,
+                            style: TextStyle(
+                                color: PhotonColors.text,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      if (owned) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: PhotonColors.accent.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                              AppLang.instance.t(
+                                  isBundle ? 'animBundleOwned' : 'animOwned'),
+                              style: TextStyle(
+                                  color: PhotonColors.accent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ]),
+                    const SizedBox(height: 2),
+                    Text(desc,
+                        style: TextStyle(
+                            color: PhotonColors.textDim, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ]),
+            ),
+            if (!owned)
+              Text(price,
+                  style: TextStyle(
+                      color: PhotonColors.accent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 18),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// 25% off 50₺ is 37,50₺ — the only discount that lands off a whole lira.
+  static String _formatTry(double v) => v == v.roundToDouble()
+      ? '${v.toStringAsFixed(0)}₺'
+      : '${v.toStringAsFixed(2).replaceAll('.', ',')}₺';
 
   Widget _tierRow(VipTier tier, VipTier active) {
     final isActive = tier == active;

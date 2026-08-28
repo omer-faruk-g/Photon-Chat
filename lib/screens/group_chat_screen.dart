@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../vip.dart';
 import '../vip_text.dart';
+import 'profile_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Group group;
@@ -646,6 +647,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           final memberVip = VipCache.instance.peek(m.fipId);
           return ListTile(
             contentPadding: EdgeInsets.zero,
+            // Same profile view as the contact list, so a member's animation
+            // plays here too.
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ProfileScreen(
+                  fipId: m.fipId,
+                  name: m.name,
+                  code: '',
+                  isSelf: m.fipId == widget.identity.fipId,
+                ),
+              ));
+            },
             title: Row(children: [
               // Same resolution as the bubbles: an alias that shows on messages
               // but not here would put the real name back on screen.

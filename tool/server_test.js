@@ -219,6 +219,62 @@ async function run() {
     r.status === 200 && r.data[A.fipId].tier === 'photonPulseVip' && r.data[B.fipId].tier === 'none',
     JSON.stringify(r.data));
 
+  // ---- profile animations ---------------------------------------------------
+  // Sold outright rather than rented, so ownership has to behave differently
+  // from every tier perk: it must survive the subscription lapsing.
+  r = await GET(`/anim/${B.fipId}`);
+  check('anim: nothing owned initially',
+    r.status === 200 && r.data.owned.length === 0 && r.data.active === '', JSON.stringify(r.data));
+
+  r = await POST('/anim/grant', { fipId: B.fipId, anims: ['bogusAnim'] });
+  check('anim: unknown animation rejected', r.status === 400, `status ${r.status}`);
+
+  r = await POST('/anim/grant', { fipId: B.fipId, anims: ['wave', 'spiral'] });
+  check('anim: grant records ownership',
+    r.status === 200 && r.data.owned.includes('wave') && r.data.owned.includes('spiral'),
+    JSON.stringify(r.data));
+  check('anim: first grant auto-selects', r.data.active === 'wave', JSON.stringify(r.data));
+
+  r = await POST(`/anim/${B.fipId}/active`, { active: 'spiral', actor: B.fipId });
+  check('anim: owner may switch', r.status === 200 && r.data.active === 'spiral', JSON.stringify(r.data));
+
+  r = await POST(`/anim/${B.fipId}/active`, { active: 'balloon', actor: B.fipId });
+  check('anim: selecting an unowned animation rejected', r.status === 400, `status ${r.status}`);
+
+  r = await POST(`/anim/${B.fipId}/active`, { active: 'wave', actor: EVE.fipId });
+  check('AUTH anim: stranger cannot change selection', r.status === 403, `status ${r.status}`);
+
+  // The selection reaches peers through the tier response, which is what every
+  // other device already reads — no second request per contact.
+  r = await GET(`/tier/${B.fipId}`);
+  check('anim: reported through publicTier without a subscription',
+    r.data.tier === 'none' && r.data.anim === 'spiral', JSON.stringify(r.data));
+
+  r = await POST('/tiers/batch', { fipIds: [B.fipId] });
+  check('anim: carried by the batch read', r.data[B.fipId].anim === 'spiral', JSON.stringify(r.data));
+
+  // Photon and above are owed one free animation, handed out on read.
+  r = await GET(`/anim/${EVE.fipId}`);
+  check('anim: no free animation without a tier', r.data.owned.length === 0, JSON.stringify(r.data));
+  await POST('/tier/grant', { fipId: EVE.fipId, tier: 'photon', months: 1 });
+  await GET(`/tier/${EVE.fipId}`);
+  r = await GET(`/anim/${EVE.fipId}`);
+  const freebie = r.data.active;
+  check('anim: photon tier is granted one free animation',
+    r.data.owned.length === 1 && r.data.owned[0] === freebie && freebie !== '',
+    JSON.stringify(r.data));
+  await GET(`/tier/${EVE.fipId}`);
+  r = await GET(`/anim/${EVE.fipId}`);
+  check('anim: the free animation is granted only once',
+    r.data.owned.length === 1 && r.data.active === freebie, JSON.stringify(r.data));
+
+  // The whole reason ownership lives outside `tiers`: revoking the
+  // subscription must not take the animation with it.
+  await POST('/tier/grant', { fipId: EVE.fipId, tier: 'none' });
+  r = await GET(`/anim/${EVE.fipId}`);
+  check('anim: survives the subscription being revoked',
+    r.data.owned.length === 1 && r.data.active === freebie, JSON.stringify(r.data));
+
   // ---- bridge registry ------------------------------------------------------
   r = await POST('/registry/register', { code: A.code, serverUrl: A.url, actor: A.fipId });
   check('registry claim', r.status === 200, `status ${r.status}`);
@@ -414,6 +470,11 @@ async function restartRun() {
       [A.fipId]: { tier: 'photonPulseVip', expiresAt: Date.now() - 1000, fakeName: 'Gizli', fakeActive: true },
       [B.fipId]: { tier: 'pvip', expiresAt: Date.now() + 60_000 },
     },
+    // A's subscription above has already lapsed — the animation must still be
+    // theirs after the restart, since it was bought rather than rented.
+    anims: {
+      [A.fipId]: { owned: ['shatter'], active: 'shatter', freeGranted: false },
+    },
   }));
 
   const proc = boot(SNAPSHOT);
@@ -429,6 +490,12 @@ async function restartRun() {
     check('restart: lapsed subscription reads as none', r.data.tier === 'none' && r.data.fakeActive === false, JSON.stringify(r.data));
     r = await GET(`/tier/${B.fipId}`);
     check('restart: live subscription survives', r.data.tier === 'pvip', JSON.stringify(r.data));
+    r = await GET(`/anim/${A.fipId}`);
+    check('restart: owned animation survives a lapsed subscription',
+      r.data.owned.includes('shatter') && r.data.active === 'shatter', JSON.stringify(r.data));
+    r = await GET(`/tier/${A.fipId}`);
+    check('restart: lapsed subscriber still reports their animation',
+      r.data.tier === 'none' && r.data.anim === 'shatter', JSON.stringify(r.data));
   } catch (e) {
     failures.push(`restart harness error: ${e.message}`);
   } finally {

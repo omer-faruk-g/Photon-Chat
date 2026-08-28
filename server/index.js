@@ -54,6 +54,11 @@ const deviceIdToRequester = new Map();
 // profile server of the person they are looking at.
 // fipId -> { tier, color, expiresAt, fakeName, fakeActive }
 const tiers = new Map();
+// Profile intro animations, sold as one-off items rather than rented with a
+// subscription. Kept OUT of `tiers` on purpose: readTier() returns null once a
+// subscription lapses, and an animation someone paid for must outlive that.
+// fipId -> { owned: [animId], active: animId, freeGranted: bool }
+const anims = new Map();
 // Dedupe recent auto-notifs: `${from}->${to}` -> lastTs
 const lastAutoNotif = new Map();
 
@@ -152,6 +157,7 @@ function loadSnapshot() {
     for (const [k, v] of Object.entries(raw.groups || {})) { groups.set(k, v); if (v && v.groupCode) groupCodeIndex.set(v.groupCode, k); }
     for (const [k, v] of Object.entries(raw.registry || {})) registry.set(k, v);
     for (const [k, v] of Object.entries(raw.tiers || {})) tiers.set(k, v);
+    for (const [k, v] of Object.entries(raw.anims || {})) anims.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReads || {})) chatReads.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReactions || {})) chatReactions.set(k, v);
     // The index is persisted directly. It used to be rebuilt by splitting the
@@ -183,6 +189,7 @@ function saveSnapshot() {
       groups: mapToObj(groups),
       registry: mapToObj(registry),
       tiers: mapToObj(tiers),
+      anims: mapToObj(anims),
       chatReads: mapToObj(chatReads),
       chatReactions: mapToObj(chatReactions),
       reactionsByChat: mapToObj(reactionsByChat),
@@ -573,6 +580,40 @@ const TIER_NAMES = [
   'photon', 'photonPlus', 'photonPulse', 'photonPulseVip',
 ];
 
+const ANIM_NAMES = ['pixelFace', 'wave', 'balloon', 'shatter', 'spiral'];
+
+// The tier at which a subscription comes with one animation thrown in.
+const FREE_ANIM_MIN_RANK = TIER_NAMES.indexOf('photon') + 1;
+
+function tierRank(tier) {
+  const i = TIER_NAMES.indexOf(tier);
+  return i === -1 ? 0 : i + 1;
+}
+
+function readAnims(fipId) {
+  return anims.get(fipId) || { owned: [], active: '', freeGranted: false };
+}
+
+// Photon and above get one animation for free. It is handed out on the first
+// read that sees a qualifying tier — the same "evaluate on read" approach the
+// subscriptions themselves use, so there is no scheduled job. Once granted it
+// is recorded as owned like any purchase and therefore survives the
+// subscription lapsing.
+function grantFreeAnimIfDue(fipId, tier) {
+  const a = readAnims(fipId);
+  if (a.freeGranted || tierRank(tier) < FREE_ANIM_MIN_RANK) return a;
+  const pick = ANIM_NAMES[Math.floor(Math.random() * ANIM_NAMES.length)];
+  const next = {
+    owned: a.owned.includes(pick) ? a.owned : [...a.owned, pick],
+    // Only auto-select it if they have nothing selected, so this never
+    // overrides a choice the user already made.
+    active: a.active || pick,
+    freeGranted: true,
+  };
+  anims.set(fipId, next);
+  return next;
+}
+
 // Subscriptions lapse by timestamp rather than by a scheduled sweep: expiry is
 // evaluated on every read, so a stale record simply stops counting.
 function readTier(fipId) {
@@ -584,7 +625,11 @@ function readTier(fipId) {
 
 function publicTier(fipId) {
   const t = readTier(fipId);
-  if (!t) return { tier: 'none', fakeActive: false, fakeName: '', color: 0, expiresAt: 0 };
+  // Animations are bought outright, so they are reported whether or not a
+  // subscription is currently active — hence this runs before the early return.
+  const a = t ? grantFreeAnimIfDue(fipId, t.tier) : readAnims(fipId);
+  const anim = (a.owned || []).includes(a.active) ? a.active : '';
+  if (!t) return { tier: 'none', fakeActive: false, fakeName: '', color: 0, expiresAt: 0, anim };
   // Fake names are gated here rather than in the client: this response is what
   // every other device trusts, so a client that lies about its tier cannot make
   // peers render an alias it has not paid for.
@@ -595,6 +640,7 @@ function publicTier(fipId) {
     fakeName: mayAlias ? (t.fakeName || '') : '',
     fakeActive: mayAlias && !!t.fakeActive && !!(t.fakeName || '').trim(),
     expiresAt: t.expiresAt || 0,
+    anim,
   };
 }
 
@@ -646,6 +692,46 @@ app.post('/tier/:fipId/prefs', medBody, (req, res) => {
 
 // One request for a whole contact list or member roster — rendering N badges
 // must not cost N round-trips.
+// Ownership grant. This is the manual/test path today; Play receipt
+// verification will land here exactly as it will for /tier/grant.
+app.post('/anim/grant', medBody, (req, res) => {
+  const { fipId, anims: list } = req.body;
+  if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
+  if (!Array.isArray(list) || list.length > ANIM_NAMES.length) return res.sendStatus(400);
+  if (!list.every(a => ANIM_NAMES.includes(a))) {
+    return res.status(400).json({ error: 'unknown animation' });
+  }
+  const a = readAnims(fipId);
+  const owned = [...new Set([...a.owned, ...list])];
+  // An empty list revokes everything, so the unowned state can be exercised
+  // without waiting for anything — same reason tier 'none' revokes.
+  const next = list.length === 0
+    ? { owned: [], active: '', freeGranted: a.freeGranted }
+    : { ...a, owned, active: a.active || list[0] };
+  anims.set(fipId, next);
+  res.json({ ok: true, owned: next.owned, active: next.active });
+});
+
+app.get('/anim/:fipId', (req, res) => {
+  const a = readAnims(req.params.fipId);
+  res.json({ owned: a.owned || [], active: a.active || '' });
+});
+
+// Choosing which owned animation plays. Selecting one you do not own is
+// refused here rather than filtered on read, so the client gets told why.
+app.post('/anim/:fipId/active', medBody, (req, res) => {
+  const fipId = req.params.fipId;
+  const { active, actor } = req.body;
+  if (actor !== fipId) return res.sendStatus(403);
+  if (typeof active !== 'string') return res.sendStatus(400);
+  const a = readAnims(fipId);
+  if (active !== '' && !(a.owned || []).includes(active)) {
+    return res.status(400).json({ error: 'not owned' });
+  }
+  anims.set(fipId, { ...a, active });
+  res.json({ ok: true, owned: a.owned || [], active });
+});
+
 app.post('/tiers/batch', medBody, (req, res) => {
   const { fipIds } = req.body;
   if (!Array.isArray(fipIds)) return res.sendStatus(400);

@@ -31,6 +31,7 @@ import 'package:path_provider/path_provider.dart';
 import '../quick_replies.dart';
 import '../vip.dart';
 import '../vip_text.dart';
+import 'profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -1410,6 +1411,21 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _openContactProfile() {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: widget.contact.fipId,
+        name: widget.contact.name,
+        code: widget.contact.code,
+        avatar: widget.contact.avatar,
+        bio: widget.contact.bio,
+        statusMsg: widget.contact.statusMsg,
+        isOnline: _contactOnline,
+        // Already in the chat, so there is nothing for a message button to do.
+      ),
+    ));
+  }
+
   Widget _buildAvatar(String name, String avatar, {double size = 36}) {
     if (avatar.isNotEmpty) {
       try {
@@ -1429,7 +1445,10 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          _buildAvatar(vipDisplayName(_contactVip, widget.contact.name), widget.contact.avatar, size: 32),
+          GestureDetector(
+            onTap: _openContactProfile,
+            child: _buildAvatar(vipDisplayName(_contactVip, widget.contact.name), widget.contact.avatar, size: 32),
+          ),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [

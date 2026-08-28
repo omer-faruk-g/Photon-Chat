@@ -44,6 +44,44 @@ class PhotonApi {
     return false;
   }
 
+  /// Which animations [fipId] owns and which is selected.
+  ///
+  /// Only needed on your own settings/shop screens — a contact's *selected*
+  /// animation already rides along on the tier response.
+  static Future<Map<String, dynamic>?> getAnims(String fipId) async {
+    try {
+      final r = await http
+          .get(_u(bridgeUrl, '/anim/$fipId'))
+          .timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  /// TEMPORARY grant path, mirroring [grantTier]. Play receipt verification
+  /// will replace the caller, not this method.
+  static Future<bool> grantAnims(String fipId, List<String> animIds) async {
+    try {
+      final r = await http.post(_u(bridgeUrl, '/anim/grant'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'anims': animIds}));
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
+  }
+
+  /// Select which owned animation plays. Empty string turns it off.
+  /// The bridge answers 400 if [animId] is not owned, 403 for a foreign actor.
+  static Future<bool> setActiveAnim(String fipId, String animId) async {
+    try {
+      final r = await http.post(_u(bridgeUrl, '/anim/$fipId/active'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'actor': fipId, 'active': animId}));
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
+  }
+
   static Future<Map<String, dynamic>?> getTier(String fipId) async {
     try {
       final r = await http
