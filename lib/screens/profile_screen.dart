@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../i18n.dart';
+import '../photon_api.dart';
 import '../profile_anim.dart';
 import '../theme.dart';
 import '../vip.dart';
@@ -51,15 +53,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Whether the intro has finished. The profile is built underneath it the
   /// whole time so nothing has to be re-laid-out when the animation ends.
   bool _introDone = false;
-  late final ProfileAnim _anim;
+  ProfileAnim _anim = ProfileAnim.none;
   VipStatus? _vip;
+
+  /// True while waiting to find out whether this person has an animation.
+  bool _resolving = false;
+  Timer? _holdTimer;
 
   @override
   void initState() {
     super.initState();
-    _vip = VipCache.instance.peek(widget.fipId);
-    _anim = ProfileAnim.fromId(_vip?.anim);
-    _introDone = _anim == ProfileAnim.none;
+    final cached = VipCache.instance.peek(widget.fipId);
+    if (cached != null) {
+      _vip = cached;
+      _anim = ProfileAnim.fromId(cached.anim);
+      _introDone = _anim == ProfileAnim.none;
+      return;
+    }
+    // Cold cache. Reading only from the cache meant the animation was silently
+    // skipped whenever it had not been filled yet — right after adding someone,
+    // or on the first profile opened after a cold start. Fetch it, but on a
+    // short leash: a sleeping bridge shows the profile rather than hanging.
+    _resolving = true;
+    _resolve();
+  }
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _resolve() async {
+    _holdTimer = Timer(const Duration(milliseconds: 700), () {
+      if (mounted && _resolving) {
+        setState(() {
+          _resolving = false;
+          _introDone = true;
+        });
+      }
+    });
+    final raw = await PhotonApi.getTier(widget.fipId);
+    if (!mounted || !_resolving) return;
+    final st = raw == null ? VipStatus.none : VipStatus.fromJson(raw);
+    VipCache.instance.put(widget.fipId, st);
+    _holdTimer?.cancel();
+    setState(() {
+      _vip = st;
+      _anim = ProfileAnim.fromId(st.anim);
+      _resolving = false;
+      _introDone = _anim == ProfileAnim.none;
+    });
   }
 
   @override
@@ -84,10 +128,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       body: Stack(
         children: [
-          // The player wraps the body rather than covering it: the spiral flies
-          // the content in and the balloon burst scatters it, which means the
-          // effect has to be able to transform it.
-          Positioned.fill(
+          // Blank while we find out whether there is an animation, so the
+          // profile does not flash up and then get covered by one.
+          if (_resolving)
+            const SizedBox.shrink()
+          else
+            // The player wraps the body rather than covering it: the spiral
+            // flies the content in and the balloon burst scatters it, so the
+            // effect has to be able to transform it.
+            Positioned.fill(
             child: _introDone
                 ? _profileBody(shownName, nameColor, vip)
                 : ProfileAnimPlayer(
@@ -101,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           // The shatter deliberately never heals — the cracks stay over the
           // profile until it is closed.
-          if (_anim.leavesResidue)
+          if (!_resolving && _anim.leavesResidue)
             Positioned.fill(
               child: IgnorePointer(child: CrackResidue(accent: accent)),
             ),
