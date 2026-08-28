@@ -67,14 +67,20 @@ List<InlineSpan> vipMessageSpans(String text, VipStatus? s, TextStyle base) {
     buf.clear();
   }
 
+  // A marker only counts at the start of the message or after whitespace.
+  // Without this, 'site.com/kategori' contains '/k' and would have it silently
+  // eaten and the rest of the link bolded.
+  bool markerAt(String marker) =>
+      text.startsWith(marker, i) && (i == 0 || text[i - 1].trim().isEmpty);
+
   while (i < text.length) {
-    if (text.startsWith(_boldOpen, i)) {
+    if (markerAt(_boldOpen)) {
       flush();
       bold = true;
       i += _boldOpen.length;
       continue;
     }
-    if (text.startsWith(_boldClose, i)) {
+    if (markerAt(_boldClose)) {
       flush();
       bold = false;
       i += _boldClose.length;
