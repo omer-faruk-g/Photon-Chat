@@ -266,6 +266,7 @@ class _ShopScreenState extends State<ShopScreen> {
                 tier: tier,
                 fipId: widget.fipId,
                 currentTier: active,
+                ownerMode: _ownerMode,
               ),
             ),
           );
