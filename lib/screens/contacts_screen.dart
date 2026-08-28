@@ -338,7 +338,14 @@ class _ContactsScreenState extends State<ContactsScreen> {
               padding: const EdgeInsets.only(right: 12, left: 4),
               child: GestureDetector(
                 onTap: _openSettings,
-                child: _AvatarWidget(name: widget.displayName, avatar: _myAvatar, size: 32, on: true),
+                // Our own avatar follows the alias too: switching to one and
+                // still seeing your real initials in the app bar contradicts
+                // "the alias replaces your name everywhere".
+                child: _AvatarWidget(
+                    name: vipDisplayName(_myVip, widget.displayName),
+                    avatar: _myAvatar,
+                    size: 32,
+                    on: true),
               ),
             ),
           ],

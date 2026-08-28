@@ -67,6 +67,16 @@ class _ChatScreenState extends State<ChatScreen> {
   // Tiers of the two participants. Whose tier styles a bubble depends on who
   // sent it, so both are kept.
   VipStatus _myVip = VipStatus.none;
+
+  /// Our own tier with the colour dropped. The colour is painted on the bubble
+  /// background instead, so applying it to the text as well would put the same
+  /// colour on itself.
+  VipStatus get _myVipBoldOnly => VipStatus(
+        tier: _myVip.tier,
+        fakeName: _myVip.fakeName,
+        fakeActive: _myVip.fakeActive,
+        expiresAt: _myVip.expiresAt,
+      );
   VipStatus _contactVip = VipStatus.none;
   final Set<String> _translating = {};
 
@@ -787,7 +797,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                   decoration: BoxDecoration(
-                    color: m.deleted ? PhotonColors.panelAlt : (mine ? PhotonColors.accent : PhotonColors.panel),
+                    // Your own bubble takes your tier colour as its BACKGROUND.
+                    // Painting the text instead left a pink message on the green
+                    // bubble, which was unreadable; the palette is bright enough
+                    // that the existing dark bubble text stays legible on it.
+                    color: m.deleted
+                        ? PhotonColors.panelAlt
+                        : (mine
+                            ? (vipTextColor(_myVip) ?? PhotonColors.accent)
+                            : PhotonColors.panel),
                     border: (mine && !m.deleted) ? null : Border.all(color: PhotonColors.line),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
@@ -824,7 +842,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     // used to slip past the profanity filter.
                     vipMessageText(
                       displayText,
-                      m.deleted ? null : (mine ? _myVip : _contactVip),
+                      // Our own bubble is already painted in the tier colour, so
+                      // pass no status for it beyond what bold needs.
+                      m.deleted ? null : (mine ? _myVipBoldOnly : _contactVip),
                       style: TextStyle(
                         color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
                         fontSize: _msgFontSize, height: 1.45,

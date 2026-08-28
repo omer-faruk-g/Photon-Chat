@@ -737,6 +737,7 @@ class AppLang extends ChangeNotifier {
     'shopRedeemBad': 'Geçersiz kod.',
     'shopOwnerMode': 'TEST MODU AÇIK',
     'shopOwnerModeDesc': 'Katmanları ödeme olmadan deneyebilirsin.',
+    'shopRevoked': 'Katman kaldırıldı.',
     'shopGranted': 'Katman verildi.',
     'shopGrantFailed': 'Katman verilemedi.',
     'shopRevoke': 'Katmanı kaldır',

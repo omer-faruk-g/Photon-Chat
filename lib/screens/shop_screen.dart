@@ -74,7 +74,7 @@ class _ShopScreenState extends State<ShopScreen> {
     if (ok) await _load();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(AppLang.instance.t(ok ? 'shopGranted' : 'shopGrantFailed')),
+      content: Text(AppLang.instance.t(ok ? 'shopRevoked' : 'shopGrantFailed')),
     ));
   }
 

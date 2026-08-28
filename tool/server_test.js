@@ -91,11 +91,16 @@ async function run() {
   r = await POST('/accept', { myFipId: B.fipId, otherFipId: EVE.fipId, actor: EVE.fipId });
   check('AUTH accept as someone else rejected', r.status === 403, `status ${r.status}`);
 
-  // B accepted A; make it mutual so notif auth works both ways in tests below.
-  await POST('/accept', { myFipId: A.fipId, otherFipId: B.fipId, actor: A.fipId });
-
   r = await GET(`/accepted/${B.fipId}`);
   check('accepted list', r.status === 200 && r.data.includes(A.fipId), JSON.stringify(r.data));
+
+  // The link must exist on BOTH sides from that single accept. This used to be
+  // papered over here by accepting again as A, which hid the fact that the
+  // inviter never learned they had been accepted and sat on "waiting for
+  // approval" forever.
+  r = await GET(`/accepted/${A.fipId}`);
+  check('accept is mutual (inviter sees it too)',
+    r.status === 200 && r.data.includes(B.fipId), JSON.stringify(r.data));
 
   // ---- direct messages ------------------------------------------------------
   // The client posts `from`, not `fromFipId`; the server must accept both.

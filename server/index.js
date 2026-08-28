@@ -311,8 +311,14 @@ app.post('/accept', (req, res) => {
   const { myFipId, otherFipId, actor } = req.body;
   if (!isNonEmptyString(myFipId, 128) || !isNonEmptyString(otherFipId, 128)) return res.sendStatus(400);
   if (actor !== myFipId) return res.sendStatus(403);
+  // Accepting creates a link in BOTH directions. Writing only the accepter's
+  // side left the inviter polling /accepted/<their own id> forever, so their
+  // contact was stuck on "invite sent, waiting for approval" even though the
+  // other person had already accepted.
   if (!accepted.has(myFipId)) accepted.set(myFipId, new Set());
   accepted.get(myFipId).add(otherFipId);
+  if (!accepted.has(otherFipId)) accepted.set(otherFipId, new Set());
+  accepted.get(otherFipId).add(myFipId);
   const list = requests.get(myFipId);
   if (list) requests.set(myFipId, list.filter(r => r.fromFipId !== otherFipId));
   res.sendStatus(200);
