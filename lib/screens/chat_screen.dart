@@ -255,10 +255,10 @@ class _ChatScreenState extends State<ChatScreen> {
     if (picked == null || !mounted) return;
 
     final bytes = await picked.readAsBytes();
-    // Compress to max 800px, quality 70
+    // Edge and quality both follow the tier's render perk.
     final edge = imageEdgeFor(_myVip.effectiveTier);
     final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: edge, minHeight: edge, quality: imageQualityFor(_myVip.effectiveTier));
-    if (compressed.length > 3 * 1024 * 1024) {
+    if (compressed.length > maxImageBytesFor(_myVip.effectiveTier)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
       return;
     }

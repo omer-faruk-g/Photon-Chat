@@ -137,7 +137,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
       }
     }
     await LocalStore.saveContacts(_contacts);
-    await VipCache.instance.refresh(bridgeUrl, _contacts.map((c) => c.fipId));
+    // Our own id is included so screens further down (stories, groups) can read
+    // the tier straight from the cache instead of each making its own request.
+    await VipCache.instance
+        .refresh(bridgeUrl, [..._contacts.map((c) => c.fipId), me.fipId]);
     if (mounted) setState(() {});
     await Future.delayed(const Duration(seconds: 3));
     if (mounted) _sync();

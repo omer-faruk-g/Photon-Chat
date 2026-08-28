@@ -8,6 +8,7 @@ import '../story_manager.dart';
 import '../nsfw_scanner.dart';
 import '../i18n.dart';
 import '../theme.dart';
+import '../vip.dart';
 
 class StoriesRow extends StatefulWidget {
   final FipBlock identity;
@@ -98,10 +99,16 @@ class _StoriesRowState extends State<StoriesRow> {
 
   Future<void> _addImageStory() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 800);
+    final tier =
+        (VipCache.instance.peek(widget.identity.fipId) ?? VipStatus.none)
+            .effectiveTier;
+    final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: imageQualityFor(tier),
+        maxWidth: imageEdgeFor(tier).toDouble());
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
-    if (bytes.length > 3 * 1024 * 1024) {
+    if (bytes.length > maxImageBytesFor(tier)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
       return;
     }

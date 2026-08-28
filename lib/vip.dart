@@ -75,6 +75,14 @@ int imageEdgeFor(VipTier tier) => tier.betterRender ? 1440 : 800;
 /// JPEG quality used when recompressing outgoing images.
 int imageQualityFor(VipTier tier) => tier.betterRender ? 90 : 70;
 
+/// Ceiling for an image after recompression.
+///
+/// This has to scale with the render perk: 1440px at quality 90 routinely
+/// lands above the 3 MB that suits 800px at 70, so leaving the cap fixed would
+/// make paying for better rendering *reject* more photos than not paying.
+int maxImageBytesFor(VipTier tier) =>
+    (tier.betterRender ? 8 : 3) * 1024 * 1024;
+
 /// A user's tier plus the presentation choices that come with it.
 class VipStatus {
   final VipTier tier;
