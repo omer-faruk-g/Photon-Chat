@@ -482,7 +482,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           AppLang.instance.t('mutedTitle'),
           '"${widget.group.name}" ${AppLang.instance.t('mutedBodySuffix')}',
           actor: widget.identity.fipId);
-      if (mounted) _showToast('${member.name} ${AppLang.instance.t('mutedUserSuffix')}');
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('mutedUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() => _mutedMembers.remove(member.fipId));
       if (mounted) _showToast(AppLang.instance.t('muteFailed'));
@@ -493,7 +493,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (mounted) setState(() => _mutedMembers.remove(member.fipId));
     try {
       await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
-      if (mounted) _showToast('${member.name} ${AppLang.instance.t('unmutedUserSuffix')}');
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('unmutedUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
       if (mounted) _showToast(AppLang.instance.t('actionFailed'));
@@ -516,7 +516,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         storedGroups[sIdx].members = List.of(widget.group.members);
         await LocalStore.saveGroups(storedGroups);
       }
-      if (mounted) _showToast('${member.name} ${AppLang.instance.t('kickedFromGroupUserSuffix')}');
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('kickedFromGroupUserSuffix')}');
     } catch (_) {
       if (mounted) setState(() { widget.group.members
         ..clear()
@@ -554,6 +554,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showMemberMenu(GroupMember member) {
     final isMuted = _mutedMembers.contains(member.fipId);
+    // Moderation prompts name the person too, so they take the alias as well.
+    final shownName = vipDisplayName(VipCache.instance.peek(member.fipId), member.name);
     showModalBottomSheet(
       context: context,
       backgroundColor: PhotonColors.panel,
@@ -580,13 +582,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       storedGroups.add(widget.group);
                     }
                     await LocalStore.saveGroups(storedGroups);
-                    _showToast(member.isMod ? '${member.name} moderatorlukten alindi.' : '${member.name} moderator yapildi.');
+                    _showToast(member.isMod ? '${shownName} moderatorlukten alindi.' : '${shownName} moderator yapildi.');
                   }
                 },
               ),
             ListTile(
               leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
-              title: Text(isMuted ? '${member.name} ${AppLang.instance.t('unmuteUserSuffix')}' : '${member.name} ${AppLang.instance.t('muteUserSuffix')}',
+              title: Text(isMuted ? '${shownName} ${AppLang.instance.t('unmuteUserSuffix')}' : '${shownName} ${AppLang.instance.t('muteUserSuffix')}',
                   style: TextStyle(color: PhotonColors.text)),
               onTap: () {
                 Navigator.pop(context);
@@ -600,7 +602,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (widget.group.isOwner)
               ListTile(
                 leading: Icon(Icons.person_remove, color: PhotonColors.danger),
-                title: Text('${member.name} ${AppLang.instance.t('kickUserSuffix')}', style: TextStyle(color: PhotonColors.danger)),
+                title: Text('${shownName} ${AppLang.instance.t('kickUserSuffix')}', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () {
                   Navigator.pop(context);
                   _kickMember(member);
@@ -641,10 +643,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ...widget.group.members.map((m) {
           final isMuted = _mutedMembers.contains(m.fipId);
           final isOwner = m.fipId == widget.group.ownerFipId;
+          final memberVip = VipCache.instance.peek(m.fipId);
           return ListTile(
             contentPadding: EdgeInsets.zero,
             title: Row(children: [
-              Text(m.name, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
+              // Same resolution as the bubbles: an alias that shows on messages
+              // but not here would put the real name back on screen.
+              Text(vipDisplayName(memberVip, m.name),
+                  style: TextStyle(
+                      color: vipNameColor(memberVip) ?? PhotonColors.text,
+                      fontSize: 13)),
+              if (memberVip?.effectiveTier.premiumTag ?? false) ...[
+                const SizedBox(width: 5),
+                VipBadge(status: memberVip),
+              ],
               if (isOwner) const SizedBox(width: 6),
               if (isOwner) Text(AppLang.instance.t('ownerLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
               if (m.isMod && !isOwner) const SizedBox(width: 6),
