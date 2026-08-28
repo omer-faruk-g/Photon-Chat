@@ -765,22 +765,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Fake İsim — photonPulseVip perk. Locked rows route to the shop
           // rather than doing nothing, so the upsell is discoverable.
           GestureDetector(
-            onTap: () {
-              if (_vip.effectiveTier.fakeName) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => FakeNameScreen(
-                    fipId: widget.identity.fipId,
-                    realName: widget.displayName,
-                  ),
-                )).then((_) {
-                  PhotonApi.getTier(widget.identity.fipId).then((raw) {
-                    if (mounted && raw != null) setState(() => _vip = VipStatus.fromJson(raw));
-                  });
-                });
-              } else {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => ShopScreen(fipId: widget.identity.fipId),
-                ));
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(
+                builder: (_) => _vip.effectiveTier.fakeName
+                    ? FakeNameScreen(
+                        fipId: widget.identity.fipId,
+                        realName: widget.displayName,
+                      )
+                    : ShopScreen(fipId: widget.identity.fipId),
+              ));
+              // Reload after either screen: buying the tier here has to unlock
+              // the row on the way back, not on the next visit to settings.
+              final raw = await PhotonApi.getTier(widget.identity.fipId);
+              if (mounted && raw != null) {
+                setState(() => _vip = VipStatus.fromJson(raw));
               }
             },
             child: Container(
