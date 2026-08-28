@@ -75,6 +75,13 @@ class LocalStore {
   static const _kNotifSoundKey = 'knk_notif_sound_v1';
   static const _kStoriesKey = 'knk_stories_v1';
   static const _kFontSizeKey = 'knk_font_size_v1';
+  // Temporary owner/test unlock. knk_-prefixed so wipeIdentity clears it.
+  static const _kOwnerModeKey = 'knk_owner_mode_v1';
+
+  static Future<bool> loadOwnerMode() async =>
+      (await SharedPreferences.getInstance()).getBool(_kOwnerModeKey) ?? false;
+  static Future<void> saveOwnerMode(bool v) async =>
+      (await SharedPreferences.getInstance()).setBool(_kOwnerModeKey, v);
 
   static Future<String> loadFontSize() async => (await SharedPreferences.getInstance()).getString(_kFontSizeKey) ?? 'orta';
   static Future<void> saveFontSize(String size) async => (await SharedPreferences.getInstance()).setString(_kFontSizeKey, size);

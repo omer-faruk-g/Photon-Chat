@@ -729,5 +729,16 @@ class AppLang extends ChangeNotifier {
     'fakeNameFailed': 'Kaydedilemedi.',
     'fakeNameEmpty': 'Önce bir fake isim yaz.',
     'vipLocked': 'Bu özellik için üst katman gerekir',
+    // Geçici test kodu bölümü — ödeme bağlanınca kaldırılacak.
+    'shopRedeemTitle': 'Kod Kullan',
+    'shopRedeemHint': 'Kod',
+    'shopRedeemButton': 'Kullan',
+    'shopRedeemOk': 'Kod kabul edildi — test modu açık.',
+    'shopRedeemBad': 'Geçersiz kod.',
+    'shopOwnerMode': 'TEST MODU AÇIK',
+    'shopOwnerModeDesc': 'Katmanları ödeme olmadan deneyebilirsin.',
+    'shopGranted': 'Katman verildi.',
+    'shopGrantFailed': 'Katman verilemedi.',
+    'shopRevoke': 'Katmanı kaldır',
   };
 }

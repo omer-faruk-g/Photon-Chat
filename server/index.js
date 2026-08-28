@@ -598,6 +598,12 @@ function publicTier(fipId) {
 app.post('/tier/grant', medBody, (req, res) => {
   const { fipId, tier, months } = req.body;
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
+  // 'none' revokes, so the unsubscribed state can be exercised without waiting
+  // a month for the expiry to land.
+  if (tier === 'none') {
+    tiers.delete(fipId);
+    return res.json({ ok: true, ...publicTier(fipId) });
+  }
   if (!TIER_NAMES.includes(tier)) return res.status(400).json({ error: 'unknown tier' });
   const m = Number.isFinite(months) && months > 0 ? Math.min(months, 24) : 1;
   const prev = tiers.get(fipId) || {};

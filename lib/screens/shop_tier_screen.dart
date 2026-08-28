@@ -1,25 +1,48 @@
 import 'package:flutter/material.dart';
 import '../i18n.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 import '../vip.dart';
 
 /// One tier in full: everything it carries, cumulatively, plus the price.
 ///
-/// The buy button is deliberately inert. Google Play Billing needs Play Console
-/// product ids, a service-account key and a signed build to verify receipts
-/// server-side; until those exist an "almost working" purchase path would be
-/// worse than an honest closed door.
+/// Buying is closed. Google Play Billing needs Play Console product ids, a
+/// service-account key and a signed build to verify receipts server-side; until
+/// those exist an "almost working" purchase path would be worse than an honest
+/// closed door. The owner test code is the one way past it, so the perks can be
+/// exercised before payments are live.
 class ShopTierScreen extends StatelessWidget {
   final VipTier tier;
   final String fipId;
   final VipTier currentTier;
+
+  /// TEMPORARY. With the owner test code redeemed the button actually grants
+  /// the tier so the perks can be exercised; otherwise it reports that
+  /// purchasing is closed. Remove with the redeem panel in ShopScreen.
+  final bool ownerMode;
 
   const ShopTierScreen({
     super.key,
     required this.tier,
     required this.fipId,
     required this.currentTier,
+    this.ownerMode = false,
   });
+
+  Future<void> _buy(BuildContext context) async {
+    if (!ownerMode) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLang.instance.t('shopOutOfService')),
+      ));
+      return;
+    }
+    final ok = await PhotonApi.grantTier(fipId, tier.name);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(AppLang.instance.t(ok ? 'shopGranted' : 'shopGrantFailed')),
+    ));
+    if (ok) Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,11 +122,7 @@ class ShopTierScreen extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               style: photonPrimaryButtonStyle(),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(AppLang.instance.t('shopOutOfService')),
-                ));
-              },
+              onPressed: () => _buy(context),
               child: Text(AppLang.instance.t('shopBuy')),
             ),
           ),
