@@ -69,6 +69,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Future<void> _revoke() async {
     final ok = await PhotonApi.grantTier(widget.fipId, 'none');
+    if (ok) VipCache.instance.invalidate(widget.fipId);
     if (!mounted) return;
     if (ok) await _load();
     if (!mounted) return;
@@ -79,6 +80,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Future<void> _pickColor(Color c) async {
     final ok = await PhotonApi.setTierPrefs(widget.fipId, color: c.value);
+    if (ok) VipCache.instance.invalidate(widget.fipId);
     if (!mounted) return;
     if (ok) {
       setState(() => _status = VipStatus(

@@ -37,6 +37,7 @@ class ShopTierScreen extends StatelessWidget {
       return;
     }
     final ok = await PhotonApi.grantTier(fipId, tier.name);
+    if (ok) VipCache.instance.invalidate(fipId);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(AppLang.instance.t(ok ? 'shopGranted' : 'shopGrantFailed')),

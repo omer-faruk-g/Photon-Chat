@@ -166,6 +166,11 @@ class VipCache {
     _entries[fipId] = (status: status, at: DateTime.now());
   }
 
+  /// Drop a cached entry so the next refresh re-reads it. Needed after you
+  /// change your own tier, colour or alias: otherwise your own screens keep
+  /// showing the previous state for up to the TTL and the change looks lost.
+  void invalidate(String fipId) => _entries.remove(fipId);
+
   /// Fetch any ids whose cached status has gone stale. One request for the
   /// whole batch — a contact list of N people must not become N round-trips.
   Future<void> refresh(String bridgeUrl, Iterable<String> fipIds) async {

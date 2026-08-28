@@ -64,6 +64,7 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
       fakeName: name,
       fakeActive: _active,
     );
+    if (ok) VipCache.instance.invalidate(widget.fipId);
     if (!mounted) return;
     setState(() => _saving = false);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
