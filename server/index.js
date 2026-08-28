@@ -13,7 +13,13 @@ app.use(compression());
 app.use(rateLimit({ windowMs: 60_000, max: 300 }));
 app.use(express.json({ limit: '8kb' })); // default tiny limit for endpoints that don't opt in
 // Larger body limit for endpoints that carry base64 media (avatars, images, files, stories, group keys).
-const bigBody = express.json({ limit: '60mb' });
+// Files travel as base64 inside JSON, which inflates them by ~33%: the client's
+// 50 MB ceiling was already producing ~67 MB bodies against a 60 MB limit, so
+// anything over ~45 MB failed with 413. Photon tier raises the ceiling to 80 MB
+// (~107 MB encoded), hence 120 MB here.
+// Memory cost is real — express buffers the whole body — so a small instance
+// should not be asked to serve many concurrent uploads of this size.
+const bigBody = express.json({ limit: '120mb' });
 // Small json limit for text-only endpoints that still want their own parser (skips the global 8kb).
 const smallBody = express.json({ limit: '32kb' });
 const medBody = express.json({ limit: '256kb' });
@@ -42,6 +48,12 @@ const deviceBans = new Map();
 const codeToFipId = new Map();
 const groupCodeIndex = new Map();
 const deviceIdToRequester = new Map();
+// Paid tiers live here and ONLY here. Every user runs their own copy of this
+// server, so a tier stored on a user's own instance could be self-granted with a
+// one-line edit. Clients read tiers from the bridge deployment, never from the
+// profile server of the person they are looking at.
+// fipId -> { tier, color, expiresAt, fakeName, fakeActive }
+const tiers = new Map();
 // Dedupe recent auto-notifs: `${from}->${to}` -> lastTs
 const lastAutoNotif = new Map();
 
@@ -139,6 +151,7 @@ function loadSnapshot() {
     for (const [k, v] of Object.entries(raw.chats || {})) chats.set(k, v);
     for (const [k, v] of Object.entries(raw.groups || {})) { groups.set(k, v); if (v && v.groupCode) groupCodeIndex.set(v.groupCode, k); }
     for (const [k, v] of Object.entries(raw.registry || {})) registry.set(k, v);
+    for (const [k, v] of Object.entries(raw.tiers || {})) tiers.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReads || {})) chatReads.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReactions || {})) chatReactions.set(k, v);
     // The index is persisted directly. It used to be rebuilt by splitting the
@@ -169,6 +182,7 @@ function saveSnapshot() {
       chats: mapToObj(chats),
       groups: mapToObj(groups),
       registry: mapToObj(registry),
+      tiers: mapToObj(tiers),
       chatReads: mapToObj(chatReads),
       chatReactions: mapToObj(chatReactions),
       reactionsByChat: mapToObj(reactionsByChat),
@@ -545,6 +559,89 @@ app.get('/registry/lookup/:code', (req, res) => {
   const serverUrl = registryUrlOf(registry.get(req.params.code));
   if (!serverUrl) return res.sendStatus(404);
   res.json({ serverUrl });
+});
+
+// --- Paid tiers (bridge role) ---
+const TIER_NAMES = [
+  'vip', 'vipPlus', 'pvip', 'pvipPlus',
+  'photon', 'photonPlus', 'photonPulse', 'photonPulseVip',
+];
+
+// Subscriptions lapse by timestamp rather than by a scheduled sweep: expiry is
+// evaluated on every read, so a stale record simply stops counting.
+function readTier(fipId) {
+  const t = tiers.get(fipId);
+  if (!t) return null;
+  if (t.expiresAt && Date.now() >= t.expiresAt) return null;
+  return t;
+}
+
+function publicTier(fipId) {
+  const t = readTier(fipId);
+  if (!t) return { tier: 'none', fakeActive: false, fakeName: '', color: 0, expiresAt: 0 };
+  // Fake names are gated here rather than in the client: this response is what
+  // every other device trusts, so a client that lies about its tier cannot make
+  // peers render an alias it has not paid for.
+  const mayAlias = t.tier === 'photonPulseVip';
+  return {
+    tier: t.tier,
+    color: t.color || 0,
+    fakeName: mayAlias ? (t.fakeName || '') : '',
+    fakeActive: mayAlias && !!t.fakeActive && !!(t.fakeName || '').trim(),
+    expiresAt: t.expiresAt || 0,
+  };
+}
+
+// Grants a subscription. Deliberately unauthenticated for now: it is the manual
+// test path while Play Billing is not wired up, and the shop UI never calls it.
+// Receipt verification against the Play Developer API belongs here.
+app.post('/tier/grant', medBody, (req, res) => {
+  const { fipId, tier, months } = req.body;
+  if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
+  if (!TIER_NAMES.includes(tier)) return res.status(400).json({ error: 'unknown tier' });
+  const m = Number.isFinite(months) && months > 0 ? Math.min(months, 24) : 1;
+  const prev = tiers.get(fipId) || {};
+  tiers.set(fipId, {
+    ...prev,
+    tier,
+    expiresAt: Date.now() + m * 30 * 24 * 60 * 60 * 1000,
+  });
+  res.json({ ok: true, ...publicTier(fipId) });
+});
+
+app.get('/tier/:fipId', (req, res) => {
+  res.json(publicTier(req.params.fipId));
+});
+
+// Colour and fake-name preferences. Only the owner may change their own.
+app.post('/tier/:fipId/prefs', medBody, (req, res) => {
+  const fipId = req.params.fipId;
+  const { color, fakeName, fakeActive, actor } = req.body;
+  if (actor !== fipId) return res.sendStatus(403);
+  const current = readTier(fipId);
+  if (!current) return res.status(403).json({ error: 'no active subscription' });
+  if (color !== undefined && !Number.isInteger(color)) return res.sendStatus(400);
+  if (fakeName !== undefined && (typeof fakeName !== 'string' || fakeName.length > 100)) {
+    return res.sendStatus(400);
+  }
+  const next = { ...current };
+  if (color !== undefined) next.color = color;
+  if (fakeName !== undefined) next.fakeName = fakeName;
+  if (fakeActive !== undefined) next.fakeActive = !!fakeActive;
+  tiers.set(fipId, next);
+  res.json({ ok: true, ...publicTier(fipId) });
+});
+
+// One request for a whole contact list or member roster — rendering N badges
+// must not cost N round-trips.
+app.post('/tiers/batch', medBody, (req, res) => {
+  const { fipIds } = req.body;
+  if (!Array.isArray(fipIds)) return res.sendStatus(400);
+  const out = {};
+  for (const id of fipIds.slice(0, 500)) {
+    if (typeof id === 'string' && id) out[id] = publicTier(id);
+  }
+  res.json(out);
 });
 
 // --- Groups ---

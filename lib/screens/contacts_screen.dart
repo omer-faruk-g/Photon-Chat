@@ -16,6 +16,9 @@ import 'group_chat_screen.dart';
 import 'stories_screen.dart';
 import 'pulse_ai_screen.dart';
 import '../story_manager.dart';
+import '../vip.dart';
+import '../vip_text.dart';
+import 'shop_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -38,6 +41,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   final Map<String, int> _groupPendingCounts = {};
   final Map<String, bool> _online = {};
   List<StoryItem> _stories = [];
+  VipStatus _myVip = VipStatus.none;
 
   @override
   void initState() { super.initState(); _init(); }
@@ -58,10 +62,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
       _myStatusMsg = statusMsg ?? '';
     });
     StoryManager.loadStories().then((s) { if (mounted) setState(() => _stories = s); });
+    _loadMyVip();
     await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg ?? '', avatar: avatar ?? '');
     _sync();
     _groupSync();
     _presenceLoop();
+  }
+
+  Future<void> _loadMyVip() async {
+    final raw = await PhotonApi.getTier(widget.identity.fipId);
+    if (mounted && raw != null) setState(() => _myVip = VipStatus.fromJson(raw));
   }
 
   Future<void> _presenceLoop() async {
@@ -114,6 +124,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (active) {
         final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
         if (profile != null) {
+          // The name is refreshed like any other profile field. It used to be
+          // frozen at the moment the contact was added, which is why an alias
+          // switch could never reach people who already had you.
+          final freshName = (profile['name'] as String?) ?? '';
+          if (freshName.isNotEmpty) c.name = freshName;
           c.avatar = (profile['avatar'] as String?) ?? '';
           c.statusMsg = (profile['statusMsg'] as String?) ?? '';
           c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
@@ -122,6 +137,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       }
     }
     await LocalStore.saveContacts(_contacts);
+    await VipCache.instance.refresh(bridgeUrl, _contacts.map((c) => c.fipId));
     if (mounted) setState(() {});
     await Future.delayed(const Duration(seconds: 3));
     if (mounted) _sync();
@@ -206,6 +222,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   void _openChat(Contact c) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
+  }
+
+  Future<void> _openShop() async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ShopScreen(fipId: widget.identity.fipId),
+    ));
+    if (mounted) _loadMyVip();
   }
 
   void _openPulseAI() {
@@ -324,28 +347,58 @@ class _ContactsScreenState extends State<ContactsScreen> {
               children: [
                 // Own code, right-aligned under the avatar. Replaces the old
                 // full-height profile card.
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: widget.identity.code));
-                      _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: PhotonColors.accent.withOpacity(0.08),
-                        border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-                        borderRadius: BorderRadius.circular(6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Shop sits beside the chip rather than inside it, so a
+                    // subscriber-less account still has a way in.
+                    GestureDetector(
+                      onTap: _openShop,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accent.withOpacity(0.08),
+                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.storefront, size: 14, color: PhotonColors.accent),
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
-                        Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
-                        const SizedBox(width: 4),
-                        Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
-                      ]),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: widget.identity.code));
+                        _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accent.withOpacity(0.08),
+                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                          Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
+                          // Tier rides in the same chip, in the colour the
+                          // subscriber picked. Absent entirely when unsubscribed.
+                          if (_myVip.effectiveTier != VipTier.none) ...[
+                            Text('  ·  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                            Text(
+                              _myVip.effectiveTier.label,
+                              style: TextStyle(
+                                color: vipNameColor(_myVip) ?? PhotonColors.accent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
 
@@ -365,6 +418,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   _EmptyState(onAdd: _openAddScreen),
                 ...active.map((c) => _ContactRow(
                   contact: c,
+                  vip: VipCache.instance.peek(c.fipId),
                   isOnline: _online[c.fipId] ?? false,
                   onTap: () => _openChat(c),
                   onBlock: () => _blockContact(c),
@@ -566,10 +620,13 @@ class _RequestRow extends StatelessWidget {
 
 class _ContactRow extends StatelessWidget {
   final Contact contact;
+  /// Null while the bridge lookup is still pending or unreachable — the row
+  /// then renders exactly as it did before paid tiers existed.
+  final VipStatus? vip;
   final bool isOnline;
   final VoidCallback onTap;
   final VoidCallback onBlock;
-  const _ContactRow({required this.contact, required this.isOnline, required this.onTap, required this.onBlock});
+  const _ContactRow({required this.contact, required this.vip, required this.isOnline, required this.onTap, required this.onBlock});
   @override
   Widget build(BuildContext context) => GestureDetector(
     onLongPress: () {
@@ -624,7 +681,24 @@ class _ContactRow extends StatelessWidget {
         // the row reads as a single label, per the agreed layout.
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Row(children: [
+              Flexible(
+                child: Text(
+                  vipDisplayName(vip, contact.name),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: vipNameColor(vip) ?? PhotonColors.text,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if ((vip ?? VipStatus.none).effectiveTier.premiumTag) ...[
+                const SizedBox(width: 6),
+                VipBadge(status: vip),
+              ],
+            ]),
             const SizedBox(height: 2),
             Text(
               isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
@@ -634,7 +708,7 @@ class _ContactRow extends StatelessWidget {
           ])),
           const SizedBox(width: 12),
           Stack(children: [
-            _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: true),
+            _AvatarWidget(name: vipDisplayName(vip, contact.name), avatar: contact.avatar, size: 46, on: true),
             Positioned(
               right: 0, bottom: 0,
               child: Container(

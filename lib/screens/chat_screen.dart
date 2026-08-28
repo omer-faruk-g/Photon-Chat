@@ -29,6 +29,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../quick_replies.dart';
+import '../vip.dart';
+import '../vip_text.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -62,6 +64,10 @@ class _ChatScreenState extends State<ChatScreen> {
   // Messages already sent through the async cross-language profanity check, so
   // it runs at most once each rather than on every rebuild.
   final Set<String> _profanityChecked = {};
+  // Tiers of the two participants. Whose tier styles a bubble depends on who
+  // sent it, so both are kept.
+  VipStatus _myVip = VipStatus.none;
+  VipStatus _contactVip = VipStatus.none;
   final Set<String> _translating = {};
 
   Timer? _typingDebounce;
@@ -130,7 +136,17 @@ class _ChatScreenState extends State<ChatScreen> {
     LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
     QuickReplies.load().then((v) { if (mounted) setState(() => _quickReplies = v); });
     FontSizeNotifier.instance.addListener(_onFontChanged);
+    _refreshVips();
     _initTts();
+  }
+
+  Future<void> _refreshVips() async {
+    await VipCache.instance.refresh(bridgeUrl, [widget.identity.fipId, widget.contact.fipId]);
+    if (!mounted) return;
+    setState(() {
+      _myVip = VipCache.instance.peek(widget.identity.fipId) ?? VipStatus.none;
+      _contactVip = VipCache.instance.peek(widget.contact.fipId) ?? VipStatus.none;
+    });
   }
 
   Future<void> _initStt() async {
@@ -235,12 +251,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickAndSendImage() async {
-    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: imageQualityFor(_myVip.effectiveTier));
     if (picked == null || !mounted) return;
 
     final bytes = await picked.readAsBytes();
     // Compress to max 800px, quality 70
-    final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: 800, minHeight: 800, quality: 70);
+    final edge = imageEdgeFor(_myVip.effectiveTier);
+    final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: edge, minHeight: edge, quality: imageQualityFor(_myVip.effectiveTier));
     if (compressed.length > 3 * 1024 * 1024) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
       return;
@@ -305,7 +322,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (result == null || result.files.single.bytes == null || !mounted) return;
     final fileBytes = result.files.single.bytes!;
     final fileSize = result.files.single.size;
-    if (fileSize > 50 * 1024 * 1024) {
+    if (fileSize > maxFileBytesFor(_myVip.effectiveTier)) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('fileTooLarge'))));
       return;
     }
@@ -802,7 +819,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     else if (!m.deleted && m.text.startsWith('[🎤SES:'))
                       _buildVoiceBubble(m.text, mine)
                     else
-                    Text(displayText,
+                    // Filtering and translation have already been applied to
+                    // displayText; tier styling goes on last so /k cannot be
+                    // used to slip past the profanity filter.
+                    vipMessageText(
+                      displayText,
+                      m.deleted ? null : (mine ? _myVip : _contactVip),
                       style: TextStyle(
                         color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
                         fontSize: _msgFontSize, height: 1.45,
@@ -1387,10 +1409,23 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Row(children: [
-          _buildAvatar(widget.contact.name, widget.contact.avatar, size: 32),
+          _buildAvatar(vipDisplayName(_contactVip, widget.contact.name), widget.contact.avatar, size: 32),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.contact.name, style: const TextStyle(fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Row(children: [
+              Flexible(
+                child: Text(
+                  vipDisplayName(_contactVip, widget.contact.name),
+                  style: TextStyle(fontSize: 15, color: vipNameColor(_contactVip)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_contactVip.effectiveTier.premiumTag) ...[
+                const SizedBox(width: 5),
+                VipBadge(status: _contactVip),
+              ],
+            ]),
             Text(
               _contactOnline ? AppLang.instance.t('online') : _formatLastSeen(widget.contact.lastSeen),
               style: TextStyle(

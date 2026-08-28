@@ -18,6 +18,9 @@ import '../quick_replies.dart';
 import '../app_lock.dart';
 import 'lock_screen.dart';
 import '../font_size.dart';
+import '../vip.dart';
+import 'fake_name_screen.dart';
+import 'shop_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -54,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
   String _fontSize = 'orta';
   bool _lockEnabled = false;
+  VipStatus _vip = VipStatus.none;
 
   @override
   void initState() {
@@ -64,6 +68,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     LocalStore.loadNotifSound().then((v) { if (mounted) setState(() => _notifSound = v); });
     LocalStore.loadFontSize().then((v) { if (mounted) setState(() => _fontSize = v); });
     AppLock.isEnabled().then((v) { if (mounted) setState(() => _lockEnabled = v); });
+    PhotonApi.getTier(widget.identity.fipId).then((raw) {
+      if (mounted && raw != null) setState(() => _vip = VipStatus.fromJson(raw));
+    });
     _load();
   }
 
@@ -748,6 +755,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(AppLang.instance.t('deviceManagement'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
                   Text(AppLang.instance.t('deviceManagementSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                ])),
+                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Fake İsim — photonPulseVip perk. Locked rows route to the shop
+          // rather than doing nothing, so the upsell is discoverable.
+          GestureDetector(
+            onTap: () {
+              if (_vip.effectiveTier.fakeName) {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => FakeNameScreen(
+                    fipId: widget.identity.fipId,
+                    realName: widget.displayName,
+                  ),
+                )).then((_) {
+                  PhotonApi.getTier(widget.identity.fipId).then((raw) {
+                    if (mounted && raw != null) setState(() => _vip = VipStatus.fromJson(raw));
+                  });
+                });
+              } else {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => ShopScreen(fipId: widget.identity.fipId),
+                ));
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(_vip.effectiveTier.fakeName ? Icons.theater_comedy : Icons.lock_outline,
+                    color: _vip.effectiveTier.fakeName ? PhotonColors.accent : PhotonColors.textDim, size: 18),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(AppLang.instance.t('fakeNameTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(
+                    _vip.effectiveTier.fakeName
+                        ? AppLang.instance.t('fakeNameSubtitle')
+                        : AppLang.instance.t('vipLocked'),
+                    style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+                  ),
                 ])),
                 Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
               ]),

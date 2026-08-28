@@ -174,6 +174,46 @@ async function run() {
   check('auto-notify uses locale-neutral tags', !!auto && auto.body === '__NEW_MESSAGE_FROM__' && auto.bodyName === A.name, JSON.stringify(auto));
   check('no spam reached the tray', !r.data.some((n) => n.title === 'spam'), JSON.stringify(r.data));
 
+  // ---- paid tiers -----------------------------------------------------------
+  r = await GET(`/tier/${A.fipId}`);
+  check('tier defaults to none', r.status === 200 && r.data.tier === 'none', JSON.stringify(r.data));
+
+  r = await POST('/tier/grant', { fipId: A.fipId, tier: 'bogusTier', months: 1 });
+  check('unknown tier rejected', r.status === 400, `status ${r.status}`);
+
+  r = await POST('/tier/grant', { fipId: A.fipId, tier: 'vip', months: 1 });
+  check('grant vip', r.status === 200 && r.data.tier === 'vip', JSON.stringify(r.data));
+  check('grant sets a future expiry', r.data && r.data.expiresAt > Date.now(), JSON.stringify(r.data));
+
+  r = await POST(`/tier/${A.fipId}/prefs`, { color: 123456, actor: EVE.fipId });
+  check('AUTH cannot set another user tier prefs', r.status === 403, `status ${r.status}`);
+
+  r = await POST(`/tier/${A.fipId}/prefs`, { color: 123456, actor: A.fipId });
+  check('owner sets colour', r.status === 200 && r.data.color === 123456, JSON.stringify(r.data));
+
+  // Alias is a photonPulseVip perk. A vip subscriber setting one must not have
+  // it reported to peers, or the top tier is free.
+  r = await POST(`/tier/${A.fipId}/prefs`, { fakeName: 'Gizli', fakeActive: true, actor: A.fipId });
+  check('fake name accepted but not honoured below top tier',
+    r.status === 200 && r.data.fakeActive === false && r.data.fakeName === '', JSON.stringify(r.data));
+
+  r = await POST('/tier/grant', { fipId: A.fipId, tier: 'photonPulseVip', months: 1 });
+  check('upgrade to photonPulseVip', r.status === 200 && r.data.tier === 'photonPulseVip', JSON.stringify(r.data));
+  r = await GET(`/tier/${A.fipId}`);
+  check('alias honoured at top tier', r.data.fakeActive === true && r.data.fakeName === 'Gizli', JSON.stringify(r.data));
+
+  r = await POST(`/tier/${A.fipId}/prefs`, { fakeName: '   ', actor: A.fipId });
+  check('blank alias does not activate', r.status === 200 && r.data.fakeActive === false, JSON.stringify(r.data));
+  await POST(`/tier/${A.fipId}/prefs`, { fakeName: 'Gizli', actor: A.fipId });
+
+  r = await POST(`/tier/${B.fipId}/prefs`, { color: 1, actor: B.fipId });
+  check('prefs rejected without a subscription', r.status === 403, `status ${r.status}`);
+
+  r = await POST('/tiers/batch', { fipIds: [A.fipId, B.fipId, 'fip_nobody'] });
+  check('batch returns one entry per id',
+    r.status === 200 && r.data[A.fipId].tier === 'photonPulseVip' && r.data[B.fipId].tier === 'none',
+    JSON.stringify(r.data));
+
   // ---- bridge registry ------------------------------------------------------
   r = await POST('/registry/register', { code: A.code, serverUrl: A.url, actor: A.fipId });
   check('registry claim', r.status === 200, `status ${r.status}`);
@@ -365,6 +405,10 @@ async function restartRun() {
     chats: { [ck]: [{ from: A.fipId, fromFipId: A.fipId, text: 'kalici', ts: Date.now(), msgId: mid }] },
     chatReactions: { [`${ck}_${mid}`]: { '👍': [B.fipId] } },
     reactionsByChat: { [ck]: [mid] },
+    tiers: {
+      [A.fipId]: { tier: 'photonPulseVip', expiresAt: Date.now() - 1000, fakeName: 'Gizli', fakeActive: true },
+      [B.fipId]: { tier: 'pvip', expiresAt: Date.now() + 60_000 },
+    },
   }));
 
   const proc = boot(SNAPSHOT);
@@ -376,6 +420,10 @@ async function restartRun() {
     check('restart: reactions still reachable', r.status === 200 && r.data[mid] && r.data[mid]['👍'].includes(B.fipId), JSON.stringify(r.data));
     r = await GET(`/lookup/${A.code}`);
     check('restart: code index rebuilt', r.status === 200 && r.data.fipId === A.fipId, JSON.stringify(r.data));
+    r = await GET(`/tier/${A.fipId}`);
+    check('restart: lapsed subscription reads as none', r.data.tier === 'none' && r.data.fakeActive === false, JSON.stringify(r.data));
+    r = await GET(`/tier/${B.fipId}`);
+    check('restart: live subscription survives', r.data.tier === 'pvip', JSON.stringify(r.data));
   } catch (e) {
     failures.push(`restart harness error: ${e.message}`);
   } finally {

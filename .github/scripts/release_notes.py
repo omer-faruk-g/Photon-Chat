@@ -195,6 +195,34 @@ CHANGELOGS = {
         "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
         "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
     ),
+    'v10.4.0': (
+        "### 💎 v10.4.0 — Dükkan ve VIP Katmanları\n\n"
+        "8 kademeli aylık abonelik sistemi eklendi. Her katman kendinden öncekinin "
+        "tüm özelliklerini kapsıyor:\n\n"
+        "| Katman | ₺/ay | Eklediği |\n|---|---|---|\n"
+        "| VIP | 25 | Renkli ad |\n"
+        "| VIP+ | 50 | + Renkli mesaj yazısı |\n"
+        "| PVip | 100 | + Kalın mesaj |\n"
+        "| PVip+ | 175 | + PREMIUM rozeti |\n"
+        "| Photon | 250 | + 30MB daha büyük dosya |\n"
+        "| Photon+ | 300 | + 1440p görsel kalitesi |\n"
+        "| PhotonPulse | 400 | + Ekstra güvenlik |\n"
+        "| PhotonPulseVİP | 500 | + Fake isim |\n\n"
+        "**Renk:** Kendi rengini seçiyorsun; hem adına hem mesaj yazına uygulanıyor.\n\n"
+        "**Kalın mesaj:** Mesaj içinde `/k` yazdığın yerden sonrası kalın olur, "
+        "`/t` ile normale döner. Tek mesajda birden fazla kalın blok kullanabilirsin.\n\n"
+        "**Fake isim:** Ayarlar → Fake İsim'den takma ad belirleyip açtığında "
+        "**her yerde geriye dönük** o adla görünürsün — rehberde, özel mesajlarda ve "
+        "daha önce gönderdiğin grup mesajlarında dahil. Bunun için isim artık mesaja "
+        "damgalanmıyor, her görüntülemede canlı çözümleniyor.\n\n"
+        "**Dükkan:** Ana ekranda kod çipinin yanındaki mağaza simgesinden açılıyor. "
+        "Katmanın varsa çipte adı da görünüyor.\n\n"
+        "⚠️ **Ödeme henüz bağlı değil** — \"Satın Al\" şimdilik *Hizmet Dışıdır* diyor. "
+        "Google Play aboneliği kurulduğunda devreye girecek.\n\n"
+        "**🐛 Yan düzeltme:** Dosya paylaşımında sunucu gövde limiti 60MB'dı ama istemci "
+        "50MB'a izin veriyordu; base64 şişmesiyle ~45MB üstü her dosya sessizce 413 "
+        "hatası alıyordu. Limit yükseltildi, artık gerçekten çalışıyor."
+    ),
     'v10.3.0': (
         "### 🧹 v10.3.0 — Sadeleştirilmiş Ana Ekran\n\n"
         "Ana ekran çizdiğin taslağa göre yeniden düzenlendi:\n\n"
@@ -616,8 +644,8 @@ CHANGELOGS = {
     ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0'}
 
 
 def make_body(tag):

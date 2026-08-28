@@ -30,6 +30,48 @@ class PhotonApi {
     } catch (_) {}
   }
 
+  // --- Paid tiers (bridge is the authority; see server/index.js) ---
+
+  /// Grants a subscription. Test-only path while Play Billing is unwired — the
+  /// shop never calls this, its button answers "out of service".
+  static Future<bool> grantTier(String fipId, String tier, {int months = 1}) async {
+    try {
+      final r = await http.post(_u(bridgeUrl, '/tier/grant'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipId': fipId, 'tier': tier, 'months': months}));
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
+  }
+
+  static Future<Map<String, dynamic>?> getTier(String fipId) async {
+    try {
+      final r = await http
+          .get(_u(bridgeUrl, '/tier/$fipId'))
+          .timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
+    } catch (_) {}
+    return null;
+  }
+
+  /// Colour / fake-name preferences. [actor] must be the owner or the bridge
+  /// answers 403.
+  static Future<bool> setTierPrefs(String fipId,
+      {int? color, String? fakeName, bool? fakeActive}) async {
+    try {
+      final r = await http.post(_u(bridgeUrl, '/tier/$fipId/prefs'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'actor': fipId,
+            if (color != null) 'color': color,
+            if (fakeName != null) 'fakeName': fakeName,
+            if (fakeActive != null) 'fakeActive': fakeActive,
+          }));
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
+  }
+
   static Future<String?> lookupServerOnBridge(String code) async {
     try {
       final r = await http.get(_u(bridgeUrl, '/registry/lookup/$code'));

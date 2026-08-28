@@ -17,7 +17,9 @@ const I18N = path.join(LIB, 'i18n.dart');
 
 // Keys reachable only through computed lookups. Everything else must appear as
 // a literal `.t('...')` call somewhere or it counts as dead.
-const DYNAMIC_KEY_PREFIXES = ['language_'];
+// `language_*` is reached through AppLang.languageLabel(); `vipAdds*` through
+// VipTier.addsKey. Neither appears as a literal .t('...') call.
+const DYNAMIC_KEY_PREFIXES = ['language_', 'vipAdds'];
 
 const problems = [];
 const notes = [];

@@ -19,6 +19,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../vip.dart';
+import '../vip_text.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Group group;
@@ -81,6 +83,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   @override
   void dispose() {
     _msgTimer?.cancel();
+    _vipTimer?.cancel();
     _joinTimer?.cancel();
     _muteTimer?.cancel();
     _annTimer?.cancel();
@@ -330,6 +333,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }
     fetchOnce();
     _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) => fetchOnce());
+    // Tier badges for everyone who has spoken here, refreshed in one batched
+    // request rather than one per sender.
+    _vipTimer = Timer.periodic(const Duration(seconds: 20), (_) => _refreshVips());
+    _refreshVips();
+  }
+
+  Timer? _vipTimer;
+
+  Future<void> _refreshVips() async {
+    final ids = <String>{
+      widget.identity.fipId,
+      ...widget.group.members.map((m) => m.fipId),
+      ..._messages.map((m) => (m['from'] as String?) ?? ''),
+    }..removeWhere((e) => e.isEmpty);
+    await VipCache.instance.refresh(bridgeUrl, ids);
+    if (mounted) setState(() {});
   }
 
   void _pollJoinRequests() {
@@ -1053,7 +1072,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         });
                       }
                     }
-                    final fromName = m['fromName'] as String? ?? '';
+                    final senderId = (m['from'] as String?) ?? '';
+                    final senderVip = VipCache.instance.peek(senderId);
+                    // The stamped fromName is only a fallback now: an alias
+                    // switch has to reach messages that were already sent, so
+                    // the live profile wins whenever it is known.
+                    final memberName = widget.group.members
+                        .firstWhere((gm) => gm.fipId == senderId,
+                            orElse: () => GroupMember(fipId: '', name: '', serverUrl: ''))
+                        .name;
+                    final fromName = vipDisplayName(
+                      senderVip,
+                      memberName.isNotEmpty ? memberName : (m['fromName'] as String? ?? ''),
+                    );
                     return GestureDetector(
                       onLongPress: () => _onLongPressGroupMessage(m),
                       child: Padding(
@@ -1076,7 +1107,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                             if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text(fromName, style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                              Text(fromName, style: TextStyle(color: vipNameColor(senderVip) ?? PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                              if ((senderVip ?? VipStatus.none).effectiveTier.premiumTag) ...[
+                                const SizedBox(width: 4),
+                                VipBadge(status: senderVip),
+                              ],
                               if (widget.group.members.any((gm) => gm.fipId == (m['from'] as String?) && gm.isMod)) ...[
                                 const SizedBox(width: 4),
                                 Container(
@@ -1091,7 +1126,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             else if (rawText.startsWith('[🎤SES:'))
                               _buildVoiceBubble(rawText, isMe)
                             else
-                            Text(displayText, style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
+                            // Profanity filtering and translation already ran
+                            // on displayText; tier styling is applied last so
+                            // /k cannot be used to slip past the filter.
+                            vipMessageText(displayText, senderVip,
+                                style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
                             if (_translating.contains(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
