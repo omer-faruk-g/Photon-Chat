@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 /// The five profile intro effects, each drawn from scratch.
@@ -222,15 +223,29 @@ class BalloonPainter extends CustomPainter {
       canvas.restore();
     }
     // Shockwave ring.
+    //
+    // Drawn as an explicit filled annulus rather than a stroked circle. A
+    // stroked circle whose radius grows past the canvas rendered as a filled
+    // rectangle-minus-circle on a full-screen canvas — a white wash over the
+    // whole profile — while looking correct in the small shop preview. An
+    // annulus cannot degenerate that way, and the radius is capped so the ring
+    // leaves the screen instead of growing unboundedly.
     if (pop < 0.6) {
       final k = pop / 0.6;
-      canvas.drawCircle(
-        centre,
-        r + _easeOut(k) * r * 3.2,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3 * (1 - k)
-          ..color = Colors.white.withOpacity((1 - k) * 0.7),
+      final maxR = math.max(size.width, size.height);
+      final mid = math.min(r + _easeOut(k) * r * 3.2, maxR);
+      final band = 3 * (1 - k) + 1;
+      final ring = Path.combine(
+        ui.PathOperation.difference,
+        Path()
+          ..addOval(Rect.fromCircle(center: centre, radius: mid + band / 2)),
+        Path()
+          ..addOval(Rect.fromCircle(
+              center: centre, radius: math.max(0, mid - band / 2))),
+      );
+      canvas.drawPath(
+        ring,
+        Paint()..color = Colors.white.withOpacity(((1 - k) * 0.7).clamp(0, 1)),
       );
     }
   }
