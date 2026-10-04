@@ -490,6 +490,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         ),
                         minLines: 1, maxLines: 4,
                         onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
+                        // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
+                        onEditingComplete: () {},
                         onSubmitted: (_) => _send(),
                       ),
                     ),

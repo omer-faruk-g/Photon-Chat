@@ -400,6 +400,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: KnkColors.line)),
                     ),
                     onChanged: _onTextChanged,
+                    // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
+                    onEditingComplete: () {},
                     onSubmitted: (_) => _send(),
                   ),
                 ),

@@ -213,6 +213,8 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                   maxLength: maxMessageLength,
                   textInputAction: TextInputAction.send,
                   onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
+                  // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
+                  onEditingComplete: () {},
                   onSubmitted: (_) { if (!_loading) _send(); },
                 ),
               ),

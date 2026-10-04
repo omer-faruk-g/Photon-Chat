@@ -189,12 +189,15 @@ void main() {
     expect(find.text('Bu sohbet temiz. İlk mesajı sen gönder.'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Selam Bora, tamam mı?');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    // Klavyeden (Enter) gönder; odak kutuda kalmalı ki art arda yazılabilsin
+    await tester.testTextInput.receiveAction(TextInputAction.send);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
     await tester.pump(const Duration(milliseconds: 300));
 
     // Ekranda düz metin (küfür filtresi "tamam"ı bozmamalı), sunucuda şifreli metin
     expect(find.text('Selam Bora, tamam mı?'), findsOneWidget);
+    expect(tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus, isTrue);
+    expect(tester.widget<EditableText>(find.byType(EditableText)).controller.text, isEmpty);
     final stored = fake.chats[chatKeyFor(fip.fipId, bora.fipId)]!;
     expect(stored, hasLength(1)); // aynı sunucu: iki kez yazılmaz
     expect(stored.single['text'], startsWith(e2ePrefix));
