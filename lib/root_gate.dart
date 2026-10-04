@@ -6,7 +6,6 @@ import 'guide_screen.dart';
 import 'server_setup_screen.dart';
 import 'onboarding_screen.dart';
 import 'screens/contacts_screen.dart';
-import 'app_keys.dart';
 
 class RootGate extends StatefulWidget {
   const RootGate({super.key});
@@ -29,6 +28,7 @@ class RootGateState extends State<RootGate> {
     final identity = await LocalStore.loadIdentity();
     final name = await LocalStore.loadDisplayName();
     final guideSeen = await LocalStore.isGuideSeen();
+    if (!mounted) return;
     setState(() {
       _myServerUrl = serverUrl;
       _identity = identity;
@@ -43,21 +43,21 @@ class RootGateState extends State<RootGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: KnkColors.bg,
-        body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: KnkColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
-      );
+      return const Scaffold(body: Center(child: BrandMark(size: Space.s6)));
     }
 
     if (!_guideSeen) {
       return GuideScreen(onDone: () async {
         await LocalStore.markGuideSeen();
-        setState(() => _guideSeen = true);
+        if (mounted) setState(() => _guideSeen = true);
       });
     }
 
     if (_myServerUrl == null) {
-      return ServerSetupScreen(onDone: (url) => setState(() => _myServerUrl = url));
+      return ServerSetupScreen(onDone: (url) async {
+        await LocalStore.saveMyServerUrl(url);
+        if (mounted) setState(() => _myServerUrl = url);
+      });
     }
 
     if (_identity == null) {

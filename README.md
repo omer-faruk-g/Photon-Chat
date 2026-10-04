@@ -35,7 +35,7 @@ Photon Chat merkezi bir sunucu kullanmaz. Her kullanıcı kendi ücretsi̇z sunu
 1. Uygulamayı aç — kısa bir rehber görürsün
 2. Render URL’ini gir (`https://xxxx.onrender.com`)
 3. Bir kullanıcı adı seç — kimliğin otomatik oluşturulur
-4. Adresin hazır → `12345@https://xxxx.onrender.com`
+4. 5 haneli kodun hazır (ör. `12345`) — arkadaşların seni sadece bu kodla ekler
 
 Hepsi bu kadar. Artık mesajlaşabilirsin.
 
@@ -46,10 +46,11 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Özellik | |
 |---------|--|
 | Telefon / e-posta gerektirmez | ✅ |
-| Gerçek uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
+| Birebir ve grup mesajlarında uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
+| Güvenlik numarası ile anahtar doğrulama (araya girme saldırısına karşı) | ✅ |
 | Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
 | Ekran görüntüsü engeli (Android) | ✅ |
-| Grup sohbeti — 500–1000 kişi, merkeziyetsiz | ✅ |
+| Grup sohbeti (grup sahibinin sunucusunda) | ✅ |
 | Yazıyor göstergesi | ✅ |
 | Mesaj teslim durumu (✓ / ✓✓) | ✅ |
 | Kullanıcı engelleme | ✅ |
@@ -63,8 +64,9 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 
 | Veri | Davranış |
 |------|----------|
-| Kimlik | Cihazda şifreli — sunucuya gönderilmez |
-| Mesajlar | Uçtan uca şifreli, RAM’de, kalıcı kayıt yok |
+| Kimlik (FIP bloğu) | Yalnızca cihazda saklanır — sunucuya gönderilmez |
+| Birebir mesajlar | Uçtan uca şifreli, sunucu RAM’inde, kalıcı kayıt yok |
+| Grup mesajları | Uçtan uca şifreli; grup anahtarı üye çıkarılınca yenilenir |
 | Kişi listesi | Yalnızca cihazda |
 | Hesap silme | Tüm veriler anında imha edilir |
 
@@ -81,7 +83,7 @@ Uygulamaya entegre yapay zeka asistanı. Aktifleştirmek için Render dashboard 
 <details>
 <summary>Kaynağı derleme</summary>
 
-**Gereksinimler:** Flutter 3.16+, Dart ≥ 3.2, Node.js ≥ 18
+**Gereksinimler:** Flutter 3.24+, Dart ≥ 3.5, Node.js ≥ 18.17
 
 ```bash
 # Flutter bağımlılıkları
@@ -89,6 +91,10 @@ flutter pub get
 
 # Sunucuyu lokalde çalıştır
 cd server && npm install && npm start
+
+# Testler (sunucu + uygulama)
+cd server && npm test && cd ..
+flutter analyze && flutter test
 
 # Android APK
 flutter build apk --release

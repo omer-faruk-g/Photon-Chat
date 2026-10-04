@@ -31,6 +31,9 @@ jobs:
           cp -r /tmp/flutter_template/android android
           sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
+          # Şablonun ana manifest'inde INTERNET izni yok (sadece debug'da var); release APK ağa çıkamaz.
+          sed -i '0,/<manifest[^>]*>/s//&\n    <uses-permission android:name="android.permission.INTERNET"\/>/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || { echo "INTERNET izni eklenemedi"; exit 1; }
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
@@ -74,6 +77,7 @@ jobs:
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
           (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
+          (Get-Content windows\CMakeLists.txt) -replace 'set\(BINARY_NAME "knk_flutter"\)', 'set(BINARY_NAME "photon_chat")' | Set-Content windows\CMakeLists.txt
         shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
@@ -155,6 +159,7 @@ jobs:
             | 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |
             | 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |
             | 🍎 iOS | — | 🔜 Yakında |
+            | 🌐 Web | [Tarayıcıda aç](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/app/) | ✅ Kurulum gerekmez |
 
             ---
 

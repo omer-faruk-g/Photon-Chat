@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'e2e.dart';
 import 'fip.dart';
 
 class Contact {
@@ -7,10 +9,20 @@ class Contact {
   final String name;
   final String code;
   final String serverUrl;
+  /// 'pending_in' | 'pending_out' | 'on'
   String status;
-  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status};
-  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status']);
+  /// Karşı tarafın X25519 public key'i (Base64). Bilinmiyorsa null.
+  String? publicKey;
+  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status, this.publicKey});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status, if (publicKey != null) 'publicKey': publicKey};
+  factory Contact.fromJson(Map<String, dynamic> j) => Contact(
+    fipId: j['fipId'] as String,
+    name: (j['name'] as String?) ?? 'Bilinmeyen',
+    code: (j['code'] as String?) ?? '?????',
+    serverUrl: (j['serverUrl'] as String?) ?? '',
+    status: (j['status'] as String?) ?? 'pending_out',
+    publicKey: j['publicKey'] as String?,
+  );
 }
 
 class ChatMessage {
@@ -19,16 +31,23 @@ class ChatMessage {
   final int ts;
   ChatMessage({required this.from, required this.text, required this.ts});
   Map<String, dynamic> toJson() => {'from': from, 'text': text, 'ts': ts};
-  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(from: j['from'], text: j['text'], ts: j['ts']);
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(from: j['from'] as String, text: (j['text'] as String?) ?? '', ts: (j['ts'] as num).toInt());
 }
 
 class GroupMember {
   final String fipId;
   final String name;
   final String serverUrl;
-  GroupMember({required this.fipId, required this.name, required this.serverUrl});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl};
-  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'], name: j['name'], serverUrl: (j['serverUrl'] as String?) ?? '');
+  /// Üyenin X25519 public key'i (grup anahtarını ona sarmak için).
+  final String? publicKey;
+  /// Sunucuya göre üyeye teslim edilmiş en güncel grup anahtarının kimliği.
+  final String? keyId;
+  GroupMember({required this.fipId, required this.name, required this.serverUrl, this.publicKey, this.keyId});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl, if (publicKey != null) 'publicKey': publicKey};
+  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
+    fipId: j['fipId'] as String, name: (j['name'] as String?) ?? 'Bilinmeyen', serverUrl: (j['serverUrl'] as String?) ?? '',
+    publicKey: j['publicKey'] as String?, keyId: j['keyId'] as String?,
+  );
 }
 
 class Group {
@@ -38,16 +57,54 @@ class Group {
   final String ownerFipId;
   final String ownerServerUrl;
   final bool isOwner;
+  /// Sunucunun bu cihaza verdiği gizli grup anahtarı (sahip veya üye). Yalnızca cihazda saklanır.
+  final String? token;
+  /// Sahibin X25519 public key'i: katılırken sabitlenir, sarılmış grup anahtarını açmak için kullanılır.
+  String? ownerPublicKey;
+  /// Uçtan uca grup anahtarları (keyId -> Base64). Eski anahtarlar geçmiş mesajlar için tutulur.
+  final Map<String, String> keyring;
+  /// Yeni mesajların şifreleneceği anahtarın kimliği.
+  String? currentKeyId;
   List<GroupMember> members;
-  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
-  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
+  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl,
+      required this.isOwner, required this.members, this.token, this.ownerPublicKey, Map<String, String>? keyring, this.currentKeyId})
+      : keyring = keyring ?? {};
+  Map<String, dynamic> toJson() => {
+    'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl,
+    'isOwner': isOwner, if (token != null) 'token': token, if (ownerPublicKey != null) 'ownerPublicKey': ownerPublicKey,
+    if (keyring.isNotEmpty) 'keyring': keyring, if (currentKeyId != null) 'currentKeyId': currentKeyId,
+    'members': members.map((m) => m.toJson()).toList(),
+  };
   factory Group.fromJson(Map<String, dynamic> j) => Group(
-    groupId: j['groupId'], groupCode: j['groupCode'], name: j['name'],
-    ownerFipId: j['ownerFipId'], ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
-    isOwner: j['isOwner'] ?? false,
+    groupId: j['groupId'] as String, groupCode: (j['groupCode'] as String?) ?? '', name: (j['name'] as String?) ?? 'Grup',
+    ownerFipId: (j['ownerFipId'] as String?) ?? '', ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
+    isOwner: (j['isOwner'] as bool?) ?? false,
+    token: j['token'] as String?,
+    ownerPublicKey: j['ownerPublicKey'] as String?,
+    keyring: (j['keyring'] as Map?)?.map((k, v) => MapEntry(k as String, v as String)),
+    currentKeyId: j['currentKeyId'] as String?,
     members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),
   );
   String get address => '$groupCode@$ownerServerUrl';
+  /// Yeni mesajları şifrelemek için kullanılacak anahtar (yoksa null).
+  String? get currentKey => currentKeyId == null ? null : keyring[currentKeyId];
+}
+
+/// Bozuk tek bir kayıt tüm listeyi kaybettirmesin diye öğeleri tek tek çözer.
+List<T> _decodeList<T>(String raw, T Function(Map<String, dynamic>) fromJson) {
+  final List list;
+  try {
+    list = jsonDecode(raw) as List;
+  } catch (_) {
+    return [];
+  }
+  final out = <T>[];
+  for (final e in list) {
+    try {
+      out.add(fromJson(Map<String, dynamic>.from(e as Map)));
+    } catch (_) {}
+  }
+  return out;
 }
 
 class LocalStore {
@@ -58,6 +115,43 @@ class LocalStore {
   static const _kGroupsKey = 'knk_groups_v1';
   static const _kGuideSeenKey = 'knk_guide_seen_v1';
   static const _kBlockListKey = 'knk_block_list_v1';
+  static const _kAuthTokenKey = 'knk_auth_token_v1';
+  static const _kVerifiedKeysKey = 'knk_verified_keys_v1';
+
+  // --- Anahtar doğrulama: fipId -> doğrulanmış public key ---
+
+  static Future<Map<String, String>> loadVerifiedKeys() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_kVerifiedKeysKey);
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as Map).map((k, v) => MapEntry(k as String, v as String));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> setVerifiedKey(String fipId, String publicKey) async {
+    final m = await loadVerifiedKeys();
+    m[fipId] = publicKey;
+    await (await SharedPreferences.getInstance()).setString(_kVerifiedKeysKey, jsonEncode(m));
+  }
+
+  static Future<void> removeVerifiedKey(String fipId) async {
+    final m = await loadVerifiedKeys();
+    if (m.remove(fipId) == null) return;
+    await (await SharedPreferences.getInstance()).setString(_kVerifiedKeysKey, jsonEncode(m));
+  }
+
+  /// Sunucuya kimliğimizi kanıtlayan gizli token (yalnızca bu cihazda). Yoksa üretilir.
+  static Future<String> loadOrCreateAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_kAuthTokenKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final rnd = Random.secure();
+    final token = List<int>.generate(32, (_) => rnd.nextInt(256)).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    await prefs.setString(_kAuthTokenKey, token);
+    return token;
+  }
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
@@ -68,14 +162,21 @@ class LocalStore {
   static Future<FipBlock?> loadIdentity() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kIdentityKey);
     if (raw == null) return null;
-    return FipBlock.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    try {
+      return FipBlock.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null; // bozuk kayıt: uygulama çökmesin, yeni kimlik oluşturulsun
+    }
   }
 
   static Future<FipBlock> createIdentity() async {
     final fip = FipBlock.generate();
-    (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
+    await saveIdentity(fip);
     return fip;
   }
+
+  static Future<void> saveIdentity(FipBlock fip) async =>
+      (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
 
   static Future<String?> loadDisplayName() async => (await SharedPreferences.getInstance()).getString(_kDisplayNameKey);
   static Future<void> saveDisplayName(String name) async => (await SharedPreferences.getInstance()).setString(_kDisplayNameKey, name);
@@ -83,7 +184,7 @@ class LocalStore {
   static Future<List<Contact>> loadContacts() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kContactsKey);
     if (raw == null) return [];
-    return (jsonDecode(raw) as List).map((e) => Contact.fromJson(e as Map<String, dynamic>)).toList();
+    return _decodeList(raw, Contact.fromJson);
   }
 
   static Future<void> saveContacts(List<Contact> contacts) async =>
@@ -92,7 +193,16 @@ class LocalStore {
   static Future<List<Group>> loadGroups() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kGroupsKey);
     if (raw == null) return [];
-    return (jsonDecode(raw) as List).map((e) => Group.fromJson(e as Map<String, dynamic>)).toList();
+    return _decodeList(raw, Group.fromJson);
+  }
+
+  /// Tek bir grubu kalıcı olarak günceller (ör. yeni grup anahtarı alındığında).
+  static Future<void> updateGroup(Group group) async {
+    final groups = await loadGroups();
+    final i = groups.indexWhere((g) => g.groupId == group.groupId);
+    if (i == -1) return; // gruptan ayrıldıysak yeniden ekleme
+    groups[i] = group;
+    await saveGroups(groups);
   }
 
   static Future<void> saveGroups(List<Group> groups) async =>
@@ -103,7 +213,11 @@ class LocalStore {
   static Future<List<String>> loadBlockList() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kBlockListKey);
     if (raw == null) return [];
-    return List<String>.from(jsonDecode(raw) as List);
+    try {
+      return (jsonDecode(raw) as List).whereType<String>().toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveBlockList(List<String> list) async =>
@@ -132,5 +246,27 @@ class LocalStore {
     await prefs.remove(_kGroupsKey);
     await prefs.remove(_kGuideSeenKey);
     await prefs.remove(_kBlockListKey);
+    await prefs.remove(_kAuthTokenKey);
+    await prefs.remove(_kVerifiedKeysKey);
+    await wipeE2EKeys();
   }
+}
+
+/// Bir kişinin anahtarının doğrulama durumu.
+enum KeyTrust {
+  /// Anahtar henüz bilinmiyor.
+  none,
+  /// Biliniyor ama güvenlik numarası karşılaştırılmadı.
+  unverified,
+  /// Güvenlik numarası karşılaştırıldı ve onaylandı.
+  verified,
+  /// Doğrulanmış anahtar ile şu anki anahtar FARKLI: araya biri girmiş olabilir.
+  changed,
+}
+
+KeyTrust keyTrust(Map<String, String> verifiedKeys, String fipId, String? publicKey) {
+  if (publicKey == null || publicKey.isEmpty) return KeyTrust.none;
+  final v = verifiedKeys[fipId];
+  if (v == null) return KeyTrust.unverified;
+  return v == publicKey ? KeyTrust.verified : KeyTrust.changed;
 }

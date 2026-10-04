@@ -4,6 +4,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../e2e.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -20,19 +21,31 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   String? _error;
   Group? _created;
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _create() async {
+    if (_loading) return;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
     setState(() { _loading = true; _error = null; });
     try {
+      final myPub = await getMyPublicKeyBase64();
       final data = await KnkApi.createGroup(
         widget.myServerUrl,
         ownerFipId: widget.identity.fipId,
         ownerName: widget.displayName,
         name: name,
         ownerServerUrl: widget.myServerUrl,
+        ownerPublicKey: myPub,
       );
-      if (data == null) { setState(() { _error = 'Grup oluşturulamadı'; _loading = false; }); return; }
+      if (!mounted) return;
+      if (data == null) { setState(() { _error = 'Grup oluşturulamadı. Sunucu bağlantını kontrol et.'; _loading = false; }); return; }
+      if (data['token'] == null) { setState(() { _error = 'Sunucun eski bir sürüm. Grup için sunucunu güncelle.'; _loading = false; }); return; }
+      final (keyId, key) = generateGroupKeyEntry();
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
@@ -40,53 +53,56 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerFipId: widget.identity.fipId,
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
-        members: [],
+        token: data['token'] as String?,
+        ownerPublicKey: myPub,
+        // İlk uçtan uca grup anahtarı: yalnızca bu cihazda üretilir ve saklanır.
+        keyring: {keyId: key},
+        currentKeyId: keyId,
+        members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl, publicKey: myPub)],
       );
       setState(() { _created = group; _loading = false; });
-    } catch (e) {
-      setState(() { _error = 'Hata: $e'; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Grup oluşturulamadı.'; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Grup Oluştur')),
-      backgroundColor: KnkColors.bg,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _created == null ? _buildForm() : _buildSuccess(),
+    // Grup oluşturulduktan sonra geri tuşuyla çıkılsa bile grup listeye eklenir.
+    return PopScope(
+      canPop: _created == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _created != null) Navigator.pop(context, _created);
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Grup oluştur')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s5),
+          child: ContentWidth(max: 560, child: _created == null ? _buildForm() : _buildSuccess()),
+        ),
       ),
     );
   }
 
   Widget _buildForm() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
-      const SizedBox(height: 24),
+      const Text('Gruba bir ad ver.', style: KnkText.h1),
+      const SizedBox(height: Space.s3),
+      const Text('Grup senin sunucunda yaşar ve şifreleme anahtarı bu cihazda üretilir. Kimin katılacağına sen karar verirsin.', style: KnkText.bodyDim),
+      const SizedBox(height: Space.s4),
       TextField(
         controller: _nameCtrl,
-        style: const TextStyle(color: KnkColors.text),
-        decoration: InputDecoration(
-          labelText: 'Grup Adı',
-          labelStyle: const TextStyle(color: KnkColors.textDim),
-          enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-          focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
-          errorText: _error,
-          errorStyle: const TextStyle(color: KnkColors.danger),
-        ),
+        maxLength: 40,
+        onSubmitted: (_) => _create(),
+        decoration: knkInputDecoration('örn. Hafta sonu ekibi', label: 'Grup adı', error: _error),
       ),
-      const SizedBox(height: 20),
-      SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          style: knkPrimaryButtonStyle(),
-          onPressed: _loading ? null : _create,
-          child: _loading
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-              : const Text('Oluştur'),
-        ),
+      const SizedBox(height: Space.s1),
+      ElevatedButton(
+        onPressed: _loading ? null : _create,
+        child: _loading
+            ? const SizedBox(height: Space.s2, width: Space.s2, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.onAccent))
+            : const Text('Grubu oluştur'),
       ),
     ],
   );
@@ -94,39 +110,36 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildSuccess() {
     final g = _created!;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Grup oluşturuldu! Aşağıdaki adresi arkadaşlarınla paylaş.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
-        const SizedBox(height: 24),
+        const Icon(Icons.check_circle_outline, color: KnkColors.accent, size: 32),
+        const SizedBox(height: Space.s2),
+        Text('${g.name} hazır.', style: KnkText.h1),
+        const SizedBox(height: Space.s3),
+        const Text('Bu adresi katılmasını istediğin kişilere gönder. Katılma istekleri grubun içinde, sağ üstte görünür.', style: KnkText.bodyDim),
+        const SizedBox(height: Space.s4),
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.all(Space.s3),
+          decoration: BoxDecoration(color: KnkColors.accentWash, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-            const SizedBox(height: 8),
-            Text(g.address, style: const TextStyle(color: KnkColors.accent, fontSize: 13, fontFamily: 'monospace')),
+            const Text('GRUP ADRESİ', style: KnkText.label),
+            const SizedBox(height: Space.s1),
+            Text(g.groupCode, style: KnkText.code.copyWith(fontSize: 34, letterSpacing: 6)),
+            const SizedBox(height: Space.s1),
+            SelectableText('@${g.ownerServerUrl}', style: KnkText.small),
           ]),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: KnkColors.text, side: const BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Adresi Kopyala'),
-            onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),
-          ),
+        const SizedBox(height: Space.s2),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.content_copy_outlined, size: 18),
+          label: const Text('Adresi kopyala'),
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: g.address));
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grup adresi kopyalandı.'), duration: Duration(seconds: 2)));
+          },
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            style: knkPrimaryButtonStyle(),
-            onPressed: () => Navigator.pop(context, g),
-            child: const Text('Tamam'),
-          ),
-        ),
+        const SizedBox(height: Space.s1),
+        ElevatedButton(onPressed: () => Navigator.pop(context, g), child: const Text('Bitti')),
       ],
     );
   }
