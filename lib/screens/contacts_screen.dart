@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
@@ -339,154 +340,169 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: KnkColors.accent)));
+    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final incoming = _contacts.where((c) => c.status == 'pending_in').toList();
     final outgoing = _contacts.where((c) => c.status == 'pending_out').toList();
     final active = _contacts.where((c) => c.status == 'on').toList();
 
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
+      // Tarayıcıda "uygulamadan çıkma" yoktur; çıkış sorusu sadece mobil/masaüstünde sorulur.
+      canPop: kIsWeb,
+      onPopInvokedWithResult: (didPop, _) async { if (!didPop && !kIsWeb) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Kişiler'),
-          leadingWidth: 88,
-          // Kendi eşleşme kodun: dokununca kopyalanır.
-          leading: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            child: Tooltip(
-              message: 'Senin kodun (kopyalamak için dokun)',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: widget.identity.code));
-                  _showToast('Kodun kopyalandı: ${widget.identity.code}');
-                },
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(6)),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(widget.identity.code, maxLines: 1, softWrap: false,
-                        style: const TextStyle(color: KnkColors.accent, fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
-                  ),
+          leadingWidth: Space.s6,
+          leading: const Padding(padding: EdgeInsets.only(left: Space.s2), child: Center(child: BrandMark(size: 32))),
+          title: const Text('Photon Chat'),
+          actions: [
+            IconButton(tooltip: 'Ayarlar', icon: const Icon(Icons.settings_outlined), onPressed: _openSettings),
+            const SizedBox(width: Space.s1),
+          ],
+        ),
+        // Ana eylem listenin üstünde yüzmez; altta kendi şeridinde durur.
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(color: KnkColors.bg, border: Border(top: BorderSide(color: KnkColors.line))),
+          child: SafeArea(
+            top: false,
+            child: ContentWidth(
+              shrinkHeight: true,
+              child: Padding(
+                padding: const EdgeInsets.all(Space.s2),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(Space.s5)),
+                  onPressed: _openAddScreen,
+                  icon: const Icon(Icons.person_add_alt_outlined, size: 20),
+                  label: const Text('Kişi ekle'),
                 ),
               ),
             ),
           ),
-          actions: [IconButton(tooltip: 'Ayarlar', icon: const Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
         ),
-        body: Stack(
-          children: [
-            ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-              children: [
-                // Pulse AI sabitlenmiş kart
-                _PulseAiCard(onTap: _openPulseAI),
-                const SizedBox(height: 20),
-                if (incoming.isNotEmpty) ...[
-                  _SectionTitle('Davetler · ${incoming.length}'),
-                  ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
-                  const SizedBox(height: 16),
-                ],
-                _SectionTitle('Kişiler · ${active.length}'),
-                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
-                ...active.map((c) => _ContactRow(
-                  contact: c,
-                  onTap: () => _openChat(c),
-                  onBlock: () => _blockContact(c),
-                  trust: keyTrust(_verifiedKeys, c.fipId, c.publicKey),
-                )),
-                ...outgoing.map((c) => _PendingOutRow(contact: c)),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: _SectionTitle('Gruplar · ${_groups.length}')),
-                    _GroupActionButton(label: '+ Oluştur', onTap: _openCreateGroup),
-                    const SizedBox(width: 8),
-                    _GroupActionButton(label: '+ Katıl', onTap: _openJoinGroup),
+        body: ContentWidth(
+          child: Stack(
+            children: [
+              ListView(
+                padding: const EdgeInsets.fromLTRB(Space.s2, Space.s3, Space.s2, Space.s5),
+                children: [
+                  _MyCodeCard(code: widget.identity.code, onCopy: () async {
+                    await Clipboard.setData(ClipboardData(text: widget.identity.code));
+                    _showToast('Kodun kopyalandı: ${widget.identity.code}');
+                  }),
+                  const SizedBox(height: Space.s2),
+                  _PulseAiCard(onTap: _openPulseAI),
+                  if (incoming.isNotEmpty) ...[
+                    const SizedBox(height: Space.s5),
+                    SectionLabel('Davetler · ${incoming.length}'),
+                    ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
                   ],
-                ),
-                if (_groups.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-                    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: const Text('Henüz bir grubun yok.\nYeni grup oluştur veya mevcut bir gruba katıl.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+                  const SizedBox(height: Space.s5),
+                  SectionLabel('Kişiler · ${active.length}'),
+                  if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
+                  ...active.map((c) => _ContactRow(
+                    contact: c,
+                    onTap: () => _openChat(c),
+                    onBlock: () => _blockContact(c),
+                    trust: keyTrust(_verifiedKeys, c.fipId, c.publicKey),
+                  )),
+                  ...outgoing.map((c) => _PendingOutRow(contact: c)),
+                  const SizedBox(height: Space.s5),
+                  SectionLabel(
+                    'Gruplar · ${_groups.length}',
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      TextButton.icon(onPressed: _openCreateGroup, icon: const Icon(Icons.add, size: 18), label: const Text('Oluştur')),
+                      TextButton.icon(onPressed: _openJoinGroup, icon: const Icon(Icons.login, size: 18), label: const Text('Katıl')),
+                    ]),
                   ),
-                ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
-              ],
-            ),
-            Positioned(
-              left: 16, right: 16, bottom: 20,
-              child: ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: _openAddScreen, child: const Text('+ Kişi ekle')),
-            ),
-            if (_toast != null)
-              Positioned(
-                left: 16, right: 16, bottom: 84,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_toast!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: KnkColors.text)),
-                ),
+                  if (_groups.isEmpty)
+                    const _Hint(icon: Icons.groups_outlined, text: 'Henüz bir grubun yok. Bir grup oluştur ya da sana verilen grup adresiyle katıl.'),
+                  ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
+                ],
               ),
-          ],
+              if (_toast != null)
+                Positioned(
+                  left: Space.s2, right: Space.s2, bottom: Space.s2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+                    decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card), boxShadow: knkShadow()),
+                    child: Text(_toast!, textAlign: TextAlign.center, style: KnkText.small.copyWith(color: KnkColors.text)),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+/// Kendi eşleşme kodun: ekranın en önemli bilgisi, sitedeki kod satırıyla aynı tasarım.
+class _MyCodeCard extends StatelessWidget {
+  final String code;
+  final VoidCallback onCopy;
+  const _MyCodeCard({required this.code, required this.onCopy});
+  @override
+  Widget build(BuildContext context) => HoverCard(
+    onTap: onCopy,
+    color: KnkColors.accentWash,
+    padding: const EdgeInsets.all(Space.s3),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('SENİN KODUN', style: KnkText.label),
+        SizedBox(height: Space.s1),
+        Text('Arkadaşın seni bu 5 haneyle ekler. Kopyalamak için dokun.', style: KnkText.small),
+      ])),
+      const SizedBox(width: Space.s2),
+      Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: KnkText.code.copyWith(fontSize: 34, letterSpacing: 6)))),
+      const SizedBox(width: Space.s1),
+      const Padding(padding: EdgeInsets.only(bottom: Space.s1), child: Icon(Icons.content_copy_outlined, size: 18, color: KnkColors.accent)),
+    ]),
+  );
+}
+
 class _PulseAiCard extends StatelessWidget {
   final VoidCallback onTap;
   const _PulseAiCard({required this.onTap});
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => HoverCard(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: KnkColors.accent.withOpacity(0.07),
-        border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
-            ),
-            child: const Text('⚡', style: TextStyle(fontSize: 20)),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Pulse AI', style: TextStyle(color: KnkColors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
-            Text('Yapay zeka asistanın · Sor, sohbet et', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-          ])),
-          const Icon(Icons.chevron_right, color: KnkColors.accent, size: 20),
-        ],
-      ),
+    child: const Row(
+      children: [
+        _IconTile(icon: Icons.bolt_outlined),
+        SizedBox(width: Space.s2),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Pulse AI', style: KnkText.strong),
+          Text('Yapay zeka asistanın. Bir kelimenin anlamını ya da aklındaki soruyu sor.', style: KnkText.small),
+        ])),
+        Icon(Icons.chevron_right, color: KnkColors.textDim),
+      ],
     ),
   );
 }
 
-class _GroupActionButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _GroupActionButton({required this.label, required this.onTap});
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+  const _IconTile({required this.icon});
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.5)), borderRadius: BorderRadius.circular(6)),
-      child: Text(label, style: const TextStyle(color: KnkColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
-    ),
+  Widget build(BuildContext context) => Container(
+    width: KnkSize.tile, height: KnkSize.tile, alignment: Alignment.center,
+    decoration: BoxDecoration(color: KnkColors.accentWash, borderRadius: BorderRadius.circular(KnkRadius.card), border: Border.all(color: KnkColors.line)),
+    child: Icon(icon, color: KnkColors.accent, size: 20),
+  );
+}
+
+class _Hint extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Hint({required this.icon, required this.text});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(Space.s2),
+    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, color: KnkColors.textDim, size: 20),
+      const SizedBox(width: Space.s2),
+      Expanded(child: Text(text, style: KnkText.small)),
+    ]),
   );
 }
 
@@ -496,42 +512,33 @@ class _GroupRow extends StatelessWidget {
   final VoidCallback onTap;
   const _GroupRow({required this.group, required this.pendingCount, required this.onTap});
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(10),
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: Space.s1),
+    child: HoverCard(
+      onTap: onTap,
       child: Row(children: [
-        Container(width: 38, height: 38, alignment: Alignment.center,
-            decoration: BoxDecoration(color: KnkColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-            child: const Icon(Icons.group, color: KnkColors.accent, size: 20)),
-        const SizedBox(width: 12),
+        const _IconTile(icon: Icons.groups_outlined),
+        const SizedBox(width: Space.s2),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-          Text(group.isOwner ? 'Sahip · ${group.groupCode}' : 'Üye · ${group.groupCode}', style: const TextStyle(color: KnkColors.textDim, fontSize: 11)),
+          Text(group.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
+          Text('${group.isOwner ? 'Kurucu' : 'Üye'} · ${group.groupCode}', style: KnkText.small.merge(KnkText.tabular)),
         ])),
         if (pendingCount > 0)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(color: KnkColors.accent2, borderRadius: BorderRadius.circular(12)),
-            child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          Tooltip(
+            message: '$pendingCount katılma isteği',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s1),
+              constraints: const BoxConstraints(minWidth: Space.s3),
+              height: Space.s3,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: KnkColors.accent2, borderRadius: BorderRadius.circular(KnkRadius.pill)),
+              child: Text('$pendingCount', style: const TextStyle(color: KnkColors.onAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
           ),
-        const SizedBox(width: 6),
+        const SizedBox(width: Space.s1),
         const Icon(Icons.chevron_right, color: KnkColors.textDim),
       ]),
     ),
-  );
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8, top: 4),
-    child: Text(text.toUpperCase(), style: const TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
   );
 }
 
@@ -540,16 +547,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
-    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(12)),
-    child: Column(children: [
-      const Text('＋', style: TextStyle(color: KnkColors.accent2, fontSize: 28)),
-      const SizedBox(height: 8),
-      const Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
-      const SizedBox(height: 6),
-      const Text('Arkadaşının 5 haneli kodunu girerek ekle.\nKendi kodun sol üstte yazıyor.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
-      const SizedBox(height: 16),
-      ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
+    padding: const EdgeInsets.all(Space.s3),
+    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Icon(Icons.person_add_alt_outlined, color: KnkColors.accent2, size: 28),
+      const SizedBox(height: Space.s2),
+      const Text('Rehberin henüz boş.', style: KnkText.h3),
+      const SizedBox(height: Space.s1),
+      const Text('Arkadaşından 5 haneli kodunu iste ve buraya yaz. O kabul edince sohbet açılır.', style: KnkText.small),
+      const SizedBox(height: Space.s2),
+      OutlinedButton(onPressed: onAdd, child: const Text('Kod ile ekle')),
     ]),
   );
 }
@@ -559,28 +566,34 @@ class _RequestRow extends StatelessWidget {
   final VoidCallback onAccept, onDecline;
   const _RequestRow({required this.contact, required this.onAccept, required this.onDecline});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
-    child: Row(children: [
-      _Avatar(name: contact.name, on: false), const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        Text('kod ${contact.code}', style: const TextStyle(color: KnkColors.textDim, fontSize: 11)),
-      ])),
-      Column(children: [
-        SizedBox(height: 30, child: ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: KnkColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onAccept, child: const Text('Kabul et'),
-        )),
-        const SizedBox(height: 4),
-        SizedBox(height: 26, child: OutlinedButton(
-          style: OutlinedButton.styleFrom(foregroundColor: KnkColors.textDim, side: const BorderSide(color: KnkColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onDecline, child: const Text('Sil'),
-        )),
-      ]),
-    ]),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: Space.s1),
+    child: HoverCard(
+      borderColor: KnkColors.accent2.withOpacity(0.5),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: Space.s2,
+        runSpacing: Space.s2,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            _Avatar(name: contact.name, on: false), const SizedBox(width: Space.s2),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 240),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
+                Text('kod ${contact.code} · seni eklemek istiyor', style: KnkText.small.merge(KnkText.tabular)),
+              ]),
+            ),
+          ]),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            OutlinedButton(onPressed: onDecline, child: const Text('Reddet')),
+            const SizedBox(width: Space.s1),
+            ElevatedButton(onPressed: onAccept, child: const Text('Kabul et')),
+          ]),
+        ],
+      ),
+    ),
   );
 }
 
@@ -594,7 +607,6 @@ class _ContactRow extends StatelessWidget {
   void _showMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -608,10 +620,11 @@ class _ContactRow extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-              title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+              leading: const Icon(Icons.close),
+              title: const Text('Vazgeç'),
               onTap: () => Navigator.pop(sheetCtx),
             ),
+            const SizedBox(height: Space.s1),
           ],
         ),
       ),
@@ -620,46 +633,44 @@ class _ContactRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Material(
-      color: KnkColors.panel,
-      shape: RoundedRectangleBorder(side: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: () => _showMenu(context),
-        onSecondaryTap: () => _showMenu(context),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
-          child: Row(children: [
-            _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(contact.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-              Row(children: [
-                Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-                const SizedBox(width: 6),
-                const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-                if (trust == KeyTrust.verified) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.verified_user, color: KnkColors.accent, size: 12),
-                  const SizedBox(width: 3),
-                  const Text('doğrulandı', style: TextStyle(color: KnkColors.accent, fontSize: 11)),
-                ] else if (trust == KeyTrust.changed) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.gpp_bad, color: KnkColors.danger, size: 12),
-                  const SizedBox(width: 3),
-                  const Text('anahtar değişti', style: TextStyle(color: KnkColors.danger, fontSize: 11)),
-                ],
-              ]),
-            ])),
-            IconButton(
-              tooltip: 'Seçenekler',
-              icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 20),
-              onPressed: () => _showMenu(context),
-            ),
+    padding: const EdgeInsets.only(bottom: Space.s1),
+    child: HoverCard(
+      onTap: onTap,
+      onLongPress: () => _showMenu(context),
+      onSecondaryTap: () => _showMenu(context),
+      padding: const EdgeInsets.fromLTRB(Space.s2, Space.s2, Space.s1, Space.s2),
+      child: Row(children: [
+        _Avatar(name: contact.name, on: true), const SizedBox(width: Space.s2),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
+          Row(children: [
+            switch (trust) {
+              KeyTrust.verified => const Icon(Icons.verified_user_outlined, color: KnkColors.accent, size: 14),
+              KeyTrust.changed => const Icon(Icons.gpp_bad_outlined, color: KnkColors.danger, size: 14),
+              _ => const Icon(Icons.lock_outline, color: KnkColors.textDim, size: 14),
+            },
+            const SizedBox(width: Space.s1),
+            Flexible(child: Text(
+              switch (trust) {
+                KeyTrust.verified => 'şifreli · doğrulandı',
+                KeyTrust.changed => 'anahtar değişti, yeniden doğrula',
+                _ => 'şifreli · doğrulanmadı',
+              },
+              overflow: TextOverflow.ellipsis,
+              style: KnkText.small.copyWith(color: switch (trust) {
+                KeyTrust.verified => KnkColors.accent,
+                KeyTrust.changed => KnkColors.danger,
+                _ => KnkColors.textDim,
+              }),
+            )),
           ]),
+        ])),
+        IconButton(
+          tooltip: 'Seçenekler',
+          icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 20),
+          onPressed: () => _showMenu(context),
         ),
-      ),
+      ]),
     ),
   );
 }
@@ -668,17 +679,21 @@ class _PendingOutRow extends StatelessWidget {
   final Contact contact;
   const _PendingOutRow({required this.contact});
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-    child: Row(children: [
-      _Avatar(name: contact.name, on: false), const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-        const Text('davet gönderildi · onay bekleniyor', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-      ])),
-    ]),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: Space.s1),
+    child: HoverCard(
+      child: Row(children: [
+        _Avatar(name: contact.name, on: false), const SizedBox(width: Space.s2),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
+          Row(children: [
+            const Icon(Icons.schedule, color: KnkColors.accent2, size: 14),
+            const SizedBox(width: Space.s1),
+            Text('davet gönderildi, onay bekleniyor', style: KnkText.small.copyWith(color: KnkColors.accent2)),
+          ]),
+        ])),
+      ]),
+    ),
   );
 }
 
@@ -692,9 +707,13 @@ class _Avatar extends StatelessWidget {
     final trimmed = name.trim();
     final initials = trimmed.isEmpty ? '?' : trimmed.characters.take(2).toString().toUpperCase();
     return Container(
-      width: 38, height: 38, alignment: Alignment.center,
-      decoration: BoxDecoration(color: KnkColors.line, borderRadius: BorderRadius.circular(8), border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5)) : null),
-      child: Text(initials, style: TextStyle(color: on ? KnkColors.accent : KnkColors.textDim, fontWeight: FontWeight.w700, fontSize: 13)),
+      width: KnkSize.tile, height: KnkSize.tile, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: on ? KnkColors.accentWash : KnkColors.panelAlt,
+        borderRadius: BorderRadius.circular(KnkRadius.card),
+        border: Border.all(color: on ? KnkColors.accent.withOpacity(0.5) : KnkColors.line),
+      ),
+      child: Text(initials, style: TextStyle(fontFamily: KnkFonts.display, color: on ? KnkColors.accent : KnkColors.textDim, fontSize: 15)),
     );
   }
 }

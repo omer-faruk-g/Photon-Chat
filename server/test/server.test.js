@@ -340,3 +340,13 @@ test('group E2E key distribution: owner wraps, only the member can fetch, server
   await call('DELETE', `/groups/${g.groupId}/members/${B}`, undefined, g.token);
   assert.equal((await call('GET', `/groups/${g.groupId}/key/${B}`, undefined, bt)).status, 403);
 });
+
+test('CORS: browsers on another origin (web app) can call the API', async () => {
+  const pre = await fetch(base + '/groups/x/messages', { method: 'OPTIONS', headers: { Origin: 'https://omer-faruk-g.github.io', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'x-group-token' } });
+  assert.equal(pre.status, 204);
+  assert.equal(pre.headers.get('access-control-allow-origin'), '*');
+  assert.match(pre.headers.get('access-control-allow-headers'), /x-group-token/);
+  assert.match(pre.headers.get('access-control-allow-headers'), /x-user-token/);
+  const r = await fetch(base + '/health', { headers: { Origin: 'https://omer-faruk-g.github.io' } });
+  assert.equal(r.headers.get('access-control-allow-origin'), '*');
+});

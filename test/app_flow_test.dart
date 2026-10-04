@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -80,27 +81,27 @@ void main() {
     await tester.pumpWidget(const KnkApp());
     await tester.pumpAndSettle();
 
-    expect(find.text("Photon Chat'e Hoş Geldin"), findsOneWidget);
+    expect(find.textContaining('Numaran yok.'), findsOneWidget);
     await tester.tap(find.text('Atla'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sunucu Kurulumu'), findsOneWidget);
+    expect(find.text('Mesajların nerede beklesin?'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'test.onrender.com/');
-    await tester.tap(find.text('Bağlan ve Devam Et'));
+    await tester.tap(find.text('Bağlan'));
     await tester.pumpAndSettle();
 
-    expect(find.text('PHOTON CHAT'), findsOneWidget);
+    expect(find.text('Kimliğin bu cihazda doğuyor.'), findsOneWidget);
     // Önizlemedeki kod, oluşturulan kimliğin kodu olmalı
     final previewCode = (tester.widget<Text>(find.byWidgetPredicate(
             (w) => w is Text && w.data != null && RegExp(r'^\d{5}$').hasMatch(w.data!))))
         .data!;
     await tester.enterText(find.byType(TextField), 'Ali');
     await tester.pump();
-    await tester.ensureVisible(find.text('Kimliği bu cihazda oluştur'));
-    await tester.tap(find.text('Kimliği bu cihazda oluştur'));
+    await tester.ensureVisible(find.text('Kimliği oluştur'));
+    await tester.tap(find.text('Kimliği oluştur'));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
-    expect(find.text('Kişiler'), findsOneWidget);
+    expect(find.text('SENİN KODUN'), findsOneWidget);
     expect(find.text(previewCode), findsOneWidget);
 
     expect(await LocalStore.loadMyServerUrl(), server);
@@ -123,8 +124,16 @@ void main() {
     });
     await tester.pumpWidget(const KnkApp());
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
-    expect(find.text('Sunucu Kurulumu'), findsNothing);
-    expect(find.text('Kişiler'), findsOneWidget);
+    expect(find.text('Mesajların nerede beklesin?'), findsNothing);
+    expect(find.text('SENİN KODUN'), findsOneWidget);
+    // Ana ekranın içeriği gerçekten görünür olmalı: alt eylem şeridi ekranı kaplamamalı.
+    final bar = tester.getRect(find.byType(BottomAppBar).evaluate().isEmpty
+        ? find.ancestor(of: find.text('Kişi ekle'), matching: find.byType(SafeArea)).first
+        : find.byType(BottomAppBar));
+    expect(bar.height, lessThan(120));
+    expect(tester.getRect(find.text('SENİN KODUN')).top, lessThan(bar.top));
+    expect(tester.hitTestOnBinding(tester.getCenter(find.text('SENİN KODUN'))).path.any(
+        (e) => e.target is RenderParagraph), isTrue);
     await _disposeApp(tester);
   });
 
@@ -187,7 +196,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('uçtan uca şifreli'), findsOneWidget);
-    expect(find.text('Bu sohbet temiz. İlk mesajı sen gönder.'), findsOneWidget);
+    expect(find.text('Bu sohbet temiz.'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Selam Bora, tamam mı?');
     // Klavyeden (Enter) gönder; odak kutuda kalmalı ki art arda yazılabilsin
@@ -238,7 +247,7 @@ void main() {
     _noError(tester);
 
     // Ayarlar
-    await tester.tap(find.byIcon(Icons.settings));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
     expect(find.text('Ayarlar'), findsOneWidget);
     _noError(tester);
@@ -246,7 +255,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Kişi ekle
-    await tester.tap(find.text('+ Kişi ekle'));
+    await tester.tap(find.text('Kişi ekle'));
     await tester.pumpAndSettle();
     _noError(tester);
     await tester.pageBack();
@@ -269,17 +278,17 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const KnkApp());
     await tester.pumpAndSettle();
-    for (var i = 0; i < 6; i++) {
+    for (var i = 0; i < 5; i++) {
       _noError(tester);
-      await tester.tap(find.textContaining(i == 5 ? 'Başlayalım' : 'Devam'));
+      await tester.tap(find.text(i == 4 ? 'Başla' : 'Devam'));
       await tester.pumpAndSettle();
     }
-    expect(find.text('Sunucu Kurulumu'), findsOneWidget);
+    expect(find.text('Mesajların nerede beklesin?'), findsOneWidget);
     // Sunucuya ulaşılamazsa anlaşılır bir hata gösterilir, uygulama çökmez
     fake.down = true;
     await tester.enterText(find.byType(TextField), 'https://yok.onrender.com');
-    await tester.ensureVisible(find.text('Bağlan ve Devam Et'));
-    await tester.tap(find.text('Bağlan ve Devam Et'));
+    await tester.ensureVisible(find.text('Bağlan'));
+    await tester.tap(find.text('Bağlan'));
     await tester.pumpAndSettle();
     expect(find.textContaining('bağlanılamadı'), findsOneWidget);
     _noError(tester);
@@ -308,7 +317,7 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byIcon(Icons.gpp_maybe_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.gpp_maybe_outlined), findsWidgets);
 
     await tester.tap(find.byTooltip('Güvenlik numarası'));
     // Numara ayrı isolate'te hesaplanır: gerçek zamanda bekle
@@ -327,6 +336,8 @@ void main() {
     final onBora = safetyNumber(myFipId: bora.fipId, myPublicKey: boraPub!, theirFipId: fip.fipId, theirPublicKey: myPub!);
     expect(groups.join(), onBora);
 
+    await tester.ensureVisible(find.textContaining('doğrulandı olarak işaretle'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('doğrulandı olarak işaretle'));
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
@@ -336,8 +347,8 @@ void main() {
     await tester.pageBack();
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
-    expect(find.byIcon(Icons.verified_user), findsOneWidget);
-    expect(find.text('· doğrulandı ✓'), findsOneWidget);
+    expect(find.byIcon(Icons.verified_user_outlined), findsWidgets);
+    expect(find.text('doğrulandı'), findsOneWidget);
     await _disposeApp(tester);
   });
 }

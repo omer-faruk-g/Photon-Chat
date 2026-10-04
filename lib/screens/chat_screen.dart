@@ -6,6 +6,7 @@ import '../knk_api.dart';
 import '../local_store.dart';
 import '../e2e.dart';
 import '../theme.dart';
+import '../widgets.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
 import 'verify_key_screen.dart';
@@ -325,161 +326,106 @@ class _ChatScreenState extends State<ChatScreen> {
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
   }
 
-  Widget _banner(IconData icon, String text) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: KnkColors.danger.withOpacity(0.12),
-    child: Row(children: [
-      Icon(icon, color: KnkColors.danger, size: 16),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: const TextStyle(color: KnkColors.danger, fontSize: 11.5, height: 1.4))),
-    ]),
-  );
+  Widget _banner(IconData icon, String text, {Color tone = KnkColors.danger}) => NoticeBar(icon: icon, text: text, tone: tone);
+
+  IconData get _trustIcon => switch (_trust) {
+    KeyTrust.verified => Icons.verified_user_outlined,
+    KeyTrust.changed => Icons.gpp_bad_outlined,
+    _ => Icons.gpp_maybe_outlined,
+  };
+
+  Color get _trustColor => switch (_trust) {
+    KeyTrust.verified => KnkColors.accent,
+    KeyTrust.changed => KnkColors.danger,
+    _ => KnkColors.textDim,
+  };
 
   @override
   Widget build(BuildContext context) {
     final inputDisabled = _isBlocked || _contactDeactivated;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.contact.name),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.contact.name, overflow: TextOverflow.ellipsis),
+          Text('kod ${widget.contact.code}', style: KnkText.meta.merge(KnkText.tabular)),
+        ]),
         actions: [
           IconButton(
             tooltip: 'Güvenlik numarası',
             onPressed: _openVerify,
-            icon: Icon(
-              switch (_trust) {
-                KeyTrust.verified => Icons.verified_user,
-                KeyTrust.changed => Icons.gpp_bad,
-                _ => Icons.gpp_maybe_outlined,
-              },
-              color: switch (_trust) {
-                KeyTrust.verified => KnkColors.accent,
-                KeyTrust.changed => KnkColors.danger,
-                _ => KnkColors.textDim,
-              },
-            ),
+            icon: Icon(_trustIcon, color: _trustColor),
           ),
+          const SizedBox(width: Space.s1),
         ],
       ),
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
-            child: Row(children: [
-              Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              Text('FIP eşleşmesi · ${widget.contact.code}', style: const TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1)),
-              if (_sharedKey != null) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.lock, color: KnkColors.accent, size: 11),
-                const SizedBox(width: 3),
-                const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _openVerify,
-                  child: Text(
-                    _trust == KeyTrust.verified ? '· doğrulandı ✓' : '· doğrula',
-                    style: TextStyle(
-                      color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, fontSize: 10,
-                      decoration: _trust == KeyTrust.verified ? null : TextDecoration.underline,
-                    ),
+          if (_sharedKey != null)
+            Material(
+              color: KnkColors.accentWash,
+              child: InkWell(
+                onTap: _openVerify,
+                child: ContentWidth(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+                    child: Row(children: [
+                      const Icon(Icons.lock_outline, color: KnkColors.accent, size: 16),
+                      const SizedBox(width: Space.s1),
+                      const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
+                      const Spacer(),
+                      Icon(_trustIcon, color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, size: 16),
+                      const SizedBox(width: Space.s1),
+                      Text(
+                        _trust == KeyTrust.verified ? 'doğrulandı' : 'güvenlik numarasını doğrula',
+                        style: TextStyle(
+                          color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, fontSize: 13,
+                          decoration: _trust == KeyTrust.verified ? null : TextDecoration.underline,
+                          decorationColor: KnkColors.accent2,
+                        ),
+                      ),
+                    ]),
                   ),
                 ),
-              ],
-            ]),
-          ),
+              ),
+            ),
           if (_isBlocked)
-            _banner(Icons.block, 'Bu kişiyi engellediniz.')
+            _banner(Icons.block, 'Bu kişiyi engelledin.')
           else if (_contactDeactivated)
-            _banner(Icons.info_outline, '${widget.contact.name} hesabını kaldırdı. Artık aktif değil.')
+            _banner(Icons.person_off_outlined, '${widget.contact.name} hesabını kaldırdı. Mesajların artık ona ulaşmaz.')
           else if (_trust == KeyTrust.changed)
-            _banner(Icons.gpp_bad, '${widget.contact.name} için doğruladığın anahtar değişti. Güvenlik numarasını yeniden karşılaştır.')
+            _banner(Icons.gpp_bad_outlined, '${widget.contact.name} için doğruladığın anahtar değişti. Güvenlik numarasını yeniden karşılaştır.', )
           else if (_serverUnreachable)
-            _banner(Icons.cloud_off, 'Sunucuna ulaşılamıyor. Yeniden bağlanılıyor…'),
+            _banner(Icons.cloud_off_outlined, 'Sunucuna ulaşılamıyor. Yeniden bağlanılıyor…', tone: KnkColors.accent2),
           Expanded(
             child: _isBlocked
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text(
-                        'Bu kişiyi engellediniz.\nMesajlarını görmek için engeli kaldırın.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6),
-                      ),
-                    ),
-                  )
+                ? const CenterNote(icon: Icons.block, title: 'Bu kişiyi engelledin.', body: 'Mesajlarını görmek için engeli kaldırman gerekir.')
                 : !_loaded && _messages.isEmpty
-                    ? const Center(child: CircularProgressIndicator(color: KnkColors.accent, strokeWidth: 2))
+                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                     : _messages.isEmpty
-                        ? const Center(child: Padding(padding: EdgeInsets.symmetric(horizontal: 40), child: Text('Bu sohbet temiz. İlk mesajı sen gönder.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6))))
+                        ? const CenterNote(icon: Icons.forum_outlined, title: 'Bu sohbet temiz.', body: 'İlk mesajı sen gönder.')
                         : ListView.builder(
                             controller: _scrollCtrl,
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(vertical: Space.s2),
                             itemCount: _messages.length,
-                            itemBuilder: (context, i) => _buildBubble(_messages[i]),
+                            itemBuilder: (context, i) => ContentWidth(child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.s2),
+                              child: _buildBubble(_messages[i]),
+                            )),
                           ),
           ),
           if (_contactTyping && !_isBlocked)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text('${widget.contact.name} yazıyor…', style: const TextStyle(color: KnkColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
-            ),
-          if (_inputError != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.danger.withOpacity(0.1),
-              child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
-            ),
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(color: KnkColors.panel, border: Border(top: BorderSide(color: KnkColors.line))),
-              child: Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: _draftCtrl,
-                    style: const TextStyle(color: KnkColors.text, fontSize: 14),
-                    enabled: !inputDisabled,
-                    maxLength: maxMessageLength,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    decoration: InputDecoration(
-                      counterText: '',
-                      hintText: _isBlocked ? 'Bu kişiyi engellediniz.' : (_contactDeactivated ? 'Kişi artık aktif değil…' : 'Mesaj yaz…'),
-                      hintStyle: const TextStyle(color: Color(0xFF5C6E6B)),
-                      filled: true, fillColor: KnkColors.bg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: const BorderSide(color: KnkColors.line)),
-                    ),
-                    onChanged: _onTextChanged,
-                    // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
-                    onEditingComplete: () {},
-                    onSubmitted: (_) => _send(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: (inputDisabled || _sending) ? null : _send,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 40, height: 40, alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: inputDisabled ? KnkColors.line : KnkColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _sending
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)))
-                        : Icon(Icons.arrow_upward, color: inputDisabled ? KnkColors.textDim : const Color(0xFF06251A)),
-                  ),
-                ),
-              ]),
-            ),
+            ContentWidth(child: Padding(
+              padding: const EdgeInsets.fromLTRB(Space.s2, 0, Space.s2, Space.s1),
+              child: Align(alignment: Alignment.centerLeft, child: Text('${widget.contact.name} yazıyor…', style: KnkText.small.copyWith(fontStyle: FontStyle.italic))),
+            )),
+          if (_inputError != null) _banner(Icons.error_outline, _inputError!),
+          MessageComposer(
+            controller: _draftCtrl,
+            enabled: !inputDisabled,
+            sending: _sending,
+            hint: _isBlocked ? 'Bu kişiyi engelledin' : (_contactDeactivated ? 'Kişi artık aktif değil' : 'Mesaj yaz'),
+            onChanged: _onTextChanged,
+            onSend: _send,
           ),
         ],
       ),
@@ -492,43 +438,54 @@ class _ChatScreenState extends State<ChatScreen> {
     // Şifreli bir sohbette karşı taraftan gelen düz metin mesaj doğrulanamaz
     // (eski sürümden gönderilmiş ya da başkası tarafından eklenmiş olabilir).
     final unverified = !mine && !m.encrypted && _sharedKey != null;
-    final displayText = undecryptable ? '🔒 Bu şifreli mesaj çözülemedi.' : filterProfanity(m.text!);
-    final fg = mine ? const Color(0xFF06251A) : KnkColors.text;
+    final fg = mine ? KnkColors.onAccent : KnkColors.text;
     final status = _delivery[m.ts];
+    final maxW = (MediaQuery.sizeOf(context).width * 0.78).clamp(0.0, 520.0);
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+        margin: const EdgeInsets.only(bottom: Space.s1),
+        padding: const EdgeInsets.fromLTRB(Space.s2, Space.s1, Space.s2, Space.s1),
+        constraints: BoxConstraints(maxWidth: maxW),
         decoration: BoxDecoration(
           color: mine ? KnkColors.accent : KnkColors.panel,
           border: mine ? null : Border.all(color: KnkColors.line),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
-            bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
+            topLeft: const Radius.circular(KnkRadius.bubble), topRight: const Radius.circular(KnkRadius.bubble),
+            bottomLeft: Radius.circular(mine ? KnkRadius.bubble : 2), bottomRight: Radius.circular(mine ? 2 : KnkRadius.bubble),
           ),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(displayText, style: TextStyle(
-            color: undecryptable ? fg.withOpacity(0.6) : fg, fontSize: 13.5, height: 1.45,
-            fontStyle: undecryptable ? FontStyle.italic : FontStyle.normal,
-          )),
+          if (undecryptable)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.lock_outline, size: 16, color: fg.withOpacity(0.7)),
+              const SizedBox(width: Space.s1),
+              Flexible(child: Text('Bu şifreli mesaj çözülemedi.', style: TextStyle(color: fg.withOpacity(0.7), fontSize: 15, fontStyle: FontStyle.italic))),
+            ])
+          else
+            Text(filterProfanity(m.text!), style: TextStyle(color: fg, fontSize: 15, height: 1.45)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (unverified) ...[
-                Tooltip(
+                const Tooltip(
                   message: 'Bu mesaj şifresiz geldi; gerçekten bu kişiden geldiği doğrulanamıyor.',
-                  child: Text('⚠ şifresiz', style: TextStyle(color: KnkColors.accent2.withOpacity(0.9), fontSize: 9.5)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.warning_amber_outlined, size: 14, color: KnkColors.accent2),
+                    SizedBox(width: Space.s1),
+                    Text('şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 11)),
+                  ]),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: Space.s1),
               ],
-              Text(_formatTime(m.ts), style: TextStyle(color: fg.withOpacity(0.6), fontSize: 9.5)),
+              Text(_formatTime(m.ts), style: TextStyle(color: fg.withOpacity(0.7), fontSize: 11).merge(KnkText.tabular)),
               if (mine) ...[
-                const SizedBox(width: 4),
+                const SizedBox(width: Space.s1),
                 // Geçmişten gelen (bu oturumda gönderilmemiş) mesajlar teslim edilmiş sayılır.
-                Text(status == _Delivery.sent ? '✓' : '✓✓', style: TextStyle(color: fg.withOpacity(0.7), fontSize: 9.5)),
+                Tooltip(
+                  message: status == _Delivery.sent ? 'Sunucuna yazıldı, karşı tarafa iletiliyor' : 'Karşı tarafa iletildi',
+                  child: Icon(status == _Delivery.sent ? Icons.done : Icons.done_all, size: 14, color: fg.withOpacity(0.8)),
+                ),
               ],
             ],
           ),

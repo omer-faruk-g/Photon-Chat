@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
 
+/// İlk açılış rehberi. Her sayfa tek bir mesaj taşır; sıra gerçek bir akış
+/// olduğu için sayfalar numaralıdır.
 class GuideScreen extends StatefulWidget {
   final VoidCallback onDone;
   const GuideScreen({super.key, required this.onDone});
@@ -14,101 +16,104 @@ class _GuideScreenState extends State<GuideScreen> {
 
   static const _pages = [
     _GuidePage(
-      icon: '⚡',
-      title: "Photon Chat'e Hoş Geldin",
-      body: 'Telefon numarası yok. E-posta yok. Hesap yok.\n\nSadece bir kriptografik kimlik — cihazında oluşturulur, kimseyle paylaşılmaz.',
+      icon: Icons.sensors,
+      title: 'Numaran yok.\nBeş rakamın var.',
+      body: 'Photon Chat kimliğini bu cihazda üretir. Telefon numarası, e-posta ya da hesap istemez.',
     ),
     _GuidePage(
-      icon: '🌐',
-      title: 'Kendi Sunucunu Kur',
-      body: 'Photon Chat merkezi bir sunucu kullanmaz.\n\nHer kullanıcı render.com üzerinde ücretsiz kendi sunucusunu çalıştırır. Mesajların sadece senin sunucuna gider — başkasına değil.\n\nİlk adımda bu sunucunun adresini gireceksin.',
-      tip: 'render.com → New Web Service → ücretsiz plan',
+      icon: Icons.dns_outlined,
+      title: 'Mesajların senin sunucunda bekler.',
+      body: 'Merkezi bir sunucu yok. render.com üzerinde ücretsiz bir servis açarsın; bir sonraki adımda adresini soracağız.',
+      tip: 'render.com → New → Web Service → bu depo, kök klasör: server',
     ),
     _GuidePage(
-      icon: '🔢',
-      title: 'Senin Kodun',
-      body: 'Kimliğin oluşturulunca sana 5 haneli bir eşleşme kodu verilir.\n\nArkadaşların seni eklemek için sadece bu kodu girer; sunucu adresin arka planda otomatik bulunur.\n\nTam adresin ayarlarda görünür:\n\n  12345@https://senin-sunucu.onrender.com',
-      highlight: '5 HANELİ KOD',
+      icon: Icons.pin_outlined,
+      title: 'Arkadaşın seni kodunla ekler.',
+      body: 'Kimliğin oluşunca 5 haneli bir kod alırsın. Arkadaşın sadece bu kodu yazar; sunucunu uygulama arka planda bulur.',
+      digits: '08290',
     ),
     _GuidePage(
-      icon: '🤝',
-      title: 'Arkadaş Ekle',
-      body: 'Arkadaşının 5 haneli kodunu gir.\n\nİstek onun sunucusuna gider. Kabul ederse ikiniz bağlanırsınız.\n\nBirebir mesajlar uçtan uca şifrelenir; sunucular yalnızca okunamayan şifreli metni taşır.',
+      icon: Icons.lock_outline,
+      title: 'Sunucu mesajı taşır, okuyamaz.',
+      body: 'Birebir ve grup mesajları gönderilmeden önce cihazında şifrelenir. Anahtar yalnızca konuşan kişilerde durur.',
     ),
     _GuidePage(
-      icon: '👥',
-      title: 'Grup Sohbetleri',
-      body: 'Bir grup, onu oluşturan kişinin sunucusunda yaşar.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Grubun adresi:  KOD@SUNUCU_URL\n• Bu adresi paylaş → üyeler katılma isteği gönderir\n• Sen kabul et → mesajlaşma başlar\n\nGrup sahibi üyeleri susturabilir veya gruptan atabilir.',
-    ),
-    _GuidePage(
-      icon: '🔒',
-      title: 'Gizlilik',
-      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Birebir ve grup mesajları uçtan uca şifrelidir (X25519 + AES-GCM)\n• Sohbetteki kalkan simgesinden güvenlik numarasını arkadaşınla karşılaştırıp doğrulayabilirsin",
+      icon: Icons.verified_user_outlined,
+      title: 'Altmış rakam, iki ekran, aynı sıra.',
+      body: 'Sohbetteki kalkana dokunup güvenlik numarasını arkadaşınla karşılaştır. Rakamlar aynıysa aranıza kimse girmemiştir.',
     ),
   ];
 
   void _next() {
     if (_page < _pages.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
     } else {
       widget.onDone();
     }
   }
 
-  void _skip() => widget.onDone();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final last = _page == _pages.length - 1;
     return Scaffold(
-      backgroundColor: KnkColors.bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                children: List.generate(_pages.length, (i) => Expanded(
-                  child: Container(
-                    height: 3,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
+        child: ContentWidth(
+          max: 560,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s1, 0),
+                child: Row(children: [
+                  const BrandMark(size: 28),
+                  const SizedBox(width: Space.s1),
+                  const Expanded(child: Text('Photon Chat', maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: KnkFonts.display, fontSize: 19, color: KnkColors.text))),
+                  Text('${_page + 1} / ${_pages.length}', style: KnkText.small.merge(KnkText.tabular)),
+                  const SizedBox(width: Space.s1),
+                  TextButton(onPressed: widget.onDone, child: const Text('Atla')),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, 0),
+                child: Row(
+                  children: List.generate(_pages.length, (i) => Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 3,
+                      margin: EdgeInsets.only(right: i == _pages.length - 1 ? 0 : Space.s1),
                       color: i <= _page ? KnkColors.accent : KnkColors.line,
-                      borderRadius: BorderRadius.circular(2),
                     ),
-                  ),
-                )),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _skip,
-                child: const Text('Atla', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
-              ),
-            ),
-            Expanded(
-              child: PageView.builder(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemCount: _pages.length,
-                itemBuilder: (_, i) => _PageContent(page: _pages[i]),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: knkPrimaryButtonStyle(),
-                  onPressed: _next,
-                  child: Text(
-                    _page == _pages.length - 1 ? 'Hadi Başlayalım →' : 'Devam →',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  )),
                 ),
               ),
-            ),
-          ],
+              Expanded(
+                child: PageView.builder(
+                  controller: _controller,
+                  onPageChanged: (i) => setState(() => _page = i),
+                  itemCount: _pages.length,
+                  itemBuilder: (_, i) => _PageContent(page: _pages[i]),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s4),
+                child: ElevatedButton(
+                  onPressed: _next,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(last ? 'Başla' : 'Devam'),
+                    const SizedBox(width: Space.s1),
+                    const Icon(Icons.arrow_forward, size: 18),
+                  ]),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -116,12 +121,12 @@ class _GuideScreenState extends State<GuideScreen> {
 }
 
 class _GuidePage {
-  final String icon;
+  final IconData icon;
   final String title;
   final String body;
   final String? tip;
-  final String? highlight;
-  const _GuidePage({required this.icon, required this.title, required this.body, this.tip, this.highlight});
+  final String? digits;
+  const _GuidePage({required this.icon, required this.title, required this.body, this.tip, this.digits});
 }
 
 class _PageContent extends StatelessWidget {
@@ -131,67 +136,72 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
           Container(
-            width: 72, height: 72,
+            width: Space.s6, height: Space.s6,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: KnkColors.accent.withOpacity(0.25)),
+              color: KnkColors.accentWash,
+              borderRadius: BorderRadius.circular(KnkRadius.card),
+              border: Border.all(color: KnkColors.line),
             ),
-            child: Text(page.icon, style: const TextStyle(fontSize: 34)),
+            child: Icon(page.icon, color: KnkColors.accent, size: 28),
           ),
-          const SizedBox(height: 24),
-          Text(page.title, style: const TextStyle(color: KnkColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
-          const SizedBox(height: 18),
-          Text(page.body, style: const TextStyle(color: KnkColors.textDim, fontSize: 14, height: 1.8)),
-          if (page.highlight != null) ...[
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: KnkColors.accent.withOpacity(0.08),
-                border: Border.all(color: KnkColors.accent.withOpacity(0.35)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                page.highlight!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: KnkColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
-              ),
-            ),
+          const SizedBox(height: Space.s4),
+          Text(page.title, style: KnkText.h1),
+          const SizedBox(height: Space.s3),
+          Text(page.body, style: KnkText.bodyDim),
+          if (page.digits != null) ...[
+            const SizedBox(height: Space.s4),
+            LayoutBuilder(builder: (context, c) {
+              // 5 kutu + 4 boşluk; dar ekranda kutular küçülür, geniş ekranda 48'de kalır.
+              final box = ((c.maxWidth - Space.s1 * 4) / 5).clamp(0.0, Space.s5);
+              return Row(children: [
+                for (final (i, d) in page.digits!.split('').indexed) ...[
+                  if (i > 0) const SizedBox(width: Space.s1),
+                  // Köşe yarıçapı tek renkli kenarlık ister; yeşil alt çizgi ayrı bir şerit olarak çizilir.
+                  Container(
+                    width: box, height: box * 4 / 3,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: KnkColors.panel,
+                      borderRadius: BorderRadius.circular(KnkRadius.card),
+                      border: Border.all(color: KnkColors.line),
+                    ),
+                    child: Stack(children: [
+                      Center(child: Text(d, style: KnkText.h2.merge(KnkText.tabular).copyWith(fontFamily: KnkFonts.body, fontWeight: FontWeight.w600))),
+                      const Positioned(left: 0, right: 0, bottom: 0, child: SizedBox(height: 3, child: ColoredBox(color: KnkColors.accent))),
+                    ]),
+                  ),
+                ],
+              ]);
+            }),
+            const SizedBox(height: Space.s1),
+            const Text('örnek kod', style: KnkText.meta),
           ],
           if (page.tip != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: Space.s4),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.all(Space.s2),
               decoration: BoxDecoration(
-                color: KnkColors.panelAlt,
+                color: KnkColors.panel,
                 border: Border.all(color: KnkColors.line),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(KnkRadius.card),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💡 ', style: TextStyle(fontSize: 14)),
-                  Expanded(
-                    child: Text(
-                      page.tip!,
-                      style: const TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6),
-                    ),
-                  ),
+                  const Icon(Icons.lightbulb_outline, color: KnkColors.accent2, size: 18),
+                  const SizedBox(width: Space.s1),
+                  Expanded(child: Text(page.tip!, style: KnkText.small)),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 32),
         ],
       ),
     );

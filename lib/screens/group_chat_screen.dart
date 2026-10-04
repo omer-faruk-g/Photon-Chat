@@ -6,6 +6,7 @@ import '../local_store.dart';
 import '../knk_api.dart';
 import '../e2e.dart';
 import '../theme.dart';
+import '../widgets.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
 import 'verify_key_screen.dart';
@@ -386,15 +387,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: Text(owner ? 'Grubu sil' : 'Gruptan ayrıl', style: const TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: Text(
-          owner ? 'Grup ve tüm mesajları herkes için silinecek.' : '${_g.name} grubundan ayrılacaksın.',
-          style: const TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6),
-        ),
+        title: Text(owner ? 'Grubu sil' : 'Gruptan ayrıl'),
+        content: Text(owner ? 'Grup ve tüm mesajları herkes için silinecek.' : '${_g.name} grubundan ayrılacaksın.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(owner ? 'Sil' : 'Ayrıl', style: const TextStyle(color: KnkColors.danger))),
+          OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
+          ElevatedButton(style: knkDangerButtonStyle(), onPressed: () => Navigator.pop(ctx, true), child: Text(owner ? 'Grubu sil' : 'Ayrıl')),
         ],
       ),
     );
@@ -420,15 +417,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showJoinRequests() {
     showModalBottomSheet(
-      context: context, backgroundColor: KnkColors.panel,
+      context: context,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
-          const Text('Katılma İstekleri', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 16),
-          if (_pendingJoins.isEmpty) const Text('Bekleyen istek yok.', style: TextStyle(color: KnkColors.textDim, fontSize: 13)),
+        builder: (ctx, set) => ListView(padding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s3), children: [
+          const Text('Katılma istekleri', style: KnkText.h2),
+          const SizedBox(height: Space.s2),
+          if (_pendingJoins.isEmpty) const Text('Bekleyen istek yok.', style: KnkText.small),
           ..._pendingJoins.map((req) => ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: const TextStyle(color: KnkColors.text, fontSize: 14)),
+            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: KnkText.strong),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(tooltip: 'Kabul et', icon: const Icon(Icons.check, color: KnkColors.accent),
                   onPressed: () async { await _acceptMember(req); if (ctx.mounted) set(() {}); }),
@@ -445,22 +442,20 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final isMuted = _mutedMembers.contains(member.fipId);
     showModalBottomSheet(
       context: context,
-      backgroundColor: KnkColors.panel,
       builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: KnkColors.accent),
-              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur',
-                  style: const TextStyle(color: KnkColors.text)),
+              leading: Icon(isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined, color: KnkColors.accent),
+              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur'),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 isMuted ? _unmuteMember(member) : _muteMember(member);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person_remove, color: KnkColors.danger),
+              leading: const Icon(Icons.person_remove_outlined, color: KnkColors.danger),
               title: Text('${member.name} kullanıcısını gruptan at', style: const TextStyle(color: KnkColors.danger)),
               onTap: () {
                 Navigator.pop(sheetCtx);
@@ -468,10 +463,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-              title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+              leading: const Icon(Icons.close),
+              title: const Text('Vazgeç'),
               onTap: () => Navigator.pop(sheetCtx),
             ),
+            const SizedBox(height: Space.s1),
           ],
         ),
       ),
@@ -480,22 +476,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showInfo() {
     showModalBottomSheet(
-      context: context, backgroundColor: KnkColors.panel,
+      context: context,
       isScrollControlled: true,
       builder: (sheetCtx) => DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.6,
         maxChildSize: 0.9,
-        builder: (_, controller) => ListView(controller: controller, padding: const EdgeInsets.all(20), children: [
-          Text(_g.name, style: const TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
-          const SizedBox(height: 12),
-          const Text('GRUP ADRESİ', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-          const SizedBox(height: 4),
+        builder: (_, controller) => ListView(controller: controller, padding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s3), children: [
+          Text(_g.name, style: KnkText.h2),
+          const SizedBox(height: Space.s3),
+          const SectionLabel('Grup adresi'),
           Row(children: [
-            Expanded(child: SelectableText(_g.address, style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace'))),
+            Expanded(child: SelectableText(_g.address, style: KnkText.small.copyWith(color: KnkColors.accent))),
             IconButton(
               tooltip: 'Kopyala',
-              icon: const Icon(Icons.copy, color: KnkColors.textDim, size: 16),
+              icon: const Icon(Icons.content_copy_outlined, color: KnkColors.textDim, size: 16),
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: _g.address));
                 if (sheetCtx.mounted) Navigator.pop(sheetCtx);
@@ -503,26 +498,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               },
             ),
           ]),
-          const SizedBox(height: 16),
-          Text('ÜYELER · ${_g.members.length}', style: const TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-          const SizedBox(height: 8),
+          const SizedBox(height: Space.s3),
+          SectionLabel('Üyeler · ${_g.members.length}'),
           ..._g.members.map((m) {
             final isMuted = _mutedMembers.contains(m.fipId);
             final isOwner = m.fipId == _g.ownerFipId;
             return ListTile(
               contentPadding: EdgeInsets.zero,
               title: Row(children: [
-                Flexible(child: Text(m.fipId == _me ? '${m.name} (sen)' : m.name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: KnkColors.text, fontSize: 13))),
-                if (isOwner) const SizedBox(width: 6),
-                if (isOwner) const Text('(sahip)', style: TextStyle(color: KnkColors.textDim, fontSize: 10)),
-                if (isMuted) const SizedBox(width: 6),
-                if (isMuted) const Icon(Icons.volume_off, color: KnkColors.textDim, size: 13),
+                Flexible(child: Text(m.fipId == _me ? '${m.name} (sen)' : m.name, overflow: TextOverflow.ellipsis, style: KnkText.strong)),
+                if (isOwner) const SizedBox(width: Space.s1),
+                if (isOwner) const Text('kurucu', style: TextStyle(color: KnkColors.accent2, fontSize: 13)),
+                if (isMuted) const SizedBox(width: Space.s1),
+                if (isMuted) const Icon(Icons.volume_off_outlined, color: KnkColors.textDim, size: 16),
               ]),
               subtitle: switch (_trustOf(m)) {
                 KeyTrust.verified when m.fipId != _me =>
-                  const Text('doğrulandı ✓', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                  const Text('doğrulandı', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
                 KeyTrust.changed when m.fipId != _me =>
-                  const Text('anahtar değişti! anahtar teslim edilmiyor', style: TextStyle(color: KnkColors.danger, fontSize: 10)),
+                  const Text('anahtar değişti, grup anahtarı gönderilmiyor', style: TextStyle(color: KnkColors.danger, fontSize: 13)),
                 _ => null,
               },
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -531,8 +525,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     tooltip: 'Güvenlik numarası',
                     icon: Icon(
                       switch (_trustOf(m)) {
-                        KeyTrust.verified => Icons.verified_user,
-                        KeyTrust.changed => Icons.gpp_bad,
+                        KeyTrust.verified => Icons.verified_user_outlined,
+                        KeyTrust.changed => Icons.gpp_bad_outlined,
                         _ => Icons.gpp_maybe_outlined,
                       },
                       size: 18,
@@ -558,10 +552,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ]),
             );
           }),
-          const SizedBox(height: 16),
+          const SizedBox(height: Space.s3),
           OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: KnkColors.danger, side: BorderSide(color: KnkColors.danger.withOpacity(0.4))),
-            icon: Icon(_g.isOwner ? Icons.delete_outline : Icons.logout, size: 16),
+            style: knkGhostButtonStyle().copyWith(
+              foregroundColor: WidgetStateProperty.all(KnkColors.danger),
+              side: WidgetStateProperty.resolveWith((s) => BorderSide(color: KnkColors.danger.withOpacity(s.contains(WidgetState.hovered) ? 1 : 0.4))),
+              backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.hovered) ? KnkColors.danger.withOpacity(0.08) : Colors.transparent),
+            ),
+            icon: Icon(_g.isOwner ? Icons.delete_outline : Icons.logout, size: 18),
             label: Text(_g.isOwner ? 'Grubu sil' : 'Gruptan ayrıl'),
             onPressed: () {
               Navigator.pop(sheetCtx);
@@ -580,34 +578,43 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget? _statusBanner() {
     String? text;
+    var tone = KnkColors.accent2;
+    var icon = Icons.info_outline;
     switch (_membership) {
       case _Membership.pending:
-        text = 'Katılma isteğin grup sahibinin onayını bekliyor.';
+        text = 'Katılma isteğin grup kurucusunun onayını bekliyor.';
+        icon = Icons.schedule;
       case _Membership.removed:
-        text = 'Bu grubun üyesi değilsin (istek reddedildi veya gruptan çıkarıldın).';
+        text = 'Bu grubun üyesi değilsin. İsteğin reddedilmiş ya da gruptan çıkarılmış olabilirsin.';
+        icon = Icons.person_off_outlined;
+        tone = KnkColors.danger;
       case _Membership.groupGone:
-        text = 'Bu grup artık mevcut değil (silinmiş veya sunucu sıfırlanmış).';
+        text = 'Bu grup artık yok. Silinmiş ya da sunucusu sıfırlanmış olabilir.';
+        icon = Icons.cloud_off_outlined;
+        tone = KnkColors.danger;
       case _Membership.legacy:
-        text = 'Bu grup uygulamanın eski bir sürümüyle eklendi. Grubu listeden kaldırıp yeniden oluştur veya katıl.';
+        text = 'Bu grup uygulamanın eski bir sürümüyle eklendi. Grubu listeden kaldırıp yeniden oluştur ya da katıl.';
       case _Membership.member:
         if (_mutedMembers.contains(_me)) {
-          text = 'Grup yöneticisi seni susturdu.';
+          text = 'Grup kurucusu seni susturdu.';
+          icon = Icons.volume_off_outlined;
         } else if (!_g.isOwner && _ownerTrust == KeyTrust.changed) {
-          text = 'Grup sahibinin anahtarı doğruladığın anahtardan farklı! Güvenlik numarasını yeniden karşılaştırana kadar mesaj gönderilemez.';
+          text = 'Grup kurucusunun anahtarı doğruladığın anahtardan farklı. Güvenlik numarasını yeniden karşılaştırana kadar mesaj gönderemezsin.';
+          icon = Icons.gpp_bad_outlined;
+          tone = KnkColors.danger;
         } else if (_g.currentKey == null) {
-          text = 'Şifreleme anahtarı bekleniyor. Grup sahibi uygulamayı açınca mesajlaşabilirsin.';
+          text = 'Şifreleme anahtarı bekleniyor. Grup kurucusu uygulamayı açınca mesajlaşabilirsin.';
+          icon = Icons.key_outlined;
         }
       case _Membership.loading:
         break;
     }
-    if (text == null && _unreachable) text = 'Grup sunucusuna ulaşılamıyor. Yeniden bağlanılıyor…';
+    if (text == null && _unreachable) {
+      text = 'Grup sunucusuna ulaşılamıyor. Yeniden bağlanılıyor…';
+      icon = Icons.cloud_off_outlined;
+    }
     if (text == null) return null;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: KnkColors.accent2.withOpacity(0.12),
-      child: Text(text, style: const TextStyle(color: KnkColors.accent2, fontSize: 11.5, height: 1.4)),
-    );
+    return NoticeBar(icon: icon, text: text, tone: tone);
   }
 
   @override
@@ -615,136 +622,100 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me) && _g.currentKey != null &&
         (_g.isOwner || _ownerTrust != KeyTrust.changed);
     final banner = _statusBanner();
+    final ownerTone = switch (_ownerTrust) {
+      KeyTrust.verified => KnkColors.accent,
+      KeyTrust.changed => KnkColors.danger,
+      _ => KnkColors.accent2,
+    };
     return Scaffold(
       appBar: AppBar(
-        title: Text(_g.name),
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_g.name, overflow: TextOverflow.ellipsis),
+          Text('${_g.members.isEmpty ? '' : '${_g.members.length} üye · '}kod ${_g.groupCode}', style: KnkText.meta.merge(KnkText.tabular)),
+        ]),
         actions: [
           if (_g.isOwner)
-            Stack(children: [
-              IconButton(
+            Badge(
+              isLabelVisible: _pendingJoins.isNotEmpty,
+              label: Text('${_pendingJoins.length}'),
+              backgroundColor: KnkColors.accent2,
+              textColor: KnkColors.onAccent,
+              offset: const Offset(-4, 4),
+              child: IconButton(
                 tooltip: 'Katılma istekleri',
-                icon: Icon(Icons.person_add, color: _pendingJoins.isNotEmpty ? KnkColors.text : KnkColors.textDim),
+                icon: const Icon(Icons.person_add_alt_outlined),
                 onPressed: _showJoinRequests,
               ),
-              if (_pendingJoins.isNotEmpty)
-                Positioned(top: 8, right: 8, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: KnkColors.accent2, shape: BoxShape.circle))),
-            ]),
-          IconButton(tooltip: 'Grup bilgisi', icon: const Icon(Icons.info_outline, color: KnkColors.text), onPressed: _showInfo),
+            ),
+          IconButton(tooltip: 'Grup bilgisi', icon: const Icon(Icons.info_outline), onPressed: _showInfo),
+          const SizedBox(width: Space.s1),
         ],
       ),
-      backgroundColor: KnkColors.bg,
       body: Stack(
         children: [
           Column(
             children: [
               if (_g.currentKey != null && _membership == _Membership.member)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
-                  child: Row(children: [
-                    const Icon(Icons.lock, color: KnkColors.accent, size: 11),
-                    const SizedBox(width: 4),
-                    const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
-                    if (!_g.isOwner) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () => _openVerify(_g.ownerFipId, _ownerName, _g.ownerPublicKey),
-                        child: Text(
-                          switch (_ownerTrust) {
-                            KeyTrust.verified => '· sahip doğrulandı ✓',
-                            KeyTrust.changed => '· sahibin anahtarı değişti!',
-                            _ => '· sahibi doğrula',
-                          },
-                          style: TextStyle(
-                            color: switch (_ownerTrust) {
-                              KeyTrust.verified => KnkColors.accent,
-                              KeyTrust.changed => KnkColors.danger,
-                              _ => KnkColors.accent2,
+                Material(
+                  color: KnkColors.accentWash,
+                  child: InkWell(
+                    onTap: _g.isOwner ? null : () => _openVerify(_g.ownerFipId, _ownerName, _g.ownerPublicKey),
+                    child: ContentWidth(child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+                      child: Row(children: [
+                        const Icon(Icons.lock_outline, color: KnkColors.accent, size: 16),
+                        const SizedBox(width: Space.s1),
+                        const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
+                        const Spacer(),
+                        if (!_g.isOwner)
+                          Text(
+                            switch (_ownerTrust) {
+                              KeyTrust.verified => 'kurucu doğrulandı',
+                              KeyTrust.changed => 'kurucunun anahtarı değişti',
+                              _ => 'kurucuyu doğrula',
                             },
-                            fontSize: 10,
-                            decoration: _ownerTrust == KeyTrust.verified ? null : TextDecoration.underline,
+                            style: TextStyle(color: ownerTone, fontSize: 13,
+                                decoration: _ownerTrust == KeyTrust.verified ? null : TextDecoration.underline, decorationColor: ownerTone),
                           ),
-                        ),
-                      ),
-                    ],
-                  ]),
+                      ]),
+                    )),
+                  ),
                 ),
               if (banner != null) banner,
               Expanded(
                 child: !_loaded && _messages.isEmpty && !_unreachable && _membership != _Membership.groupGone
-                    ? const Center(child: CircularProgressIndicator(color: KnkColors.accent, strokeWidth: 2))
+                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                     : _messages.isEmpty
-                        ? const Center(child: Text('Henüz mesaj yok.', style: TextStyle(color: KnkColors.textDim, fontSize: 12)))
+                        ? const CenterNote(icon: Icons.forum_outlined, title: 'Henüz mesaj yok.', body: 'Gruptaki ilk mesajı sen yaz.')
                         : ListView.builder(
                             controller: _scroll,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(vertical: Space.s2),
                             itemCount: _messages.length,
-                            itemBuilder: (_, i) => _buildBubble(_messages[i]),
+                            itemBuilder: (_, i) => ContentWidth(child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: Space.s2),
+                              child: _buildBubble(_messages[i]),
+                            )),
                           ),
               ),
-              if (_inputError != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: KnkColors.danger.withOpacity(0.1),
-                  child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
-                ),
-              SafeArea(
-                top: false,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                  decoration: const BoxDecoration(border: Border(top: BorderSide(color: KnkColors.line))),
-                  child: Row(children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _msgCtrl,
-                        enabled: canSend,
-                        style: const TextStyle(color: KnkColors.text, fontSize: 14),
-                        maxLength: maxMessageLength,
-                        textInputAction: TextInputAction.send,
-                        decoration: InputDecoration(
-                          counterText: '',
-                          hintText: canSend ? 'Mesaj yaz…' : 'Mesaj gönderemezsin',
-                          hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(20)),
-                          disabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(20)),
-                          focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(20)),
-                        ),
-                        minLines: 1, maxLines: 4,
-                        onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
-                        // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
-                        onEditingComplete: () {},
-                        onSubmitted: (_) => _send(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: (canSend && !_sending) ? _send : null,
-                      borderRadius: BorderRadius.circular(21),
-                      child: Container(
-                        width: 42, height: 42,
-                        decoration: BoxDecoration(color: canSend ? KnkColors.accent : KnkColors.line, shape: BoxShape.circle),
-                        alignment: Alignment.center,
-                        child: _sending
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)))
-                            : Icon(Icons.send, color: canSend ? const Color(0xFF06251A) : KnkColors.textDim, size: 18),
-                      ),
-                    ),
-                  ]),
-                ),
+              if (_inputError != null) NoticeBar(icon: Icons.error_outline, text: _inputError!, tone: KnkColors.danger),
+              MessageComposer(
+                controller: _msgCtrl,
+                enabled: canSend,
+                sending: _sending,
+                hint: canSend ? 'Gruba yaz' : 'Şu an mesaj gönderemezsin',
+                onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
+                onSend: _send,
               ),
             ],
           ),
           if (_toastMsg != null)
             Positioned(
-              left: 16, right: 16, bottom: 84,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                child: Text(_toastMsg!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: KnkColors.text)),
-              ),
+              left: Space.s2, right: Space.s2, bottom: Space.s7,
+              child: ContentWidth(child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+                decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card), boxShadow: knkShadow()),
+                child: Text(_toastMsg!, textAlign: TextAlign.center, style: KnkText.small.copyWith(color: KnkColors.text)),
+              )),
             ),
         ],
       ),
@@ -757,34 +728,45 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final undecryptable = plain == null;
     // Şifreleme öncesinden kalan (veya sunucuya doğrudan yazılmış) düz metin doğrulanamaz.
     final unverified = !undecryptable && m['_enc'] != true;
-    final displayText = undecryptable ? '🔒 Bu şifreli mesaj çözülemedi.' : filterProfanity(plain);
+    final fg = isMe ? KnkColors.onAccent : KnkColors.text;
+    final maxW = (MediaQuery.sizeOf(context).width * 0.78).clamp(0.0, 520.0);
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
+        margin: const EdgeInsets.only(bottom: Space.s1),
+        padding: const EdgeInsets.fromLTRB(Space.s2, Space.s1, Space.s2, Space.s1),
+        constraints: BoxConstraints(maxWidth: maxW),
         decoration: BoxDecoration(
-          color: isMe ? KnkColors.accent.withOpacity(0.18) : KnkColors.panel,
-          border: Border.all(color: isMe ? KnkColors.accent.withOpacity(0.3) : KnkColors.line),
-          borderRadius: BorderRadius.circular(10),
+          color: isMe ? KnkColors.accent : KnkColors.panel,
+          border: isMe ? null : Border.all(color: KnkColors.line),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(KnkRadius.bubble), topRight: const Radius.circular(KnkRadius.bubble),
+            bottomLeft: Radius.circular(isMe ? KnkRadius.bubble : 2), bottomRight: Radius.circular(isMe ? 2 : KnkRadius.bubble),
+          ),
         ),
         child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-          if (!isMe) Text(m['fromName'] as String? ?? '', style: const TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-          Text(displayText, style: TextStyle(
-            color: undecryptable ? KnkColors.textDim : KnkColors.text, fontSize: 14,
-            fontStyle: undecryptable ? FontStyle.italic : FontStyle.normal,
-          )),
-          const SizedBox(height: 2),
+          if (!isMe) Text(m['fromName'] as String? ?? '', style: const TextStyle(color: KnkColors.accent2, fontSize: 13, fontWeight: FontWeight.w600)),
+          if (undecryptable)
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.lock_outline, size: 16, color: fg.withOpacity(0.7)),
+              const SizedBox(width: Space.s1),
+              Flexible(child: Text('Bu şifreli mesaj çözülemedi.', style: TextStyle(color: fg.withOpacity(0.7), fontSize: 15, fontStyle: FontStyle.italic))),
+            ])
+          else
+            Text(filterProfanity(plain), style: TextStyle(color: fg, fontSize: 15, height: 1.45)),
           Row(mainAxisSize: MainAxisSize.min, children: [
             if (unverified) ...[
               const Tooltip(
                 message: 'Bu mesaj şifresiz; kimden geldiği doğrulanamıyor.',
-                child: Text('⚠ şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 9.5)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.warning_amber_outlined, size: 14, color: KnkColors.accent2),
+                  SizedBox(width: Space.s1),
+                  Text('şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 11)),
+                ]),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: Space.s1),
             ],
-            Text(_formatTime(m['ts'] as num), style: const TextStyle(color: KnkColors.textDim, fontSize: 9.5)),
+            Text(_formatTime(m['ts'] as num), style: TextStyle(color: fg.withOpacity(0.7), fontSize: 11).merge(KnkText.tabular)),
           ]),
         ]),
       ),

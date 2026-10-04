@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../widgets.dart';
 import '../message_guard.dart';
 
 class PulseAiScreen extends StatefulWidget {
@@ -72,166 +73,130 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
     });
   }
 
+  static const _starters = [
+    '"Mütevazı" ne demek?',
+    'Uçtan uca şifreleme nasıl çalışır?',
+    'Bana kısa bir kitap öner.',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(children: [
-          Container(
-            width: 28, height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: KnkColors.accent.withOpacity(0.15),
-              shape: BoxShape.circle,
-              border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
-            ),
-            child: const Text('⚡', style: TextStyle(fontSize: 14)),
-          ),
-          const SizedBox(width: 10),
-          const Text('Pulse AI'),
+        title: const Row(children: [
+          Icon(Icons.bolt_outlined, color: KnkColors.accent),
+          SizedBox(width: Space.s1),
+          Text('Pulse AI'),
         ]),
       ),
-      backgroundColor: KnkColors.bg,
       body: Column(
         children: [
           Expanded(
             child: _messages.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 36),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: KnkColors.accent.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: KnkColors.accent.withOpacity(0.3)),
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s3),
+                    child: ContentWidth(
+                      max: 560,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const SectionLabel('Asistan'),
+                        const SizedBox(height: Space.s1),
+                        const Text('Sor, Pulse kısa ve net cevaplasın.', style: KnkText.h1),
+                        const SizedBox(height: Space.s3),
+                        const Text(
+                          'Pulse AI senin sunucun üzerinden çalışır. Sorduklarını arkadaşların görmez; konuşma bu ekranı kapatınca silinir.',
+                          style: KnkText.bodyDim,
+                        ),
+                        const SizedBox(height: Space.s4),
+                        Wrap(spacing: Space.s1, runSpacing: Space.s1, children: [
+                          for (final s in _starters)
+                            ActionChip(
+                              label: Text(s),
+                              avatar: const Icon(Icons.north_east, size: 16, color: KnkColors.accent),
+                              backgroundColor: KnkColors.panel,
+                              side: const BorderSide(color: KnkColors.line),
+                              labelStyle: KnkText.small.copyWith(color: KnkColors.text),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KnkRadius.card)),
+                              onPressed: () {
+                                _ctrl.text = s;
+                                _ctrl.selection = TextSelection.collapsed(offset: _ctrl.text.length);
+                              },
                             ),
-                            child: const Text('⚡', style: TextStyle(fontSize: 30)),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('Pulse AI', style: TextStyle(color: KnkColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Kelime anlamı mı merak ediyorsun? Bir şey mi sormak istiyorsun? Sohbet etmek mi istiyorsun? Buradayım.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7),
-                          ),
-                        ],
-                      ),
+                        ]),
+                      ]),
                     ),
                   )
                 : ListView.builder(
                     controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                    padding: const EdgeInsets.symmetric(vertical: Space.s2),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
                       final m = _messages[i];
                       final isUser = m['role'] == 'user';
                       final isError = m['error'] != null;
-                      return Align(
-                        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-                          decoration: BoxDecoration(
-                            color: isUser ? KnkColors.accent : KnkColors.panel,
-                            border: isUser ? null : Border.all(color: isError ? KnkColors.danger.withOpacity(0.5) : KnkColors.line),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(14),
-                              topRight: const Radius.circular(14),
-                              bottomLeft: Radius.circular(isUser ? 14 : 2),
-                              bottomRight: Radius.circular(isUser ? 2 : 14),
+                      final maxW = (MediaQuery.sizeOf(context).width * 0.82).clamp(0.0, 560.0);
+                      return ContentWidth(child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: Space.s2),
+                        child: Align(
+                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: Space.s1),
+                            padding: const EdgeInsets.fromLTRB(Space.s2, Space.s1, Space.s2, Space.s1),
+                            constraints: BoxConstraints(maxWidth: maxW),
+                            decoration: BoxDecoration(
+                              color: isUser ? KnkColors.accent : KnkColors.panel,
+                              border: isUser ? null : Border.all(color: isError ? KnkColors.danger.withOpacity(0.6) : KnkColors.line),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(KnkRadius.bubble),
+                                topRight: const Radius.circular(KnkRadius.bubble),
+                                bottomLeft: Radius.circular(isUser ? KnkRadius.bubble : 2),
+                                bottomRight: Radius.circular(isUser ? 2 : KnkRadius.bubble),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!isUser)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: Space.s1),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Icon(isError ? Icons.error_outline : Icons.bolt_outlined, size: 14, color: isError ? KnkColors.danger : KnkColors.accent2),
+                                      const SizedBox(width: Space.s1),
+                                      Text(isError ? 'Ulaşılamadı' : 'Pulse AI', style: TextStyle(color: isError ? KnkColors.danger : KnkColors.accent2, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                                    ]),
+                                  ),
+                                SelectableText(
+                                  m['content'] ?? '',
+                                  style: TextStyle(
+                                    color: isUser ? KnkColors.onAccent : (isError ? KnkColors.danger : KnkColors.text),
+                                    fontSize: 15,
+                                    height: 1.55,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (!isUser)
-                                const Padding(
-                                  padding: EdgeInsets.only(bottom: 4),
-                                  child: Text('⚡ Pulse AI', style: TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                                ),
-                              SelectableText(
-                                m['content'] ?? '',
-                                style: TextStyle(
-                                  color: isUser ? const Color(0xFF06251A) : (isError ? KnkColors.danger : KnkColors.text),
-                                  fontSize: 14,
-                                  height: 1.55,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      );
+                      ));
                     },
                   ),
           ),
           if (_loading)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+              padding: EdgeInsets.symmetric(vertical: Space.s1),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.accent)),
-                SizedBox(width: 10),
-                Text('Pulse AI yazıyor…', style: TextStyle(color: KnkColors.textDim, fontSize: 12)),
+                SizedBox(width: Space.s2, height: Space.s2, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: Space.s1),
+                Text('Pulse AI yazıyor…', style: KnkText.small),
               ]),
             ),
-          if (_inputError != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: KnkColors.danger.withOpacity(0.1),
-              child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
-            ),
-          SafeArea(
-            top: false,
-            child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-            decoration: const BoxDecoration(
-              color: KnkColors.panel,
-              border: Border(top: BorderSide(color: KnkColors.line)),
-            ),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _ctrl,
-                  style: const TextStyle(color: KnkColors.text, fontSize: 14),
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: 'Pulse AI\'e bir şey sor…',
-                    hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
-                    focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(999)),
-                    disabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
-                  ),
-                  maxLines: 4, minLines: 1,
-                  maxLength: maxMessageLength,
-                  textInputAction: TextInputAction.send,
-                  onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
-                  // Enter ile gönderdikten sonra odak kutuda kalsın; art arda mesaj yazılabilsin.
-                  onEditingComplete: () {},
-                  onSubmitted: (_) { if (!_loading) _send(); },
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _loading ? null : _send,
-                child: Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(
-                    color: _loading ? KnkColors.line : KnkColors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.arrow_upward, color: _loading ? KnkColors.textDim : const Color(0xFF06251A), size: 20),
-                ),
-              ),
-            ]),
-          ),
+          if (_inputError != null) NoticeBar(icon: Icons.error_outline, text: _inputError!, tone: KnkColors.danger),
+          MessageComposer(
+            controller: _ctrl,
+            enabled: true,
+            sending: _loading,
+            hint: 'Pulse AI’a bir şey sor',
+            onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
+            onSend: () { if (!_loading) _send(); },
           ),
         ],
       ),

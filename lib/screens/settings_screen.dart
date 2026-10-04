@@ -46,104 +46,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ayarlar')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(Space.s2, Space.s4, Space.s2, Space.s6),
         children: [
-          // Address card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: KnkColors.panel,
-              border: Border.all(color: KnkColors.accent.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-              const SizedBox(height: 8),
-              Text(myAddress, style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace')),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: KnkColors.text,
-                    side: const BorderSide(color: KnkColors.line),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.copy, size: 15),
-                  label: const Text('Adresi Kopyala', style: TextStyle(fontSize: 13)),
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: myAddress));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adres kopyalandı.'), duration: Duration(seconds: 2)));
-                    }
-                  },
+          ContentWidth(
+            max: 640,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const Text('Kimliğin', style: KnkText.h1),
+              const SizedBox(height: Space.s1),
+              const Text('Bu bilgiler yalnızca bu cihazda duruyor.', style: KnkText.bodyDim),
+              const SizedBox(height: Space.s4),
+              FipCard(title: 'Bu cihazın FIP bloğu', fip: widget.identity),
+              const SizedBox(height: Space.s5),
+              const SectionLabel('Tam adresin'),
+              HoverCard(
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: myAddress));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adres kopyalandı.'), duration: Duration(seconds: 2)));
+                  }
+                },
+                child: Row(children: [
+                  Expanded(child: Text(myAddress, style: KnkText.small.copyWith(color: KnkColors.accent))),
+                  const SizedBox(width: Space.s1),
+                  const Icon(Icons.content_copy_outlined, size: 18, color: KnkColors.accent),
+                ]),
+              ),
+              const SizedBox(height: Space.s1),
+              const Text('Arkadaşların seni eklemek için sadece 5 haneli kodu kullanır; bu adres sorun gidermek için.', style: KnkText.small),
+              const SizedBox(height: Space.s6),
+              Container(
+                padding: const EdgeInsets.all(Space.s3),
+                decoration: BoxDecoration(
+                  color: KnkColors.danger.withOpacity(0.06),
+                  border: Border.all(color: KnkColors.danger.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(KnkRadius.card),
                 ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text('Hesabı bu cihazdan kaldır', style: TextStyle(fontFamily: KnkFonts.display, fontSize: 19, color: KnkColors.danger)),
+                  const SizedBox(height: Space.s1),
+                  const Text(
+                    'FIP bloğun, kişi listen ve sunucundaki sohbetlerin silinir. Arkadaşlarının listesinden de otomatik olarak kalkarsın. Bu işlem geri alınamaz.',
+                    style: KnkText.small,
+                  ),
+                  const SizedBox(height: Space.s3),
+                  if (!_confirming)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: ElevatedButton(
+                        style: knkDangerButtonStyle(),
+                        onPressed: () => setState(() => _confirming = true),
+                        child: const Text('Hesabı sil'),
+                      ),
+                    )
+                  else
+                    Wrap(spacing: Space.s1, runSpacing: Space.s1, children: [
+                      ElevatedButton(
+                        style: knkDangerButtonStyle(),
+                        onPressed: _deleting ? null : _deactivate,
+                        child: _deleting
+                            ? const SizedBox(width: Space.s2, height: Space.s2, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2A0B08)))
+                            : const Text('Evet, kalıcı olarak sil'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _deleting ? null : () => setState(() => _confirming = false),
+                        child: const Text('Vazgeç'),
+                      ),
+                    ]),
+                ]),
               ),
             ]),
-          ),
-          const SizedBox(height: 16),
-          FipCard(title: 'BU CİHAZIN FIP BLOĞU', fip: widget.identity),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1314),
-              border: Border.all(color: KnkColors.danger.withOpacity(0.27)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Hesabı bu cihazdan kaldır',
-                    style: TextStyle(color: KnkColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
-                const SizedBox(height: 8),
-                const Text(
-                  'FIP bloğun, kişi listen ve aktif sohbetlerin kalıcı olarak silinir. '
-                  'Karşı taraf da hesabını sildiyse, ortak sohbet kaydı hiçbir yerde '
-                  'loglanmadan imha edilir; karşı taraf tekrar girdiğinde geçmiş boş görünür.',
-                  style: TextStyle(color: KnkColors.textDim, fontSize: 11.5, height: 1.6),
-                ),
-                const SizedBox(height: 14),
-                if (!_confirming)
-                  ElevatedButton(
-                    style: knkDangerButtonStyle(),
-                    onPressed: () => setState(() => _confirming = true),
-                    child: const SizedBox(width: double.infinity, child: Text('Hesabı sil', textAlign: TextAlign.center)),
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: knkGhostButtonStyle(),
-                          onPressed: _deleting ? null : () => setState(() => _confirming = false),
-                          child: const Text('Vazgeç'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: knkDangerButtonStyle(),
-                          onPressed: _deleting ? null : _deactivate,
-                          child: _deleting
-                              ? const SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Text('Evet, kalıcı olarak sil'),
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            style: knkGhostButtonStyle(),
-            onPressed: () => Navigator.pop(context),
-            child: const SizedBox(width: double.infinity, child: Text('Geri', textAlign: TextAlign.center)),
           ),
         ],
       ),

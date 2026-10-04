@@ -81,45 +81,35 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gruba Katıl')),
-      backgroundColor: KnkColors.bg,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Grup sahibinden aldığın adresi gir.\n\nFormat:  GRUPKODU@https://sunucu.onrender.com', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.7)),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _ctrl,
-              style: const TextStyle(color: KnkColors.text, fontSize: 13, fontFamily: 'monospace'),
-              decoration: InputDecoration(
-                labelText: 'Grup Adresi',
-                hintText: '1234567@https://sunucu.onrender.com',
-                hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 12),
-                labelStyle: const TextStyle(color: KnkColors.textDim),
-                enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
-                errorText: _error,
-                errorStyle: const TextStyle(color: KnkColors.danger),
+      appBar: AppBar(title: const Text('Gruba katıl')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s5),
+        child: ContentWidth(
+          max: 560,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Grup adresini yapıştır.', style: KnkText.h1),
+              const SizedBox(height: Space.s3),
+              const Text('Grup kurucusu sana 7 haneli kod ve sunucu adresinden oluşan bir adres verir. Kurucu onaylayınca mesajlar açılır.', style: KnkText.bodyDim),
+              const SizedBox(height: Space.s4),
+              TextField(
+                controller: _ctrl,
+                decoration: knkInputDecoration('1234567@https://sunucu.onrender.com', label: 'Grup adresi', error: _error),
+                autocorrect: false,
+                enableSuggestions: false,
+                keyboardType: TextInputType.url,
+                onSubmitted: (_) => _join(),
               ),
-              autocorrect: false,
-              enableSuggestions: false,
-              keyboardType: TextInputType.url,
-              onSubmitted: (_) => _join(),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: knkPrimaryButtonStyle(),
+              const SizedBox(height: Space.s2),
+              ElevatedButton(
                 onPressed: _loading ? null : _join,
                 child: _loading
-                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                    : const Text('Katılma İsteği Gönder'),
+                    ? const SizedBox(height: Space.s2, width: Space.s2, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.onAccent))
+                    : const Text('Katılma isteği gönder'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

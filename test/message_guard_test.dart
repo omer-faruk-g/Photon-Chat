@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photon_chat/message_guard.dart';
+import 'package:photon_chat/theme.dart';
 
 void main() {
   test('rejects empty and whitespace-only messages', () {
@@ -28,5 +29,11 @@ void main() {
 
   test('sanitize strips control chars but keeps newlines', () {
     expect(sanitizeMessage(' a\x00b\nc '), 'ab\nc');
+  });
+
+  test('Turkish-aware uppercase for section labels', () {
+    expect(trUpper('Kişiler · 3'), 'KİŞİLER · 3');
+    expect(trUpper('Davetler'), 'DAVETLER');
+    expect(trUpper('Kapalı ışık'), 'KAPALI IŞIK');
   });
 }

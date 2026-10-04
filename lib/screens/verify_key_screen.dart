@@ -70,28 +70,28 @@ class _VerifyKeyScreenState extends State<VerifyKeyScreen> {
 
   Widget _statusCard() {
     final (Color color, IconData icon, String title, String body) = switch (_trust) {
-      KeyTrust.verified => (KnkColors.accent, Icons.verified_user, 'Doğrulandı',
+      KeyTrust.verified => (KnkColors.accent, Icons.verified_user_outlined, 'Doğrulandı',
           '${widget.theirName} ile güvenlik numaranızı karşılaştırdın. Mesajlarınızı yalnızca siz okuyabilirsiniz.'),
-      KeyTrust.changed => (KnkColors.danger, Icons.gpp_bad, 'Anahtar değişti!',
+      KeyTrust.changed => (KnkColors.danger, Icons.gpp_bad_outlined, 'Anahtar değişti',
           '${widget.theirName} için daha önce doğruladığın anahtar ile şu anki anahtar farklı. Araya biri girmiş olabilir. '
           'Numarayı kişiyle yeniden karşılaştırmadan hassas bir şey paylaşma.'),
-      _ => (KnkColors.accent2, Icons.gpp_maybe, 'Doğrulanmadı',
-          'Mesajlar şifreli, ama karşındakinin gerçekten ${widget.theirName} olduğundan emin olmak için numarayı karşılaştır.'),
+      _ => (KnkColors.accent2, Icons.gpp_maybe_outlined, 'Doğrulanmadı',
+          'Mesajlar şifreli. Karşındakinin gerçekten ${widget.theirName} olduğundan emin olmak için numarayı karşılaştır.'),
     };
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(Space.s2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        border: Border.all(color: color.withOpacity(0.4)),
-        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.5)),
+        borderRadius: BorderRadius.circular(KnkRadius.card),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(width: 10),
+        Icon(icon, color: color, size: 24),
+        const SizedBox(width: Space.s2),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
-          const SizedBox(height: 4),
-          Text(body, style: const TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.5)),
+          Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 15)),
+          const SizedBox(height: Space.s1),
+          Text(body, style: KnkText.small),
         ])),
       ]),
     );
@@ -100,59 +100,66 @@ class _VerifyKeyScreenState extends State<VerifyKeyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Güvenlik Numarası')),
+      appBar: AppBar(title: const Text('Güvenlik numarası')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: KnkColors.accent))
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                _statusCard(),
-                const SizedBox(height: 20),
-                if (_number == null)
-                  const Text('Güvenlik numarası hesaplanamadı (geçersiz anahtar).', style: TextStyle(color: KnkColors.danger))
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-                    decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 18,
-                      runSpacing: 12,
-                      children: [
-                        for (final (i, g) in safetyNumberGroups(_number!).indexed)
-                          Text(g, key: ValueKey('safety-group-$i'), style: const TextStyle(
-                            color: KnkColors.text, fontSize: 20, fontFamily: 'monospace', letterSpacing: 2, fontWeight: FontWeight.w600)),
-                      ],
+              padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s5),
+              child: ContentWidth(
+                max: 560,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Text('${widget.theirName} ile karşılaştır.', style: KnkText.h1),
+                  const SizedBox(height: Space.s3),
+                  const Text(
+                    'Yüz yüze ya da telefonda, onun ekranındaki numarayı seninkiyle oku. Altmış rakamın hepsi aynı sıradaysa aranıza kimse girmemiştir.',
+                    style: KnkText.bodyDim,
+                  ),
+                  const SizedBox(height: Space.s4),
+                  if (_number == null)
+                    const NoticeBar(icon: Icons.error_outline, text: 'Güvenlik numarası hesaplanamadı (geçersiz anahtar).', tone: KnkColors.danger)
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(Space.s3),
+                      decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card), boxShadow: knkShadow()),
+                      child: LayoutBuilder(builder: (context, c) {
+                        final groups = safetyNumberGroups(_number!);
+                        final cols = c.maxWidth < 300 ? 3 : 4;
+                        return Wrap(
+                          spacing: Space.s3,
+                          runSpacing: Space.s2,
+                          children: [
+                            for (final (i, g) in groups.indexed)
+                              SizedBox(
+                                width: (c.maxWidth - Space.s3 * (cols - 1)) / cols,
+                                child: Text(g, key: ValueKey('safety-group-$i'),
+                                    style: KnkText.tabular.copyWith(fontFamily: KnkFonts.body, color: KnkColors.text, fontSize: 19, letterSpacing: 2, fontWeight: FontWeight.w500)),
+                              ),
+                          ],
+                        );
+                      }),
                     ),
+                  const SizedBox(height: Space.s3),
+                  _statusCard(),
+                  const SizedBox(height: Space.s3),
+                  if (_trust == KeyTrust.verified)
+                    OutlinedButton(
+                      onPressed: _busy ? null : () => _setVerified(false),
+                      child: const Text('Doğrulamayı kaldır'),
+                    )
+                  else
+                    ElevatedButton.icon(
+                      onPressed: (_busy || _number == null) ? null : () => _setVerified(true),
+                      icon: const Icon(Icons.verified_user_outlined, size: 18),
+                      label: Text(_trust == KeyTrust.changed ? 'Numaralar eşleşti, yeni anahtarı doğrula' : 'Numaralar eşleşti, doğrulandı olarak işaretle'),
+                    ),
+                  const SizedBox(height: Space.s1),
+                  OutlinedButton.icon(
+                    onPressed: _number == null ? null : _copy,
+                    icon: const Icon(Icons.content_copy_outlined, size: 18),
+                    label: const Text('Numarayı kopyala'),
                   ),
-                const SizedBox(height: 14),
-                Text(
-                  '${widget.theirName} ile bu numarayı yüz yüze veya bir telefon görüşmesinde karşılaştırın. '
-                  'Onun ekranındaki numara seninkiyle birebir aynıysa "Doğrulandı" olarak işaretle.\n\n'
-                  'Numaralar farklıysa mesajlarınızı biri araya girerek okuyabiliyor olabilir.',
-                  style: const TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6),
-                ),
-                const SizedBox(height: 20),
-                if (_trust == KeyTrust.verified)
-                  OutlinedButton(
-                    style: knkGhostButtonStyle(),
-                    onPressed: _busy ? null : () => _setVerified(false),
-                    child: const Text('Doğrulamayı kaldır'),
-                  )
-                else
-                  ElevatedButton(
-                    style: knkPrimaryButtonStyle(),
-                    onPressed: (_busy || _number == null) ? null : () => _setVerified(true),
-                    child: Text(_trust == KeyTrust.changed ? 'Numaralar eşleşti, yeni anahtarı doğrula' : 'Numaralar eşleşti, doğrulandı olarak işaretle'),
-                  ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  style: knkGhostButtonStyle(),
-                  onPressed: _number == null ? null : _copy,
-                  icon: const Icon(Icons.copy, size: 15),
-                  label: const Text('Numarayı kopyala'),
-                ),
-              ]),
+                ]),
+              ),
             ),
     );
   }

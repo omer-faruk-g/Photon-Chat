@@ -43,6 +43,17 @@ function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1); // Render vb. ters proxy arkasında gerçek istemci IP'si
+  // CORS: web sürümü (ör. github.io) kullanıcının sunucusuna tarayıcıdan bağlanır.
+  // Kimlik bilgileri çerezle değil x-user-token / x-group-token başlıklarıyla
+  // taşındığı için tüm kökenlere izin vermek güvenlidir (credentials kullanılmaz).
+  app.use((req, res, next) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-user-token, x-group-token');
+    res.set('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
   app.use(express.json({ limit: '128kb' }));
 
   // --- Health ---
