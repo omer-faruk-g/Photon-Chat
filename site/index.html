@@ -135,7 +135,10 @@ section { padding-block: var(--s6); border-bottom: 1px solid var(--line); }
 .hero-copy { display: grid; gap: var(--s3); align-content: start; }
 .hero-copy p { font-size: 1.1875rem; color: var(--ink-soft); }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-top: var(--s1); }
-.platforms { font-size: var(--t-small); color: var(--ink-soft); }
+.textlink { display: inline-flex; align-items: center; gap: var(--s1); font-weight: 600; text-decoration: none; }
+.textlink .icon { width: 16px; height: 16px; transition: transform .15s ease; }
+.textlink:hover { text-decoration: underline; }
+.textlink:hover .icon { transform: translateX(4px); }
 @media (min-width: 900px) {
   .hero-copy { grid-column: 1 / span 7; }
   .hero-card { grid-column: 8 / span 5; margin-top: var(--s6); }
@@ -246,7 +249,7 @@ section { padding-block: var(--s6); border-bottom: 1px solid var(--line); }
   display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: var(--s2);
   padding: var(--s3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet);
   color: var(--ink); text-decoration: none;
-  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 .dl-list a:hover { border-color: var(--green); background: var(--green-wash); color: var(--ink); box-shadow: 0 12px 24px -20px rgba(var(--shadow), .7); }
 .dl-list a:hover .arrow { transform: translateX(4px); }
@@ -254,6 +257,10 @@ section { padding-block: var(--s6); border-bottom: 1px solid var(--line); }
 .dl-list small { display: block; color: var(--ink-soft); font-size: var(--t-small); }
 .dl-list b { font-weight: 600; }
 .dl-list .soon { color: var(--ink-soft); border-style: dashed; }
+.dl-list .dl-web a { border-color: var(--green); background: var(--green-wash); }
+.dl-list .dl-web b { color: var(--green); }
+.dl-list .dl-web a:hover { border-color: var(--green-ink); box-shadow: 0 16px 32px -16px rgba(var(--shadow), .8); transform: translateY(-1px); }
+@media (min-width: 900px) { .dl-list .dl-web { grid-column: 1 / -1; } }
 @media (min-width: 900px) {
   .dl-head { grid-column: 1 / span 4; }
   .dl-list { grid-column: 6 / span 7; grid-template-columns: 1fr 1fr; }
@@ -283,6 +290,7 @@ footer { padding-block: var(--s5); border-top: 1px solid var(--line); font-size:
   <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="m7 9 3 3-3 3M12 15h5"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></symbol>
   <symbol id="i-hash" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/></symbol>
 </svg>
 
@@ -311,7 +319,7 @@ footer { padding-block: var(--s5); border-top: 1px solid var(--line); font-size:
             <a class="btn" href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest">
               <svg class="icon"><use href="#i-download"/></svg> Uygulamayı indir
             </a>
-            <span class="platforms">Android · Windows · Linux</span>
+            <a class="textlink" href="app/">ya da tarayıcıda aç <svg class="icon"><use href="#i-arrow"/></svg></a>
           </div>
         </div>
 
@@ -441,9 +449,10 @@ footer { padding-block: var(--s5); border-top: 1px solid var(--line); font-size:
         <div class="dl-head">
           <span class="label">İndir</span>
           <h2>Kur, kodunu al, yaz.</h2>
-          <p>Sürümler GitHub’da yayınlanır. Android’de “bilinmeyen kaynak” iznini bir kez vermen gerekir.</p>
+          <p>Hiçbir şey kurmadan tarayıcıda başlayabilirsin. Uygulama sürümleri GitHub’da yayınlanır; Android’de “bilinmeyen kaynak” iznini bir kez vermen gerekir.</p>
         </div>
         <ul class="dl-list">
+          <li class="dl-web"><a href="app/"><svg class="icon"><use href="#i-globe"/></svg><span><b>Tarayıcıda aç</b><small>Kurulum yok · kimliğin bu tarayıcıda saklanır</small></span><svg class="icon arrow"><use href="#i-arrow"/></svg></a></li>
           <li><a href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest"><svg class="icon"><use href="#i-phone"/></svg><span><b>Android</b><small>PhotonChat-Android.apk</small></span><svg class="icon arrow"><use href="#i-arrow"/></svg></a></li>
           <li><a href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest"><svg class="icon"><use href="#i-monitor"/></svg><span><b>Windows</b><small>PhotonChat-Windows.zip</small></span><svg class="icon arrow"><use href="#i-arrow"/></svg></a></li>
           <li><a href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest"><svg class="icon"><use href="#i-terminal"/></svg><span><b>Linux</b><small>PhotonChat-Linux.tar.gz</small></span><svg class="icon arrow"><use href="#i-arrow"/></svg></a></li>
