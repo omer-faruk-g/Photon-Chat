@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'e2e.dart';
 import 'i18n.dart';
 
-const String bridgeUrl = 'https://photon-chat.onrender.com';
+// Testlerde yerel bir sunucuya yönlendirmek için: --dart-define=PHOTON_BRIDGE=http://127.0.0.1:3000
+const String bridgeUrl = String.fromEnvironment('PHOTON_BRIDGE', defaultValue: 'https://photon-chat.onrender.com');
 
 class PhotonApi {
   static Uri _u(String serverUrl, String path) {

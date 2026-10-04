@@ -66,23 +66,27 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
         backgroundColor: PhotonColors.panel,
         title: Text('${AppLang.instance.t('verificationCodeAttempt')} (${AppLang.instance.t('attempt')} $attempt/3)', style: TextStyle(color: PhotonColors.text)),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('${AppLang.instance.t('enterCodeDigitsPrefix')} $codeLength ${AppLang.instance.t('enterCodeDigitsSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+          Text('${AppLang.instance.t('enterCodeDigitsPrefix')} $codeLength ${AppLang.instance.t('enterCodeDigitsSuffix')}', style: PText.small),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: PhotonColors.bg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: PhotonColors.accent, width: 2),
             ),
-            child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: codeLength > 12 ? 20 : 28, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'monospace'))),
+            child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: TextStyle(color: PhotonColors.accent, fontSize: codeLength > 12 ? 20 : 28, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]))),
           ),
-          const SizedBox(height: 12),
-          Text('${req.requesterName} ${AppLang.instance.t('tryingToConnectSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+          const SizedBox(height: 16),
+          Text('${req.requesterName} ${AppLang.instance.t('tryingToConnectSuffix')}', style: PText.small),
           if (attempt > 1)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('⚠️ ${AppLang.instance.t('attempt')} $attempt — ${attempt == 3 ? AppLang.instance.t('lastChance') : AppLang.instance.t('nextWillBe15')}', style: TextStyle(color: Colors.orange, fontSize: 11)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.warning_amber_outlined, size: 14, color: PhotonColors.accent2),
+                const SizedBox(width: 4),
+                Flexible(child: Text('${AppLang.instance.t('attempt')} $attempt — ${attempt == 3 ? AppLang.instance.t('lastChance') : AppLang.instance.t('nextWillBe15')}', style: TextStyle(color: PhotonColors.accent2, fontSize: 11))),
+              ]),
             ),
         ]),
         actions: [
@@ -117,7 +121,7 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
         title: Text(AppLang.instance.t('kickDevice'), style: TextStyle(color: PhotonColors.text)),
         content: Text(
           '${device.name} ${AppLang.instance.t('kickDeviceConfirmSuffix')}',
-          style: TextStyle(color: PhotonColors.textDim, fontSize: 13),
+          style: PText.small,
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim))),
@@ -186,23 +190,23 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       return Center(child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.devices, color: PhotonColors.textDim, size: 48),
+          Icon(Icons.devices_outlined, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text(AppLang.instance.t('noLinkedDevices'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noLinkedDevices'), style: TextStyle(color: PhotonColors.textDim, fontSize: 15)),
           const SizedBox(height: 8),
           Text(AppLang.instance.t('linkedDevicesHint'),
-              textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+              textAlign: TextAlign.center, style: PText.small),
         ]),
       ));
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: linked.length,
       itemBuilder: (_, i) {
         final d = linked[i];
         return _deviceCard(d, actions: [
-          _actionBtn(Icons.visibility, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
-          _actionBtn(Icons.logout, AppLang.instance.t('kickShort'), PhotonColors.danger, () => _kickDevice(d)),
+          _actionBtn(Icons.visibility_outlined, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
+          _actionBtn(Icons.logout_outlined, AppLang.instance.t('kickShort'), PhotonColors.danger, () => _kickDevice(d)),
         ]);
       },
     );
@@ -214,24 +218,24 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       return Center(child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.shield, color: PhotonColors.textDim, size: 48),
+          Icon(Icons.shield_outlined, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text(AppLang.instance.t('noFakeAccounts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noFakeAccounts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 15)),
           const SizedBox(height: 8),
           Text(AppLang.instance.t('fakeAccountsHint'),
-              textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+              textAlign: TextAlign.center, style: PText.small),
         ]),
       ));
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: fakes.length,
       itemBuilder: (_, i) {
         final d = fakes[i];
         return _deviceCard(d, showFakeBadge: true, actions: [
-          _actionBtn(Icons.visibility, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
-          _actionBtn(d.isMod ? Icons.remove_moderator : Icons.admin_panel_settings, d.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('giveMod'), Colors.amber, () => _giveModToFake(d)),
-          _actionBtn(Icons.block, AppLang.instance.t('block'), PhotonColors.danger, () => _banFake(d)),
+          _actionBtn(Icons.visibility_outlined, AppLang.instance.t('watch'), PhotonColors.accent, () => _viewActivities(d)),
+          _actionBtn(d.isMod ? Icons.remove_moderator_outlined : Icons.admin_panel_settings_outlined, d.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('giveMod'), PhotonColors.accent2, () => _giveModToFake(d)),
+          _actionBtn(Icons.block_outlined, AppLang.instance.t('block'), PhotonColors.danger, () => _banFake(d)),
         ]);
       },
     );
@@ -242,45 +246,45 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
       return Center(child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.notifications_none, color: PhotonColors.textDim, size: 48),
+          Icon(Icons.notifications_none_outlined, color: PhotonColors.textDim, size: 48),
           const SizedBox(height: 16),
-          Text(AppLang.instance.t('noPendingRequestsShort'), style: TextStyle(color: PhotonColors.textDim, fontSize: 14)),
+          Text(AppLang.instance.t('noPendingRequestsShort'), style: TextStyle(color: PhotonColors.textDim, fontSize: 15)),
         ]),
       ));
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       itemCount: _pendingRequests.length,
       itemBuilder: (_, i) {
         final req = _pendingRequests[i];
         return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: PhotonColors.panel,
-            border: Border.all(color: Colors.orange.withOpacity(0.4)),
-            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: PhotonColors.accent2.withOpacity(0.4)),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Icon(Icons.phone_android, color: Colors.orange, size: 20),
+              Icon(Icons.phone_android_outlined, color: PhotonColors.accent2, size: 20),
               const SizedBox(width: 8),
-              Expanded(child: Text(req.requesterName, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 14))),
+              Expanded(child: Text(req.requesterName, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 15))),
             ]),
             const SizedBox(height: 8),
-            Text(AppLang.instance.t('deviceWantsToConnect'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
-            const SizedBox(height: 12),
+            Text(AppLang.instance.t('deviceWantsToConnect'), style: PText.small),
+            const SizedBox(height: 16),
             Row(children: [
               Expanded(child: ElevatedButton.icon(
                 style: photonPrimaryButtonStyle(),
-                icon: const Icon(Icons.check, size: 16),
+                icon: const Icon(Icons.check_outlined, size: 16),
                 label: Text(AppLang.instance.t('approveSendCode')),
                 onPressed: () => _approveRequest(req),
               )),
               const SizedBox(width: 8),
               Expanded(child: ElevatedButton.icon(
                 style: photonDangerButtonStyle(),
-                icon: const Icon(Icons.close, size: 16),
+                icon: const Icon(Icons.close_outlined, size: 16),
                 label: Text(AppLang.instance.t('rejectFake')),
                 onPressed: () => _rejectRequest(req),
               )),
@@ -294,36 +298,36 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
   Widget _deviceCard(LinkedDevice d, {List<Widget> actions = const [], bool showFakeBadge = false}) {
     final date = DateTime.fromMillisecondsSinceEpoch(d.linkedAt);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: PhotonColors.panel,
         border: Border.all(color: d.isFake ? PhotonColors.danger.withOpacity(0.4) : PhotonColors.line),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(d.isFake ? Icons.warning : Icons.phone_android, color: d.isFake ? PhotonColors.danger : PhotonColors.accent, size: 20),
+          Icon(d.isFake ? Icons.warning_outlined : Icons.phone_android_outlined, color: d.isFake ? PhotonColors.danger : PhotonColors.accent, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(d.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 14))),
+          Expanded(child: Text(d.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 15))),
           if (showFakeBadge)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: PhotonColors.danger, borderRadius: BorderRadius.circular(4)),
-              child: const Text('FAKE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+              decoration: BoxDecoration(color: PhotonColors.danger, borderRadius: BorderRadius.circular(8)),
+              child: const Text('FAKE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
             ),
           if (d.isMod)
             Container(
               margin: const EdgeInsets.only(left: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(4)),
-              child: const Text('MOD', style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900)),
+              decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(8)),
+              child: const Text('MOD', style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
             ),
         ]),
         const SizedBox(height: 4),
         Text('${AppLang.instance.t('connectedAtLabel')} ${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}',
-            style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
-        Text('${AppLang.instance.t('activityLabel')} ${d.activities.length} ${AppLang.instance.t('recordsSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+            style: PText.meta),
+        Text('${AppLang.instance.t('activityLabel')} ${d.activities.length} ${AppLang.instance.t('recordsSuffix')}', style: PText.meta),
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: actions),
       ]),
@@ -334,7 +338,7 @@ class _DevicesScreenState extends State<DevicesScreen> with SingleTickerProvider
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withOpacity(0.3))),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, color: color, size: 14),
@@ -384,26 +388,26 @@ class _DeviceActivityScreenState extends State<DeviceActivityScreen> {
           : _activities.isEmpty
               ? Center(child: Text(AppLang.instance.t('noActivity'), style: TextStyle(color: PhotonColors.textDim)))
               : ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   itemCount: _activities.length,
                   itemBuilder: (_, i) {
                     final a = _activities[i];
                     final date = DateTime.fromMillisecondsSinceEpoch(a.ts);
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(color: PhotonColors.panel, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
                           Icon(_iconForAction(a.action), color: PhotonColors.accent, size: 16),
                           const SizedBox(width: 8),
                           Expanded(child: Text(a.action, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13))),
-                          Text('${date.hour}:${date.minute.toString().padLeft(2, '0')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                          Text('${date.hour}:${date.minute.toString().padLeft(2, '0')}', style: PText.meta),
                         ]),
                         if (a.detail.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text(a.detail, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+                            child: Text(a.detail, style: PText.small),
                           ),
                       ]),
                     );
@@ -413,10 +417,10 @@ class _DeviceActivityScreenState extends State<DeviceActivityScreen> {
   }
 
   IconData _iconForAction(String action) {
-    if (action.contains('mesaj') || action.contains('message')) return Icons.chat;
-    if (action.contains('giriş') || action.contains('login')) return Icons.login;
-    if (action.contains('kişi') || action.contains('contact')) return Icons.person_add;
-    if (action.contains('grup') || action.contains('group')) return Icons.group;
+    if (action.contains('mesaj') || action.contains('message')) return Icons.chat_outlined;
+    if (action.contains('giriş') || action.contains('login')) return Icons.login_outlined;
+    if (action.contains('kişi') || action.contains('contact')) return Icons.person_add_outlined;
+    if (action.contains('grup') || action.contains('group')) return Icons.group_outlined;
     return Icons.info_outline;
   }
 }

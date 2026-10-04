@@ -120,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           if (widget.isSelf && widget.onSettings != null)
             IconButton(
-              icon: Icon(Icons.settings, color: PhotonColors.textDim),
+              icon: Icon(Icons.settings_outlined, color: PhotonColors.textDim),
               tooltip: AppLang.instance.t('settings'),
               onPressed: widget.onSettings,
             ),
@@ -159,125 +159,132 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _profileBody(String shownName, Color nameColor, VipStatus? vip) =>
-      ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-        children: [
-          Center(child: _avatar(shownName, 96)),
-          const SizedBox(height: 16),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Flexible(
-              child: Text(
-                shownName,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: nameColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+  Widget _profileBody(String shownName, Color nameColor, VipStatus? vip) {
+    final tier = (vip ?? VipStatus.none).effectiveTier;
+    final status = widget.isOnline
+        ? AppLang.instance.t('online')
+        : (widget.statusMsg.isNotEmpty ? widget.statusMsg : AppLang.instance.t('offline'));
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(Space.s3, Space.s4, Space.s3, Space.s5),
+      children: [
+        ContentWidth(
+          max: 560,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _avatar(shownName, Space.s7),
+            const SizedBox(height: Space.s3),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Flexible(
+                child: Text(shownName,
+                    style: PText.display.copyWith(color: nameColor),
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
               ),
+              if (tier.premiumTag) ...[
+                const SizedBox(width: Space.s1),
+                VipBadge(status: vip, fontSize: 11),
+              ],
+            ]),
+            const SizedBox(height: Space.s1),
+            Row(children: [
+              Container(
+                width: Space.s1, height: Space.s1,
+                decoration: BoxDecoration(
+                  color: widget.isOnline ? PhotonColors.accent : PhotonColors.textDim,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: Space.s1),
+              Flexible(child: Text(status,
+                  style: PText.small.copyWith(color: widget.isOnline ? PhotonColors.accent : PhotonColors.textDim))),
+            ]),
+            const SizedBox(height: Space.s4),
+            // Kod, profildeki tek "kimlik" bilgisi: kendi vurgulu bloğunda.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Space.s2),
+              decoration: BoxDecoration(
+                color: PhotonColors.accentWash,
+                border: Border.all(color: PhotonColors.line),
+                borderRadius: BorderRadius.circular(PhotonRadius.card),
+              ),
+              child: Row(children: [
+                Expanded(child: Text(trUpper(AppLang.instance.t('codeLabel')), style: PText.label)),
+                Text(widget.code,
+                    style: PText.h1.merge(PText.tabular).copyWith(
+                        color: PhotonColors.accent, fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600, letterSpacing: 4)),
+              ]),
             ),
-            if ((vip ?? VipStatus.none).effectiveTier.premiumTag) ...[
-              const SizedBox(width: 8),
-              VipBadge(status: vip, fontSize: 10),
+            if (widget.bio.isNotEmpty) ...[
+              const SizedBox(height: Space.s1),
+              _card(AppLang.instance.t('bioSection'), widget.bio),
             ],
+            if (tier != VipTier.none) ...[
+              const SizedBox(height: Space.s1),
+              _card(AppLang.instance.t('shopCurrentTier'), tier.label, valueColor: nameColor),
+            ],
+            const SizedBox(height: Space.s4),
+            if (widget.isSelf && widget.onSettings != null)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: widget.onSettings,
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  label: Text(AppLang.instance.t('settings')),
+                ),
+              )
+            else if (widget.onMessage != null)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: widget.onMessage,
+                  icon: const Icon(Icons.chat_outlined, size: 18),
+                  label: Text(AppLang.instance.t('sendMessage')),
+                ),
+              ),
           ]),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              widget.isOnline
-                  ? AppLang.instance.t('online')
-                  : (widget.statusMsg.isNotEmpty
-                      ? widget.statusMsg
-                      : AppLang.instance.t('offline')),
-              style: TextStyle(
-                color: widget.isOnline
-                    ? const Color(0xFF4CAF50)
-                    : PhotonColors.textDim,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          _card(AppLang.instance.t('codeLabel'), widget.code),
-          if (widget.bio.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _card(AppLang.instance.t('bioSection'), widget.bio),
-          ],
-          if ((vip ?? VipStatus.none).effectiveTier != VipTier.none) ...[
-            const SizedBox(height: 10),
-            _card(AppLang.instance.t('shopCurrentTier'),
-                (vip ?? VipStatus.none).effectiveTier.label,
-                valueColor: nameColor),
-          ],
-          const SizedBox(height: 26),
-          if (widget.isSelf && widget.onSettings != null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: photonPrimaryButtonStyle(),
-                onPressed: widget.onSettings,
-                child: Text(AppLang.instance.t('settings')),
-              ),
-            )
-          else if (widget.onMessage != null)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: photonPrimaryButtonStyle(),
-                onPressed: widget.onMessage,
-                child: Text(AppLang.instance.t('sendMessage')),
-              ),
-            ),
-        ],
-      );
+        ),
+      ],
+    );
+  }
 
   Widget _card(String label, String value, {Color? valueColor}) => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(Space.s2),
         decoration: BoxDecoration(
           color: PhotonColors.panel,
           border: Border.all(color: PhotonColors.line),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PhotonRadius.card),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(
-                  color: PhotonColors.textDim,
-                  fontSize: 10,
-                  letterSpacing: 1.5)),
-          const SizedBox(height: 6),
+          Text(trUpper(label), style: PText.label.copyWith(color: PhotonColors.textDim)),
+          const SizedBox(height: Space.s1),
           Text(value,
-              style: TextStyle(
+              style: PText.body.copyWith(
                   color: valueColor ?? PhotonColors.text,
-                  fontSize: 14,
-                  height: 1.5,
-                  fontWeight:
-                      valueColor != null ? FontWeight.w700 : FontWeight.normal)),
+                  fontWeight: valueColor != null ? FontWeight.w600 : FontWeight.normal)),
         ]),
       );
 
   Widget _avatar(String name, double size) {
     if (widget.avatar.isNotEmpty) {
       try {
-        return CircleAvatar(
-          radius: size / 2,
-          backgroundImage: MemoryImage(base64Decode(widget.avatar)),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(size / 4),
+          child: Image.memory(base64Decode(widget.avatar), width: size, height: size, fit: BoxFit.cover),
         );
       } catch (_) {
         // Fall through to initials — a corrupt avatar must not blank the page.
       }
     }
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: Border.all(color: PhotonColors.line),
+      ),
       child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: TextStyle(
-            color: PhotonColors.accent,
-            fontSize: size * 0.38,
-            fontWeight: FontWeight.bold),
+        name.isNotEmpty ? trUpper(name[0]) : '?',
+        style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: size * 0.42),
       ),
     );
   }

@@ -164,7 +164,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         title: Text(AppLang.instance.t('joinGroup')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(Icons.qr_code_scanner_outlined),
             tooltip: AppLang.instance.t('scanGroupQr'),
             onPressed: _scanQr,
           ),
@@ -172,15 +172,15 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       ),
       backgroundColor: PhotonColors.bg,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: PhotonColors.panel,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: PhotonColors.line),
               ),
               child: Text(
@@ -188,19 +188,19 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.6),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             Text(AppLang.instance.t('inviteLinkOrCode'),
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
-            const SizedBox(height: 6),
+              style: PText.label),
+            const SizedBox(height: 8),
             TextField(
               controller: _inputCtrl,
               keyboardType: TextInputType.text,
               maxLength: 300,
-              style: TextStyle(color: PhotonColors.accent, fontSize: 14, fontFamily: 'monospace'),
+              style: TextStyle(color: PhotonColors.accent, fontSize: 15, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]),
               decoration: InputDecoration(
                 hintText: AppLang.instance.t('inviteLinkHint'),
-                hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+                hintStyle: PText.meta,
                 counterText: '',
                 filled: true, fillColor: PhotonColors.bg,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
@@ -213,14 +213,14 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
             if (_showServer) ...[
               const SizedBox(height: 16),
               Text(AppLang.instance.t('groupOwnerServer'),
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
-              const SizedBox(height: 6),
+                style: PText.label),
+              const SizedBox(height: 8),
               TextField(
                 controller: _serverCtrl,
-                style: TextStyle(color: PhotonColors.text, fontSize: 13, fontFamily: 'monospace'),
+                style: TextStyle(color: PhotonColors.text, fontSize: 13, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]),
                 decoration: InputDecoration(
                   hintText: AppLang.instance.t('ownerServerHint'),
-                  hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                  hintStyle: PText.small,
                   filled: true, fillColor: PhotonColors.bg,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.accent)),
@@ -231,8 +231,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
             ],
 
             if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 12), maxLines: 3),
+              const SizedBox(height: 16),
+              Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13), maxLines: 3),
             ],
             const SizedBox(height: 24),
 

@@ -136,13 +136,13 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.devices_other, color: PhotonColors.accent, size: 48),
+                Icon(Icons.devices_other_outlined, color: PhotonColors.accent, size: 48),
                 const SizedBox(height: 16),
-                Text(AppLang.instance.t('serverAlreadyRegistered'), style: TextStyle(color: PhotonColors.text, fontSize: 20, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
+                Text(AppLang.instance.t('serverAlreadyRegistered'), style: TextStyle(color: PhotonColors.text, fontSize: 19, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 16),
                 Text(
                   AppLang.instance.t('serverAlreadyHasAccount'),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6),
+                  style: PText.small,
                 ),
                 const SizedBox(height: 24),
 
@@ -151,11 +151,11 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: PhotonColors.panel,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: PhotonColors.line),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(AppLang.instance.t('howItWorks'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      Text(AppLang.instance.t('howItWorks'), style: PText.label),
                       const SizedBox(height: 8),
                       _stepRow('1', AppLang.instance.t('linkStep1')),
                       _stepRow('2', AppLang.instance.t('linkStep2')),
@@ -166,19 +166,19 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(color: PhotonColors.danger.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                         child: Row(children: [
-                          Icon(Icons.warning, color: PhotonColors.danger, size: 16),
+                          Icon(Icons.warning_outlined, color: PhotonColors.danger, size: 16),
                           const SizedBox(width: 8),
                           Expanded(child: Text(AppLang.instance.t('threeWrongWarn'), style: TextStyle(color: PhotonColors.danger, fontSize: 11))),
                         ]),
                       ),
                     ]),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: photonPrimaryButtonStyle(),
-                      icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) : const Icon(Icons.send, size: 18),
+                      icon: _loading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black)) : const Icon(Icons.send_outlined, size: 18),
                       label: Text(_loading ? AppLang.instance.t('sending') : AppLang.instance.t('sendConnectionRequest')),
                       onPressed: _loading ? null : _sendRequest,
                     ),
@@ -190,7 +190,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: PhotonColors.panel,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: PhotonColors.accent.withOpacity(0.3)),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -199,28 +199,28 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
                         const SizedBox(width: 8),
                         Expanded(child: Text('${AppLang.instance.t('attempt')} $_attempt / $_maxAttempts', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold))),
                       ]),
-                      const SizedBox(height: 12),
-                      Text('${AppLang.instance.t('enterCodeFromMainPrefix')} $_currentCodeLength ${AppLang.instance.t('enterCodeFromMainSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                      const SizedBox(height: 16),
+                      Text('${AppLang.instance.t('enterCodeFromMainPrefix')} $_currentCodeLength ${AppLang.instance.t('enterCodeFromMainSuffix')}', style: PText.small),
                       const SizedBox(height: 16),
                       TextField(
                         controller: _codeCtrl,
-                        style: TextStyle(color: PhotonColors.text, fontSize: _currentCodeLength > 12 ? 18 : 22, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: 'monospace'),
+                        style: TextStyle(color: PhotonColors.text, fontSize: _currentCodeLength > 12 ? 18 : 22, fontWeight: FontWeight.w900, letterSpacing: 3, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]),
                         textAlign: TextAlign.center,
                         maxLength: _currentCodeLength,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           counterText: '',
                           hintText: '0' * _currentCodeLength,
-                          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: _currentCodeLength > 12 ? 18 : 22, letterSpacing: 3, fontFamily: 'monospace'),
+                          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: _currentCodeLength > 12 ? 18 : 22, letterSpacing: 3, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]),
                           filled: true,
                           fillColor: PhotonColors.bg,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: PhotonColors.line)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: PhotonColors.accent, width: 2)),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: PhotonColors.line)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: PhotonColors.accent, width: 2)),
                           errorText: _error,
-                          errorStyle: TextStyle(color: PhotonColors.danger, fontSize: 12),
+                          errorStyle: TextStyle(color: PhotonColors.danger, fontSize: 13),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _attemptIndicator(),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -264,14 +264,14 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
   Widget _buildPermanentFake() {
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.block, color: PhotonColors.danger, size: 64),
+        Icon(Icons.block_outlined, color: PhotonColors.danger, size: 64),
         const SizedBox(height: 16),
-        Text(AppLang.instance.t('permanentFake'), style: TextStyle(color: PhotonColors.danger, fontSize: 24, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 12),
+        Text(AppLang.instance.t('permanentFake'), style: TextStyle(color: PhotonColors.danger, fontSize: 26, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 16),
         Text(
           AppLang.instance.t('permanentFakeBody'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6),
+          style: PText.small,
         ),
       ]),
     );
@@ -286,7 +286,7 @@ class _DeviceLinkScreenState extends State<DeviceLinkScreen> {
           decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.2), shape: BoxShape.circle),
           child: Center(child: Text(num, style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.bold))),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 13))),
       ]),
     );

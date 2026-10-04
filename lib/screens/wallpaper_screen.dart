@@ -81,7 +81,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
       width: double.infinity,
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: PhotonColors.line),
       ),
       clipBehavior: Clip.antiAlias,
@@ -111,7 +111,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
       appBar: AppBar(
         title: Text(AppLang.instance.t('chatWallpaper')),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: PhotonColors.text),
+          icon: Icon(Icons.arrow_back_outlined, color: PhotonColors.text),
           onPressed: () => Navigator.pop(context, true),
         ),
       ),
@@ -125,20 +125,20 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
             child: GestureDetector(
               onTap: _selectNone,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: PhotonColors.panel,
                   border: Border.all(
                     color: _selectedType == 'none' ? PhotonColors.accent : PhotonColors.line,
                     width: _selectedType == 'none' ? 2 : 1,
                   ),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.block, color: PhotonColors.textDim, size: 20),
-                    const SizedBox(width: 12),
-                    Text(AppLang.instance.t('defaultLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                    Icon(Icons.block_outlined, color: PhotonColors.textDim, size: 20),
+                    const SizedBox(width: 16),
+                    Text(AppLang.instance.t('defaultLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
                     const Spacer(),
                     if (_selectedType == 'none')
                       Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),
@@ -148,14 +148,14 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Color grid
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(AppLang.instance.t('colors'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.2)),
+            child: Text(AppLang.instance.t('colors'), style: PText.label),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GridView.builder(
@@ -176,11 +176,11 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       border: isSelected ? Border.all(color: PhotonColors.accent, width: 3) : null,
                     ),
                     child: isSelected
-                        ? Center(child: Icon(Icons.check, color: Colors.white, size: 20))
+                        ? Center(child: Icon(Icons.check_outlined, color: Colors.white, size: 20))
                         : null,
                   ),
                 );
@@ -188,7 +188,7 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Gallery option
           Padding(
@@ -196,17 +196,17 @@ class _WallpaperPickerScreenState extends State<WallpaperPickerScreen> {
             child: GestureDetector(
               onTap: _pickGallery,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: PhotonColors.panel,
                   border: Border.all(color: PhotonColors.line),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.photo_library, color: PhotonColors.accent, size: 20),
-                    const SizedBox(width: 12),
-                    Text(AppLang.instance.t('pickFromGallery'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                    Icon(Icons.photo_library_outlined, color: PhotonColors.accent, size: 20),
+                    const SizedBox(width: 16),
+                    Text(AppLang.instance.t('pickFromGallery'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
                     const Spacer(),
                     if (_selectedType == 'image')
                       Icon(Icons.check_circle, color: PhotonColors.accent, size: 20),

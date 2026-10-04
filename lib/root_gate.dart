@@ -115,7 +115,11 @@ class RootGateState extends State<RootGate> {
     if (_loading) {
       return Scaffold(
         backgroundColor: PhotonColors.bg,
-        body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: PhotonColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
+        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          BrandMark(size: Space.s5),
+          const SizedBox(height: Space.s2),
+          Text('Photon Chat', style: PText.h2),
+        ])),
       );
     }
 

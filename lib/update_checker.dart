@@ -133,42 +133,43 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
     return AlertDialog(
       backgroundColor: PhotonColors.panel,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(children: [
-        const Text('🚀 ', style: TextStyle(fontSize: 18)),
-        Expanded(child: Text(AppLang.instance.t('updateAvailable'), style: TextStyle(color: PhotonColors.text, fontSize: 16, fontWeight: FontWeight.w700))),
+        Icon(Icons.system_update_outlined, color: PhotonColors.accent),
+        const SizedBox(width: Space.s1),
+        Expanded(child: Text(AppLang.instance.t('updateAvailable'), style: PText.h2)),
       ]),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text(widget.currentVersion, style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
-            Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, size: 14, color: PhotonColors.accent)),
-            Text(widget.newVersion, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text(widget.currentVersion, style: PText.small),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward_outlined, size: 14, color: PhotonColors.accent)),
+            Text(widget.newVersion, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontWeight: FontWeight.w700)),
           ]),
           if (widget.releaseNotes.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(color: PhotonColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
               child: Text(
                 widget.releaseNotes.length > 300 ? '${widget.releaseNotes.substring(0, 300)}…' : widget.releaseNotes,
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.5),
+                style: PText.meta,
               ),
             ),
           ],
           if (_downloading) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             LinearProgressIndicator(value: _progress, backgroundColor: PhotonColors.line, color: PhotonColors.accent),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               _progress != null ? AppLang.instance.t('updateDownloading').replaceAll('{p}', (_progress! * 100).toStringAsFixed(0)) : AppLang.instance.t('updatePreparing'),
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+              style: PText.meta,
             ),
           ],
           if (_error != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 11)),
           ],
         ],
@@ -178,7 +179,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           : [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(AppLang.instance.t('updateLater'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                child: Text(AppLang.instance.t('updateLater'), style: PText.small),
               ),
               if (isAndroid && hasApk)
                 ElevatedButton(

@@ -72,41 +72,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       backgroundColor: PhotonColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 32, 20, 40),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s4),
+          child: ContentWidth(max: 560, child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        'assets/icon/icon.png',
-                        width: 72,
-                        height: 72,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'PHOTON CHAT',
-                      style: TextStyle(
-                        fontFamily: 'sans-serif',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 28,
-                        letterSpacing: 4,
-                        color: PhotonColors.accent,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      AppLang.instance.t('photonChatTagline'),
-                      style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 0.5),
-                    ),
-                  ],
-                ),
-              ),
+              Row(children: [
+                BrandMark(size: 28),
+                const SizedBox(width: Space.s1),
+                Text('Photon Chat', style: PText.h2),
+              ]),
+              const SizedBox(height: Space.s5),
+              Text(AppLang.instance.t('createIdentityOnDevice'), style: PText.display),
+              const SizedBox(height: Space.s2),
+              Text(AppLang.instance.t('photonChatTagline'), style: PText.bodyDim),
               const SizedBox(height: 24),
               FipCard(
                 title: AppLang.instance.t('fipPreview'),
@@ -114,8 +92,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onRegen: _regen,
               ),
               const SizedBox(height: 24),
-              Text(AppLang.instance.t('displayNameFriendsOnly'),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1)),
+              Text(AppLang.instance.t('displayNameFriendsOnly'), style: PText.small.copyWith(color: PhotonColors.text)),
               const SizedBox(height: 8),
               TextField(
                 controller: _nameCtrl,
@@ -124,18 +101,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 decoration: photonInputDecoration(AppLang.instance.t('displayNameExample')),
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               ElevatedButton(
                 style: photonPrimaryButtonStyle(),
                 onPressed: (_nameCtrl.text.trim().isEmpty || _created != null || _creating) ? null : _create,
                 child: _creating
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)))
+                    ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.onAccent))
                     : Text(AppLang.instance.t('createIdentityOnDevice')),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Text(
                 AppLang.instance.t('onboardingPrivacyNote'),
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
+                style: PText.meta.copyWith(height: 1.5),
               ),
               if (_created != null) ...[
                 const SizedBox(height: 24),
@@ -145,32 +122,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   decoration: BoxDecoration(
                     color: PhotonColors.panel,
                     border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(AppLang.instance.t('yourCode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                    Text(AppLang.instance.t('yourCode'), style: PText.label),
                     const SizedBox(height: 8),
                     Text(
                       _created!.code,
-                      style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 6, fontFamily: 'monospace'),
+                      style: PText.display.merge(PText.tabular).copyWith(color: PhotonColors.accent, fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600, letterSpacing: 6),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       AppLang.instance.t('shareCodeWithFriends'),
-                      style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+                      style: PText.meta,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: PhotonColors.text,
-                          side: BorderSide(color: PhotonColors.line),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.copy, size: 15),
-                        label: Text(AppLang.instance.t('copyCode'), style: const TextStyle(fontSize: 13)),
+                        icon: const Icon(Icons.copy_outlined, size: 15),
+                        label: Text(AppLang.instance.t('copyCode')),
                         onPressed: () => Clipboard.setData(ClipboardData(text: _created!.code)),
                       ),
                     ),
@@ -187,7 +158,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ],
             ],
-          ),
+          )),
         ),
       ),
     );
@@ -205,88 +176,67 @@ class FipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: PhotonColors.panel,
         border: Border.all(color: PhotonColors.line),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(PhotonRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title,
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Space.s2, Space.s2, Space.s1, Space.s1),
+            child: Row(children: [
+              Expanded(child: Text(trUpper(title), style: PText.label)),
               if (onRegen != null)
-                GestureDetector(
-                  onTap: onRegen,
-                  child: Text(AppLang.instance.t('regenerateShort'),
-                      style: TextStyle(
-                          color: PhotonColors.accent2,
-                          fontSize: 11,
-                          decoration: TextDecoration.underline)),
+                TextButton.icon(
+                  onPressed: onRegen,
+                  icon: const Icon(Icons.refresh_outlined, size: 16),
+                  label: Text(AppLang.instance.t('regenerateShort')),
                 ),
-            ],
+            ]),
           ),
-          const SizedBox(height: 10),
-          Container(
-            decoration: BoxDecoration(
-              color: PhotonColors.bg,
-              border: Border.all(color: PhotonColors.line),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: fip.lines.length,
-              itemBuilder: (context, i) {
-                return Padding(
+          Divider(height: 1, color: PhotonColors.line),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+            child: Column(children: [
+              for (final (i, line) in fip.lines.take(6).indexed)
+                Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 22,
-                        child: Text((i + 1).toString().padLeft(2, '0'),
-                            style: TextStyle(
-                                color: PhotonColors.accent2, fontSize: 11, fontFamily: 'monospace')),
-                      ),
-                      Expanded(
-                        child: Text(
-                          fip.lines[i],
-                          style: TextStyle(
-                              color: PhotonColors.text,
-                              fontSize: 10.5,
-                              fontFamily: 'monospace',
-                              letterSpacing: 0.5),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(AppLang.instance.t('matchCodeUpper'),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
-              Text(
-                fip.code,
-                style: TextStyle(
-                  color: PhotonColors.accent,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 4,
+                  child: Row(children: [
+                    SizedBox(
+                      width: Space.s3,
+                      child: Text((i + 1).toString().padLeft(2, '0'),
+                          style: PText.meta.merge(PText.tabular).copyWith(color: PhotonColors.accent2, fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(width: Space.s1),
+                    Expanded(
+                      child: Text(line, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: PText.small.merge(PText.tabular).copyWith(color: PhotonColors.text)),
+                    ),
+                  ]),
                 ),
+              if (fip.lines.length > 6)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: Space.s4, top: 2),
+                    child: Text('+ ${fip.lines.length - 6}', style: PText.meta),
+                  ),
+                ),
+            ]),
+          ),
+          Container(
+            color: PhotonColors.accentWash,
+            padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s2),
+            child: Row(children: [
+              Expanded(child: Text(trUpper(AppLang.instance.t('matchCodeUpper')), style: PText.label.copyWith(color: PhotonColors.textDim))),
+              FittedBox(
+                child: Text(fip.code,
+                    style: PText.h1.merge(PText.tabular).copyWith(color: PhotonColors.accent, fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600, letterSpacing: 4)),
               ),
-            ],
+            ]),
           ),
         ],
       ),

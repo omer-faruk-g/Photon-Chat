@@ -290,15 +290,15 @@ class _ChatScreenState extends State<ChatScreen> {
             borderRadius: BorderRadius.circular(8),
             child: Image.memory(compressed, height: 180, fit: BoxFit.cover),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(children: [
             Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: PhotonColors.danger),
             const SizedBox(width: 4),
-            Expanded(child: Text(AppLang.instance.t('markSensitive'), style: TextStyle(color: PhotonColors.text, fontSize: 12))),
+            Expanded(child: Text(AppLang.instance.t('markSensitive'), style: TextStyle(color: PhotonColors.text, fontSize: 13))),
           ]),
           if (markNsfw)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(AppLang.instance.t('sensitiveWarning'), style: TextStyle(color: PhotonColors.danger, fontSize: 11, height: 1.5)),
             ),
         ]),
@@ -742,7 +742,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final totalCount = _messages.length + uniqueQueued.length;
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       itemCount: totalCount,
       itemBuilder: (context, i) {
         // Queued messages appear at the bottom
@@ -757,7 +757,7 @@ class _ChatScreenState extends State<ChatScreen> {
         // don't share a slot and clobber each other on new profanity match.
         final cacheKey = '${m.msgId}_${m.ts}_${m.from}';
         if (m.deleted) {
-          displayText = '\u{1F5D1} ${AppLang.instance.t('messageDeleted')}';
+          displayText = AppLang.instance.t('messageDeleted');
         } else if (_filtered.containsKey(cacheKey)) {
           displayText = _filtered[cacheKey]!;
         } else {
@@ -774,9 +774,6 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
         // Disappearing message suffix
-        if (_disappearSeconds != null && !m.deleted) {
-          displayText = '$displayText ⏳';
-        }
         final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
         return GestureDetector(
           onLongPress: () => _onLongPressMessage(m),
@@ -788,14 +785,14 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 if (!mine) ...[
                   _buildAvatar(widget.contact.name, widget.contact.avatar, size: 28),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                 ],
                 Flexible(child: Column(
               crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
                   decoration: BoxDecoration(
                     // Your own bubble takes your tier colour as its BACKGROUND.
@@ -809,22 +806,22 @@ class _ChatScreenState extends State<ChatScreen> {
                             : PhotonColors.panel),
                     border: (mine && !m.deleted) ? null : Border.all(color: PhotonColors.line),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
-                      bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
+                      topLeft: const Radius.circular(PhotonRadius.bubble), topRight: const Radius.circular(PhotonRadius.bubble),
+                      bottomLeft: Radius.circular(mine ? PhotonRadius.bubble : 4), bottomRight: Radius.circular(mine ? 4 : PhotonRadius.bubble),
                     ),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     if (m.replyTo != null)
                       Container(
                         padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(bottom: 6),
+                        margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
-                          borderRadius: BorderRadius.circular(6),
+                          color: mine ? PhotonColors.onAccent.withOpacity(0.3) : PhotonColors.panelAlt,
+                          borderRadius: BorderRadius.circular(8),
                           border: Border(left: BorderSide(color: PhotonColors.accent, width: 3)),
                         ),
                         child: Text(m.replyTo!['text'] as String? ?? '',
-                          style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.textDim, fontSize: 11),
+                          style: TextStyle(color: mine ? PhotonColors.onAccent : PhotonColors.textDim, fontSize: 11),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                       ),
                     if (m.imageData != null && !m.deleted)
@@ -847,7 +844,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       // pass no status for it beyond what bold needs.
                       m.deleted ? null : (mine ? _myVipBoldOnly : _contactVip),
                       style: TextStyle(
-                        color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
+                        color: m.deleted ? PhotonColors.textDim : (mine ? PhotonColors.onAccent : PhotonColors.text),
                         fontSize: _msgFontSize, height: 1.45,
                         fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
                       )),
@@ -860,28 +857,30 @@ class _ChatScreenState extends State<ChatScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                          Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
                           const SizedBox(height: 2),
                           Text(_translations[m.msgId]!,
                             style: TextStyle(
-                              color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.8),
+                              color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.8),
                               fontSize: 13, height: 1.4, fontStyle: FontStyle.italic,
                             )),
                         ]),
                       ),
                     Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (_disappearSeconds != null && !m.deleted) ...[
+                        Icon(Icons.timer_outlined, size: 11, color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.6)),
+                        const SizedBox(width: 4),
+                      ],
                       if (m.edited && !m.deleted)
-                        Text('${AppLang.instance.t('editedLabel')} \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.5), fontSize: 9)),
-                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 9.5)),
+                        Text('${AppLang.instance.t('editedLabel')} \u00B7 ', style: TextStyle(color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.5), fontSize: 11)),
+                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
                       if (mine && !m.deleted) ...[
                         const SizedBox(width: 4),
-                        Text(
-                          isLastMine && _contactRead ? '\u2713\u2713' : (m.delivered ? '\u2713\u2713' : '\u2713'),
-                          style: TextStyle(
-                            color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
-                            fontSize: 9.5,
-                            fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
-                          ),
+                        // Okundu: tam opak çift tik. İletildi: soluk çift tik. Gönderildi: tek tik.
+                        Icon(
+                          (isLastMine && _contactRead) || m.delivered ? Icons.done_all_outlined : Icons.done_outlined,
+                          size: 14,
+                          color: isLastMine && _contactRead ? PhotonColors.onAccent : PhotonColors.onAccent.withOpacity(0.55),
                         ),
                       ],
                     ]),
@@ -905,8 +904,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(16), border: Border.all(color: PhotonColors.line)),
                           child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
                         ),
                       )).toList(),
@@ -927,21 +926,21 @@ class _ChatScreenState extends State<ChatScreen> {
       alignment: Alignment.centerRight,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         decoration: BoxDecoration(
           color: PhotonColors.accent.withOpacity(0.5),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
-            bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(2),
+            topLeft: const Radius.circular(PhotonRadius.bubble), topRight: const Radius.circular(PhotonRadius.bubble),
+            bottomLeft: const Radius.circular(PhotonRadius.bubble), bottomRight: const Radius.circular(4),
           ),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(q.text, style: TextStyle(color: const Color(0xFF06251A), fontSize: 13.5, height: 1.45)),
+          Text(q.text, style: TextStyle(color: PhotonColors.onAccent, fontSize: 13, height: 1.45)),
           Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(_formatTime(q.ts), style: TextStyle(color: const Color(0xFF06251A).withOpacity(0.6), fontSize: 9.5)),
+            Text(_formatTime(q.ts), style: TextStyle(color: PhotonColors.onAccent.withOpacity(0.6), fontSize: 11)),
             const SizedBox(width: 4),
-            Icon(Icons.access_time, color: const Color(0xFF06251A).withOpacity(0.7), size: 11),
+            Icon(Icons.access_time_outlined, color: PhotonColors.onAccent.withOpacity(0.7), size: 11),
           ]),
         ]),
       ),
@@ -955,7 +954,7 @@ class _ChatScreenState extends State<ChatScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Emoji reaction row
-        Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+        Padding(padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: ['👍','❤️','😂','😮','😢','😡'].map((emoji) => GestureDetector(
               onTap: () async {
@@ -973,13 +972,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('reactionFailed')}: $err')));
                 }
               },
-              child: Text(emoji, style: const TextStyle(fontSize: 30)),
+              child: Text(emoji, style: const TextStyle(fontSize: 34)),
             )).toList(),
           ),
         ),
         Divider(color: PhotonColors.line, height: 1),
         ListTile(
-          leading: Icon(Icons.reply, color: PhotonColors.accent),
+          leading: Icon(Icons.reply_outlined, color: PhotonColors.accent),
           title: Text(AppLang.instance.t('reply'), style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
@@ -988,7 +987,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.forward, color: PhotonColors.accent),
+            leading: Icon(Icons.forward_outlined, color: PhotonColors.accent),
             title: Text(AppLang.instance.t('forward'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
@@ -997,7 +996,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.copy, color: PhotonColors.accent),
+            leading: Icon(Icons.copy_outlined, color: PhotonColors.accent),
             title: Text(AppLang.instance.t('copyMessage'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
@@ -1006,7 +1005,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.translate, color: PhotonColors.accent),
+            leading: Icon(Icons.translate_outlined, color: PhotonColors.accent),
             title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
             onTap: () {
               Navigator.pop(context);
@@ -1015,7 +1014,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.push_pin, color: PhotonColors.accent),
+            leading: Icon(Icons.push_pin_outlined, color: PhotonColors.accent),
             title: Text(
               _pinnedMessage?['msgId'] == m.msgId ? AppLang.instance.t('unpin') : AppLang.instance.t('pin'),
               style: TextStyle(color: PhotonColors.text),
@@ -1034,7 +1033,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (!m.deleted)
           ListTile(
-            leading: Icon(Icons.star, color: Colors.amber),
+            leading: Icon(Icons.star, color: PhotonColors.accent2),
             title: FutureBuilder<List<Map<String, dynamic>>>(
               future: LocalStore.loadStarredMessages(),
               builder: (ctx, snap) {
@@ -1055,7 +1054,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         if (m.from == widget.identity.fipId && !m.deleted) ...[
           ListTile(
-            leading: Icon(Icons.edit, color: PhotonColors.accent),
+            leading: Icon(Icons.edit_outlined, color: PhotonColors.accent),
             title: Text(AppLang.instance.t('edit'), style: TextStyle(color: PhotonColors.text)),
             onTap: () { Navigator.pop(context); setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; }); },
           ),
@@ -1095,15 +1094,15 @@ class _ChatScreenState extends State<ChatScreen> {
             if (active.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(AppLang.instance.t('noActiveContacts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                child: Text(AppLang.instance.t('noActiveContacts'), style: PText.small),
               ),
             ...active.map((c) => ListTile(
               leading: CircleAvatar(
                 backgroundColor: PhotonColors.accent.withOpacity(0.15),
                 child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
               ),
-              title: Text(c.name, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
-              subtitle: Text('${AppLang.instance.t('codeLabel')}: ${c.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              title: Text(c.name, style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+              subtitle: Text('${AppLang.instance.t('codeLabel')}: ${c.code}', style: PText.meta),
               onTap: () async {
                 Navigator.pop(context);
                 final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
@@ -1170,7 +1169,6 @@ class _ChatScreenState extends State<ChatScreen> {
             title: Text(e.key, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
             value: e.value,
             groupValue: _disappearSeconds,
-            activeColor: PhotonColors.accent,
             onChanged: (v) async {
               Navigator.pop(ctx);
               await LocalStore.saveDisappearDuration(_chatKey, v);
@@ -1197,7 +1195,7 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: PhotonColors.panel,
         title: Text(AppLang.instance.t('contactInactiveTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
-        content: Text(AppLang.instance.t('contactRemovedDevice'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        content: Text(AppLang.instance.t('contactRemovedDevice'), style: PText.small),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLang.instance.t('ok'), style: TextStyle(color: PhotonColors.accent)))],
       ),
     );
@@ -1217,7 +1215,7 @@ class _ChatScreenState extends State<ChatScreen> {
           width: 200, height: 200,
           decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(8)),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Text('⛔', style: TextStyle(fontSize: 32)),
+            const Icon(Icons.visibility_off_outlined, color: Colors.white70, size: 32),
             const SizedBox(height: 8),
             Text(AppLang.instance.t('sensitiveContentTap'), textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
@@ -1248,7 +1246,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.touch_app, color: Colors.white70, size: 28),
+                Icon(Icons.touch_app_outlined, color: Colors.white70, size: 28),
                 const SizedBox(height: 4),
                 Text(AppLang.instance.t('tapToView'), style: TextStyle(color: Colors.white70, fontSize: 11)),
               ]),
@@ -1261,39 +1259,39 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
       );
     } catch (_) {
-      return Text(AppLang.instance.t('imageLoadFailedInline'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12));
+      return Text(AppLang.instance.t('imageLoadFailedInline'), style: PText.small);
     }
   }
 
   Widget _buildLocationBubble(String text, bool mine) {
     final match = RegExp(r'\[📍KONUM:([-\d.]+),([-\d.]+)\]').firstMatch(text);
-    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 13.5));
+    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 13));
     final lat = match.group(1)!;
     final lng = match.group(2)!;
     final url = 'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng&zoom=15';
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        color: mine ? PhotonColors.onAccent.withOpacity(0.3) : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
-          const SizedBox(width: 6),
-          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          Icon(Icons.location_on_outlined, color: PhotonColors.accent, size: 18),
+          const SizedBox(width: 8),
+          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: mine ? PhotonColors.onAccent : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.map, color: PhotonColors.accent, size: 14),
-              const SizedBox(width: 6),
-              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              Icon(Icons.map_outlined, color: PhotonColors.accent, size: 14),
+              const SizedBox(width: 8),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
           ),
         ),
@@ -1305,9 +1303,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final match = RegExp(r'\[🎤SES:(.*)\]', dotAll: true).firstMatch(text);
     final transcript = match?.group(1) ?? '';
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        color: mine ? PhotonColors.onAccent.withOpacity(0.3) : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -1317,16 +1315,16 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), shape: BoxShape.circle),
-            child: Icon(Icons.play_arrow, color: PhotonColors.accent, size: 20),
+            child: Icon(Icons.play_arrow_outlined, color: PhotonColors.accent, size: 20),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: mine ? PhotonColors.onAccent : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
           if (transcript.isNotEmpty)
-            Text(transcript, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text(transcript, style: TextStyle(color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
         ])),
-        Icon(Icons.mic, color: PhotonColors.accent.withOpacity(0.6), size: 16),
+        Icon(Icons.mic_outlined, color: PhotonColors.accent.withOpacity(0.6), size: 16),
       ]),
     );
   }
@@ -1355,9 +1353,9 @@ class _ChatScreenState extends State<ChatScreen> {
     return GestureDetector(
       onTap: () => _saveAndShareFile(m),
       child: Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        color: mine ? PhotonColors.onAccent.withOpacity(0.3) : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -1365,14 +1363,14 @@ class _ChatScreenState extends State<ChatScreen> {
         Container(
           width: 36, height: 36,
           decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+          child: Icon(Icons.insert_drive_file_outlined, color: PhotonColors.accent, size: 20),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+          Text(name, style: TextStyle(color: mine ? PhotonColors.onAccent : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(sizeStr, style: TextStyle(color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
         ])),
-        Icon(Icons.download, color: PhotonColors.accent, size: 20),
+        Icon(Icons.download_outlined, color: PhotonColors.accent, size: 20),
       ]),
     ),
     );
@@ -1389,9 +1387,9 @@ class _ChatScreenState extends State<ChatScreen> {
       sizeStr = match.group(2) ?? '';
     }
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        color: mine ? PhotonColors.onAccent.withOpacity(0.3) : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -1399,13 +1397,13 @@ class _ChatScreenState extends State<ChatScreen> {
         Container(
           width: 36, height: 36,
           decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+          child: Icon(Icons.insert_drive_file_outlined, color: PhotonColors.accent, size: 20),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(name, style: TextStyle(color: mine ? PhotonColors.onAccent : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
           if (sizeStr.isNotEmpty)
-            Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+            Text(sizeStr, style: TextStyle(color: (mine ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
         ])),
       ]),
     );
@@ -1449,28 +1447,25 @@ class _ChatScreenState extends State<ChatScreen> {
             onTap: _openContactProfile,
             child: _buildAvatar(vipDisplayName(_contactVip, widget.contact.name), widget.contact.avatar, size: 32),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Flexible(
                 child: Text(
                   vipDisplayName(_contactVip, widget.contact.name),
-                  style: TextStyle(fontSize: 15, color: vipNameColor(_contactVip)),
+                  style: PText.h2.copyWith(color: vipNameColor(_contactVip) ?? PhotonColors.text),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (_contactVip.effectiveTier.premiumTag) ...[
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 VipBadge(status: _contactVip),
               ],
             ]),
             Text(
               _contactOnline ? AppLang.instance.t('online') : _formatLastSeen(widget.contact.lastSeen),
-              style: TextStyle(
-                color: _contactOnline ? Colors.green : PhotonColors.textDim,
-                fontSize: 10,
-              ),
+              style: PText.meta.copyWith(color: _contactOnline ? PhotonColors.accent : PhotonColors.textDim),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ])),
@@ -1482,7 +1477,7 @@ class _ChatScreenState extends State<ChatScreen> {
             tooltip: AppLang.instance.t('exportChat'),
           ),
           IconButton(
-            icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
+            icon: Icon(Icons.hourglass_empty_outlined, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
             onPressed: _showDisappearDialog,
             tooltip: AppLang.instance.t('disappearingMessages'),
           ),
@@ -1498,10 +1493,10 @@ class _ChatScreenState extends State<ChatScreen> {
             decoration: BoxDecoration(border: Border(bottom: BorderSide(color: PhotonColors.line))),
             child: Row(children: [
               Container(width: 7, height: 7, decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              Text('FIP · ${widget.contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1)),
-              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: PhotonColors.accent, size: 11)],
-              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty, color: PhotonColors.accent, size: 11)],
+              const SizedBox(width: 8),
+              Text('FIP · ${widget.contact.code}', style: PText.label),
+              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock_outlined, color: PhotonColors.accent, size: 11)],
+              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty_outlined, color: PhotonColors.accent, size: 11)],
             ]),
           ),
           // Pinned message banner
@@ -1511,11 +1506,11 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: PhotonColors.accent.withOpacity(0.08),
               child: Row(children: [
-                Icon(Icons.push_pin, color: PhotonColors.accent, size: 14),
+                Icon(Icons.push_pin_outlined, color: PhotonColors.accent, size: 14),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   _pinnedMessage!['text'] as String? ?? '',
-                  style: TextStyle(color: PhotonColors.text, fontSize: 12),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 13),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 )),
                 GestureDetector(
@@ -1523,18 +1518,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     await LocalStore.savePinnedMessage(_chatKey, null);
                     if (mounted) setState(() => _pinnedMessage = null);
                   },
-                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
+                  child: Icon(Icons.close_outlined, color: PhotonColors.textDim, size: 16),
                 ),
               ]),
             ),
           if (_isBlocked)
-            _banner(Icons.block, AppLang.instance.t('blockedByYou'), PhotonColors.danger)
+            _banner(Icons.block_outlined, AppLang.instance.t('blockedByYou'), PhotonColors.danger)
           else if (!_contactActive)
             _banner(Icons.info_outline, '${widget.contact.name} ${AppLang.instance.t('removedAccountSuffix')}', PhotonColors.danger),
           if (_contactTyping && !_isBlocked)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text('${widget.contact.name} ${AppLang.instance.t('typing')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
             ),
           if (_editingMsgId != null)
@@ -1543,25 +1538,25 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: PhotonColors.accent.withOpacity(0.1),
               child: Row(children: [
-                Icon(Icons.edit, color: PhotonColors.accent, size: 14),
+                Icon(Icons.edit_outlined, color: PhotonColors.accent, size: 14),
                 const SizedBox(width: 8),
-                Text(AppLang.instance.t('editMode'), style: TextStyle(color: PhotonColors.accent, fontSize: 12)),
+                Text(AppLang.instance.t('editMode'), style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
                 const Spacer(),
                 GestureDetector(
                   onTap: () => setState(() { _editingMsgId = null; _draftCtrl.clear(); }),
-                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
+                  child: Icon(Icons.close_outlined, color: PhotonColors.textDim, size: 16),
                 ),
               ]),
             ),
           Expanded(
             child: _isBlocked
-                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('unblockToSee'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6))))
+                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('unblockToSee'), textAlign: TextAlign.center, style: PText.small)))
                 : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
-                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text(AppLang.instance.t('chatCleanStart'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6))))
+                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 32), child: Text(AppLang.instance.t('chatCleanStart'), textAlign: TextAlign.center, style: PText.small)))
                     : _buildMessageList(),
           ),
           if (_inputError != null)
-            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: PhotonColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12))),
+            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: PhotonColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 13))),
           // Quick replies bar
           if (_showQuickReplies && _quickReplies.isNotEmpty)
             Container(
@@ -1572,7 +1567,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: _quickReplies.map((r) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   child: ActionChip(
-                    label: Text(r, style: TextStyle(color: PhotonColors.text, fontSize: 12)),
+                    label: Text(r, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
                     backgroundColor: PhotonColors.panelAlt,
                     side: BorderSide(color: PhotonColors.line),
                     onPressed: () {
@@ -1595,130 +1590,107 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(_replyToMsg!['from'] == widget.identity.fipId ? AppLang.instance.t('you') : widget.contact.name,
                     style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
-                  Text(_replyToMsg!['text'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(_replyToMsg!['text'] as String? ?? '', style: PText.meta, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ])),
-                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: PhotonColors.textDim, size: 16)),
+                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close_outlined, color: PhotonColors.textDim, size: 16)),
               ]),
             ),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(Space.s1, Space.s1, Space.s2, Space.s1),
             decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
-            child: Row(children: [
+            child: SafeArea(top: false, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
               if (!_isBlocked)
                 IconButton(
-                  icon: Icon(Icons.photo_outlined, color: PhotonColors.textDim),
-                  tooltip: AppLang.instance.t('sendPhoto'),
-                  onPressed: _pickAndSendImage,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              if (!_isBlocked)
-                IconButton(
-                  icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
-                  tooltip: AppLang.instance.t('sendFile'),
-                  onPressed: _pickAndSendFile,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              if (!_isBlocked)
-                IconButton(
-                  icon: Icon(Icons.gif_box_outlined, color: PhotonColors.textDim),
-                  tooltip: AppLang.instance.t('createGif'),
-                  onPressed: _openGifCreator,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              if (!_isBlocked)
-                IconButton(
-                  icon: Icon(Icons.location_on, color: PhotonColors.textDim),
-                  tooltip: AppLang.instance.t('shareLocation'),
-                  onPressed: _shareLocation,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              if (!_isBlocked)
-                GestureDetector(
-                  onLongPressStart: (_) => _startVoiceMessage(),
-                  onLongPressEnd: (_) async {
-                    if (_isRecordingVoice) {
-                      await _speech.stop();
-                    }
-                  },
-                  child: Container(
-                    width: 36, height: 36,
-                    margin: const EdgeInsets.only(right: 2),
-                    decoration: BoxDecoration(
-                      color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
-                    ),
-                    child: Icon(
-                      _isRecordingVoice ? Icons.stop : Icons.mic_none,
-                      color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              if (!_isBlocked)
-                IconButton(
-                  icon: Icon(Icons.flash_on, color: _showQuickReplies ? PhotonColors.accent : PhotonColors.textDim),
-                  tooltip: AppLang.instance.t('quickReplies'),
-                  onPressed: () => setState(() => _showQuickReplies = !_showQuickReplies),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  icon: Icon(Icons.add_circle_outline, color: PhotonColors.accent),
+                  tooltip: AppLang.instance.t('share'),
+                  onPressed: _showAttachSheet,
+                  constraints: const BoxConstraints(minWidth: Space.s5, minHeight: Space.s5),
                 ),
               Expanded(
                 child: TextField(
                   controller: _draftCtrl,
-                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                  style: PText.body,
                   enabled: !_isBlocked,
+                  minLines: 1,
+                  maxLines: 5,
+                  textInputAction: TextInputAction.send,
                   decoration: InputDecoration(
                     hintText: _isBlocked ? AppLang.instance.t('blockedHint') : (_editingMsgId != null ? AppLang.instance.t('editingMessageHint') : (_isListening ? AppLang.instance.t('listening') : (_contactActive ? AppLang.instance.t('writeMessagePlaceholder') : AppLang.instance.t('contactInactiveHint')))),
                     hintStyle: TextStyle(color: _isListening ? PhotonColors.accent : PhotonColors.textDim),
                     filled: true, fillColor: PhotonColors.bg,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: PhotonColors.line)),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(Space.s3), borderSide: BorderSide(color: PhotonColors.line)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(Space.s3), borderSide: BorderSide(color: PhotonColors.line)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(Space.s3), borderSide: BorderSide(color: PhotonColors.accent, width: 1.5)),
                   ),
                   onChanged: _onTextChanged,
                   onSubmitted: (_) => _send(),
                 ),
               ),
-              const SizedBox(width: 6),
-              if (_sttEnabled && _sttAvailable)
+              const SizedBox(width: Space.s1),
+              if (!_isBlocked)
+                Tooltip(
+                  message: AppLang.instance.t('voiceMessage'),
+                  child: GestureDetector(
+                    onLongPressStart: (_) => _startVoiceMessage(),
+                    onLongPressEnd: (_) async {
+                      if (_isRecordingVoice) {
+                        await _speech.stop();
+                      }
+                    },
+                    child: Container(
+                      width: Space.s5, height: Space.s5,
+                      decoration: BoxDecoration(
+                        color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
+                      ),
+                      child: Icon(
+                        _isRecordingVoice ? Icons.stop_outlined : Icons.mic_none_outlined,
+                        color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              if (_sttEnabled && _sttAvailable) ...[
+                const SizedBox(width: Space.s1),
                 InkWell(
                   onTap: _startListening,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    width: 38, height: 38, alignment: Alignment.center,
+                    width: Space.s5, height: Space.s5, alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: _isListening ? PhotonColors.danger : PhotonColors.panelAlt,
                       shape: BoxShape.circle,
                       border: Border.all(color: _isListening ? PhotonColors.danger : PhotonColors.line),
                     ),
                     child: Icon(
-                      _isListening ? Icons.stop : Icons.mic,
+                      _isListening ? Icons.stop_outlined : Icons.mic_outlined,
                       color: _isListening ? Colors.white : PhotonColors.textDim,
                       size: 18,
                     ),
                   ),
                 ),
-              const SizedBox(width: 6),
+              ],
+              const SizedBox(width: Space.s1),
               InkWell(
                 onTap: _isBlocked ? null : _send,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(Space.s3),
                 child: Container(
-                  width: 40, height: 40, alignment: Alignment.center,
+                  width: Space.s5, height: Space.s5, alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: (_isBlocked || !_contactActive) ? PhotonColors.line : PhotonColors.accent,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _editingMsgId != null ? Icons.check : Icons.arrow_upward,
-                    color: (_isBlocked || !_contactActive) ? PhotonColors.textDim : const Color(0xFF06251A),
+                    _editingMsgId != null ? Icons.check_outlined : Icons.arrow_upward_outlined,
+                    color: (_isBlocked || !_contactActive) ? PhotonColors.textDim : PhotonColors.onAccent,
                   ),
                 ),
               ),
-            ]),
+            ])),
           ),
         ],
       ),
@@ -1726,11 +1698,39 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Ekler tek bir sayfada: yazma alanı dar ekranda da tam genişlikte kalır.
+  void _showAttachSheet() {
+    Widget item(IconData icon, String label, VoidCallback onTap, {bool active = false}) => ListTile(
+      leading: Container(
+        width: Space.s5, height: Space.s5, alignment: Alignment.center,
+        decoration: BoxDecoration(color: PhotonColors.accentWash, borderRadius: BorderRadius.circular(PhotonRadius.card), border: Border.all(color: PhotonColors.line)),
+        child: Icon(icon, color: PhotonColors.accent, size: 22),
+      ),
+      title: Text(label, style: PText.title),
+      trailing: active ? Icon(Icons.check_outlined, color: PhotonColors.accent) : null,
+      onTap: () { Navigator.pop(context); onTap(); },
+    );
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(child: Padding(
+        padding: const EdgeInsets.only(bottom: Space.s2),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          item(Icons.photo_outlined, AppLang.instance.t('sendPhoto'), _pickAndSendImage),
+          item(Icons.attach_file_outlined, AppLang.instance.t('sendFile'), _pickAndSendFile),
+          item(Icons.gif_box_outlined, AppLang.instance.t('createGif'), _openGifCreator),
+          item(Icons.location_on_outlined, AppLang.instance.t('shareLocation'), _shareLocation),
+          item(Icons.flash_on_outlined, AppLang.instance.t('quickReplies'),
+              () => setState(() => _showQuickReplies = !_showQuickReplies), active: _showQuickReplies),
+        ]),
+      )),
+    );
+  }
+
   Widget _banner(IconData icon, String text, Color color) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     color: color.withOpacity(0.12),
-    child: Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 8), Expanded(child: Text(text, style: TextStyle(color: color, fontSize: 11.5, height: 1.4)))]),
+    child: Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 8), Expanded(child: Text(text, style: TextStyle(color: color, fontSize: 11, height: 1.4)))]),
   );
 }
 

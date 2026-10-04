@@ -60,12 +60,12 @@ class ShopTierScreen extends StatelessWidget {
             Text('${tier.priceTry}₺',
                 style: TextStyle(
                     color: PhotonColors.accent,
-                    fontSize: 30,
+                    fontSize: 34,
                     fontWeight: FontWeight.w700)),
             Padding(
-              padding: const EdgeInsets.only(bottom: 5, left: 2),
+              padding: const EdgeInsets.only(bottom: 4, left: 2),
               child: Text(AppLang.instance.t('shopPerMonth'),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                  style: PText.small),
             ),
             const Spacer(),
             if (owned)
@@ -73,7 +73,7 @@ class ShopTierScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: PhotonColors.accent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(AppLang.instance.t('shopActive'),
                     style: TextStyle(
@@ -82,26 +82,26 @@ class ShopTierScreen extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
           ]),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(AppLang.instance.t('shopAllFeatures'),
               style: TextStyle(
-                  color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-          const SizedBox(height: 10),
+                  color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: PhotonColors.panel,
               border: Border.all(color: PhotonColors.line),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: included
                   .map((t) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(children: [
-                          Icon(Icons.check, size: 15, color: PhotonColors.accent),
-                          const SizedBox(width: 10),
+                          Icon(Icons.check_outlined, size: 15, color: PhotonColors.accent),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(AppLang.instance.t(t.addsKey),
                                 style: TextStyle(
@@ -113,7 +113,7 @@ class ShopTierScreen extends StatelessWidget {
             ),
           ),
           if (tier.boldMessages) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(AppLang.instance.t('boldHint'),
                 style: TextStyle(
                     color: PhotonColors.textDim, fontSize: 11, height: 1.5)),

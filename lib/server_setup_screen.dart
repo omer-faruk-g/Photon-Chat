@@ -78,66 +78,84 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     return null;
   }
 
+  /// Çeviri metnindeki "1. …" satırlarını ayrı adımlara böler.
+  List<String> get _steps => AppLang.instance.t('renderSteps')
+      .split('\n')
+      .map((l) => l.trim().replaceFirst(RegExp(r'^\d+[.)]\s*'), ''))
+      .where((l) => l.isNotEmpty)
+      .toList();
+
   @override
   Widget build(BuildContext context) {
+    final steps = _steps;
     return Scaffold(
       backgroundColor: PhotonColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 28,
-            right: 28,
-            top: 28,
-            bottom: 28 + MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              Text(AppLang.instance.t('serverSetupTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 24, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              Text(
-                AppLang.instance.t('photonChatOwnServer'),
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.7),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
-                child: Text(
-                  AppLang.instance.t('renderSteps'),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.8, fontFamily: 'monospace'),
+          padding: EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s4 + MediaQuery.of(context).viewInsets.bottom),
+          child: ContentWidth(
+            max: 560,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  BrandMark(size: 28),
+                  const SizedBox(width: Space.s1),
+                  Text('Photon Chat', style: PText.h2),
+                ]),
+                const SizedBox(height: Space.s5),
+                Text(AppLang.instance.t('serverSetupTitle'), style: PText.display),
+                const SizedBox(height: Space.s2),
+                Text(AppLang.instance.t('photonChatOwnServer'), style: PText.bodyDim),
+                const SizedBox(height: Space.s4),
+                for (final (i, step) in steps.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s2),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Container(
+                        width: Space.s3, height: Space.s3,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accentWash,
+                          borderRadius: BorderRadius.circular(PhotonRadius.pill),
+                          border: Border.all(color: PhotonColors.line),
+                        ),
+                        child: Text('${i + 1}', style: PText.meta.merge(PText.tabular).copyWith(color: PhotonColors.accent, fontWeight: FontWeight.w600)),
+                      ),
+                      const SizedBox(width: Space.s2),
+                      Expanded(child: Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(step, style: PText.body),
+                      )),
+                    ]),
+                  ),
+                const SizedBox(height: Space.s3),
+                TextField(
+                  controller: _ctrl,
+                  style: PText.body,
+                  decoration: InputDecoration(
+                    labelText: AppLang.instance.t('renderUrl'),
+                    hintText: AppLang.instance.t('renderUrlHint'),
+                    errorText: _error,
+                    errorMaxLines: 3,
+                    prefixIcon: Icon(Icons.dns_outlined, color: PhotonColors.textDim),
+                  ),
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  onSubmitted: (_) => _loading ? null : _test(),
                 ),
-              ),
-              const SizedBox(height: 28),
-              TextField(
-                controller: _ctrl,
-                style: TextStyle(color: PhotonColors.text),
-                decoration: InputDecoration(
-                  labelText: AppLang.instance.t('renderUrl'),
-                  hintText: AppLang.instance.t('renderUrlHint'),
-                  hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
-                  labelStyle: TextStyle(color: PhotonColors.textDim),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
-                  errorText: _error,
-                  errorStyle: TextStyle(color: PhotonColors.danger),
+                const SizedBox(height: Space.s2),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _test,
+                    child: _loading
+                        ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.onAccent))
+                        : Text(AppLang.instance.t('connectAndContinue')),
+                  ),
                 ),
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: photonPrimaryButtonStyle(),
-                  onPressed: _loading ? null : _test,
-                  child: _loading
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : Text(AppLang.instance.t('connectAndContinue')),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
