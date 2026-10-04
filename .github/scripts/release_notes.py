@@ -667,10 +667,30 @@ CHANGELOGS = {
         "**Dil desteği genişletildi:**\n"
         "- 🌐 Kişiler ve Ayarlar ekranında 45+ dil desteği eklendi (kısmi)"
     ),
+    'v10.6.0': (
+        "### ⚠️ v10.6.0 — Geri çekildi\n\n"
+        "Bu sürüm yanlışlıkla eski bir kod hattından derlendi; hikayeler, anketler, dil desteği, "
+        "Dükkan/VIP katmanları ve profil animasyonları gibi v10.5.0 özelliklerinin hepsi eksik.\n\n"
+        "**Bu sürümü kurmayın — v10.7.0'ı kurun.** v10.7.0 tüm v10.5.0 özelliklerini geri getiriyor."
+    ),
+    'v10.7.0': (
+        "### 🔁 v10.7.0 — v10.5.0'ın tüm özellikleri geri geldi\n\n"
+        "v10.6.0 yanlışlıkla eski bir kod hattından derlenmişti ve v10.5.0'daki özelliklerin çoğu kaybolmuştu. "
+        "Bu sürüm v10.5.0'ı eksiksiz geri getiriyor:\n\n"
+        "- ✅ Hikayeler, anketler, tepkiler, yıldızlı mesajlar, duvar kağıdı\n"
+        "- ✅ 45 dil desteği ve otomatik çeviri\n"
+        "- ✅ Dükkan ve 8 VIP katmanı, Fake isim\n"
+        "- ✅ Profil ekranı ve beş giriş animasyonu\n"
+        "- ✅ Cihaz eşleştirme, uygulama kilidi, GIF oluşturucu, sesli mesaj\n\n"
+        "**Ek düzeltmeler:**\n"
+        "- Balon animasyonu patlarken tüm profili beyaza boyuyordu — düzeltildi.\n"
+        "- Katman bilgisi henüz yüklenmemişken profil animasyonu sessizce atlanıyordu — düzeltildi.\n\n"
+        "> v10.6.0'ı kurduysan bu sürümü üzerine kurman yeterli."
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
 
 
 def make_body(tag):
