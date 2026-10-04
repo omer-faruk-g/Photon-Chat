@@ -162,6 +162,57 @@ void main() {
     expect(await KnkApi.sendGroupMessage(base, groupId, ownerToken, fromName: 'Sahip', text: 'x', ts: 6), 'Grup artık mevcut değil.');
   });
 
+  test('group E2E: owner distributes the key through the server, server only sees ciphertext', () async {
+    final owner = FipBlock.generate();
+    final member = FipBlock.generate();
+    final ownerPub = await getMyPublicKeyBase64(); // bu süreçteki anahtar = sahip
+    final memberKp = await X25519().newKeyPair();
+    final memberPub = base64.encode((await memberKp.extractPublicKey()).bytes);
+
+    final g = await KnkApi.createGroup(base, ownerFipId: owner.fipId, ownerName: 'Sahip', name: 'Gizli',
+        ownerServerUrl: base, ownerPublicKey: ownerPub);
+    final groupId = g!['groupId'] as String;
+    final ownerToken = g['token'] as String;
+    final byCode = await KnkApi.getGroupByCode(base, g['groupCode'] as String);
+    expect(byCode!['ownerPublicKey'], ownerPub);
+
+    final (memberToken, _) = await KnkApi.sendGroupJoinRequest(base, groupId,
+        fromFipId: member.fipId, fromName: 'Üye', fromServerUrl: base, fromPublicKey: memberPub);
+    expect(await KnkApi.acceptGroupMember(base, groupId, ownerToken, fipId: member.fipId), isTrue);
+    final info = await KnkApi.getGroupMembers(base, groupId);
+    final m = (info!['members'] as List).cast<Map>().firstWhere((x) => x['fipId'] == member.fipId);
+    expect(m['publicKey'], memberPub);
+    expect(m['keyId'], isNull);
+
+    // Sahip anahtarı sarar ve teslim eder
+    final (keyId, key) = generateGroupKeyEntry();
+    final wrapped = await wrapGroupKey(groupId: groupId, keyId: keyId, keyBase64: key, memberPublicKeyBase64: memberPub);
+    expect(await KnkApi.putGroupKey(base, groupId, memberToken!, member.fipId, encryptedKey: wrapped, keyId: keyId), isFalse,
+        reason: 'üye anahtar dağıtamaz');
+    expect(await KnkApi.putGroupKey(base, groupId, ownerToken, member.fipId, encryptedKey: wrapped, keyId: keyId), isTrue);
+    final m2 = ((await KnkApi.getGroupMembers(base, groupId))!['members'] as List).cast<Map>().firstWhere((x) => x['fipId'] == member.fipId);
+    expect(m2['keyId'], keyId);
+
+    // Üye kendi anahtarını alır ve (kendi özel anahtarıyla) açar
+    final fetched = await KnkApi.getMyGroupKey(base, groupId, memberToken, member.fipId);
+    expect(fetched!.$2, keyId);
+    final shared = await X25519().sharedSecretKey(
+        keyPair: memberKp, remotePublicKey: SimplePublicKey(base64.decode(ownerPub), type: KeyPairType.x25519));
+    final unwrapKey = await Hkdf(hmac: Hmac(Sha256()), outputLength: 32).deriveKey(
+        secretKey: SecretKey(await shared.extractBytes()), info: utf8.encode('photon-chat-group-wrap-v1'), nonce: const []);
+    final opened = jsonDecode(await e2eDecrypt(fetched.$1, unwrapKey)) as Map<String, dynamic>;
+    expect(opened['k'], key);
+    expect(await KnkApi.getMyGroupKey(base, groupId, ownerToken, member.fipId), isNull,
+        reason: 'başkasının anahtarı alınamaz');
+
+    // Şifreli mesaj: sunucuda yalnızca şifreli metin, üye çözebilir
+    final payload = await encryptGroupMessage('gizli toplantı saat 9', keyId, key);
+    expect(await KnkApi.sendGroupMessage(base, groupId, ownerToken, fromName: 'Sahip', text: payload, ts: 10), isNull);
+    final stored = (await KnkApi.getGroupMessages(base, groupId, memberToken))!.single['text'] as String;
+    expect(stored.contains('toplantı'), isFalse);
+    expect(await decryptGroupMessage(stored, {opened['id'] as String: opened['k'] as String}), 'gizli toplantı saat 9');
+  });
+
   test('unreachable servers fail fast with null / false, never throw', () async {
     const dead = 'http://127.0.0.1:1';
     expect(await KnkApi.getMessages('a__b', receiverServerUrl: dead), isNull);

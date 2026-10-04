@@ -4,6 +4,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../e2e.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -32,16 +33,19 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
     setState(() { _loading = true; _error = null; });
     try {
+      final myPub = await getMyPublicKeyBase64();
       final data = await KnkApi.createGroup(
         widget.myServerUrl,
         ownerFipId: widget.identity.fipId,
         ownerName: widget.displayName,
         name: name,
         ownerServerUrl: widget.myServerUrl,
+        ownerPublicKey: myPub,
       );
       if (!mounted) return;
       if (data == null) { setState(() { _error = 'Grup oluşturulamadı. Sunucu bağlantını kontrol et.'; _loading = false; }); return; }
       if (data['token'] == null) { setState(() { _error = 'Sunucun eski bir sürüm. Grup için sunucunu güncelle.'; _loading = false; }); return; }
+      final (keyId, key) = generateGroupKeyEntry();
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
@@ -50,7 +54,11 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
         token: data['token'] as String?,
-        members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl)],
+        ownerPublicKey: myPub,
+        // İlk uçtan uca grup anahtarı: yalnızca bu cihazda üretilir ve saklanır.
+        keyring: {keyId: key},
+        currentKeyId: keyId,
+        members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl, publicKey: myPub)],
       );
       setState(() { _created = group; _loading = false; });
     } catch (_) {

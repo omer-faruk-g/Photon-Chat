@@ -250,30 +250,31 @@ function createApp() {
     const t = tokenOf(req);
     return t ? g.members.find(m => m.token === t) : undefined;
   };
-  const publicMember = ({ fipId, name, serverUrl }) => ({ fipId, name, serverUrl });
-  const publicRequest = ({ fromFipId, fromName, fromServerUrl, ts }) => ({ fromFipId, fromName, fromServerUrl, ts });
+  const publicRequest = ({ fromFipId, fromName, fromServerUrl, fromPublicKey, ts }) => ({ fromFipId, fromName, fromServerUrl, fromPublicKey, ts });
 
   app.post('/groups', (req, res) => {
-    const { ownerFipId, ownerName, name, ownerServerUrl } = req.body || {};
-    if (!isStr(ownerFipId, 128) || !isStr(name, 64) || !optStr(ownerName, 64) || !optStr(ownerServerUrl, 512))
+    const { ownerFipId, ownerName, name, ownerServerUrl, ownerPublicKey } = req.body || {};
+    if (!isStr(ownerFipId, 128) || !isStr(name, 64) || !optStr(ownerName, 64) || !optStr(ownerServerUrl, 512) || !optStr(ownerPublicKey, 256))
       return res.sendStatus(400);
     const groupId = `grp_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
     const groupCode = uniqueGroupCode();
     const ownerToken = newToken();
     groups.set(groupId, {
-      groupId, groupCode, name, ownerFipId, ownerName, ownerServerUrl, ownerToken,
-      members: [{ fipId: ownerFipId, name: ownerName, serverUrl: ownerServerUrl, token: ownerToken }],
+      groupId, groupCode, name, ownerFipId, ownerName, ownerServerUrl, ownerToken, ownerPublicKey,
+      members: [{ fipId: ownerFipId, name: ownerName, serverUrl: ownerServerUrl, publicKey: ownerPublicKey, token: ownerToken }],
       joinRequests: [], messages: [],
       muted: [],       // susturulan üyeler [fipId, ...]
-      groupKeys: {},   // { memberFipId: encryptedKey }
+      // Uçtan uca şifreleme: sahip, grup anahtarını her üyenin public key'i ile sarıp buraya koyar.
+      // Sunucu yalnızca sarılmış (okunamayan) anahtarı taşır: { memberFipId: { encryptedKey, keyId } }
+      groupKeys: {},
     });
-    res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl, token: ownerToken });
+    res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl, ownerPublicKey, token: ownerToken });
   });
 
   app.get('/groups/by-code/:code', (req, res) => {
     for (const [, g] of groups) {
       if (g.groupCode === req.params.code)
-        return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl });
+        return res.json({ groupId: g.groupId, groupCode: g.groupCode, name: g.name, ownerFipId: g.ownerFipId, ownerServerUrl: g.ownerServerUrl, ownerPublicKey: g.ownerPublicKey });
     }
     res.sendStatus(404);
   });
@@ -298,12 +299,12 @@ function createApp() {
   // Aynı fipId için ikinci istek token vermez; başkası adına token alınamaz.
   app.post('/groups/:groupId/join-requests', (req, res) => {
     const g = req.group;
-    const { fromFipId, fromName, fromServerUrl } = req.body || {};
-    if (!isStr(fromFipId, 128) || !optStr(fromName, 64) || !optStr(fromServerUrl, 512)) return res.sendStatus(400);
+    const { fromFipId, fromName, fromServerUrl, fromPublicKey } = req.body || {};
+    if (!isStr(fromFipId, 128) || !optStr(fromName, 64) || !optStr(fromServerUrl, 512) || !optStr(fromPublicKey, 256)) return res.sendStatus(400);
     if (g.members.some(m => m.fipId === fromFipId)) return res.status(409).json({ error: 'Zaten üyesin.' });
     if (g.joinRequests.some(r => r.fromFipId === fromFipId)) return res.status(409).json({ error: 'İstek zaten gönderilmiş.' });
     const token = newToken();
-    g.joinRequests.push({ fromFipId, fromName, fromServerUrl, ts: Date.now(), token });
+    g.joinRequests.push({ fromFipId, fromName, fromServerUrl, fromPublicKey, ts: Date.now(), token });
     res.json({ token });
   });
 
@@ -320,7 +321,11 @@ function createApp() {
 
   app.get('/groups/:groupId/members', (req, res) => {
     const g = req.group;
-    res.json({ members: g.members.map(publicMember), muted: g.muted, ownerFipId: g.ownerFipId, name: g.name });
+    // keyId: üyeye sarılmış olarak teslim edilen en güncel grup anahtarının kimliği (sahip eksikleri tamamlar)
+    const members = g.members.map(({ fipId, name, serverUrl, publicKey }) => ({
+      fipId, name, serverUrl, publicKey, keyId: (g.groupKeys[fipId] || {}).keyId || null,
+    }));
+    res.json({ members, muted: g.muted, ownerFipId: g.ownerFipId, ownerPublicKey: g.ownerPublicKey, name: g.name });
   });
 
   // Katılma isteğini onayla (yalnızca sahip; yalnızca istek göndermiş biri eklenebilir)
@@ -332,7 +337,7 @@ function createApp() {
     if (g.members.some(m => m.fipId === fipId)) return res.sendStatus(200);
     const r = g.joinRequests.find(x => x.fromFipId === fipId);
     if (!r) return res.sendStatus(404);
-    g.members.push({ fipId, name: r.fromName, serverUrl: r.fromServerUrl, token: r.token });
+    g.members.push({ fipId, name: r.fromName, serverUrl: r.fromServerUrl, publicKey: r.fromPublicKey, token: r.token });
     g.joinRequests = g.joinRequests.filter(x => x.fromFipId !== fipId);
     res.sendStatus(200);
   });
@@ -406,9 +411,10 @@ function createApp() {
   app.post('/groups/:groupId/key/:memberFipId', (req, res) => {
     const g = req.group;
     if (!isOwner(g, req)) return res.sendStatus(403);
-    const { encryptedKey } = req.body || {};
-    if (!isStr(encryptedKey, 1024)) return res.sendStatus(400);
-    g.groupKeys[req.params.memberFipId] = encryptedKey;
+    const { encryptedKey, keyId } = req.body || {};
+    if (!isStr(encryptedKey, 1024) || !isStr(keyId, 64)) return res.sendStatus(400);
+    if (!g.members.some(m => m.fipId === req.params.memberFipId)) return res.sendStatus(404);
+    g.groupKeys[req.params.memberFipId] = { encryptedKey, keyId };
     res.sendStatus(200);
   });
 
@@ -417,7 +423,7 @@ function createApp() {
     if (!actor || actor.fipId !== req.params.memberFipId) return res.sendStatus(403);
     const key = req.group.groupKeys[req.params.memberFipId];
     if (!key) return res.sendStatus(404);
-    res.json({ encryptedKey: key });
+    res.json({ encryptedKey: key.encryptedKey, keyId: key.keyId });
   });
 
   // --- Bridge registry (global code -> serverUrl directory) ---

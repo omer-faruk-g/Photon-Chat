@@ -43,7 +43,7 @@ class _GuideScreenState extends State<GuideScreen> {
     _GuidePage(
       icon: '🔒',
       title: 'Gizlilik',
-      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Birebir mesajlar uçtan uca şifrelidir (X25519 + AES-GCM)",
+      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Birebir ve grup mesajları uçtan uca şifrelidir (X25519 + AES-GCM)",
     ),
   ];
 

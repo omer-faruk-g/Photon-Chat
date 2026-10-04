@@ -245,9 +245,13 @@ class KnkApi {
   /// Başarılıysa {groupId, groupCode, name, ownerFipId, ownerServerUrl, token} döner.
   static Future<Map<String, dynamic>?> createGroup(String myServerUrl, {
     required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl,
+    String? ownerPublicKey,
   }) async {
     try {
-      final r = await _post(myServerUrl, '/groups', {'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name, 'ownerServerUrl': ownerServerUrl});
+      final r = await _post(myServerUrl, '/groups', {
+        'ownerFipId': ownerFipId, 'ownerName': ownerName, 'name': name, 'ownerServerUrl': ownerServerUrl,
+        if (ownerPublicKey != null) 'ownerPublicKey': ownerPublicKey,
+      });
       if (r.statusCode == 200 || r.statusCode == 201) return jsonDecode(r.body) as Map<String, dynamic>;
     } catch (_) {}
     return null;
@@ -263,11 +267,13 @@ class KnkApi {
 
   /// Katılma isteği gönderir. Başarılıysa (üye token'ı, null), aksi halde (null, hata) döner.
   static Future<(String?, String?)> sendGroupJoinRequest(String ownerServerUrl, String groupId, {
-    required String fromFipId, required String fromName, required String fromServerUrl,
+    required String fromFipId, required String fromName, required String fromServerUrl, String? fromPublicKey,
   }) async {
     try {
-      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/join-requests',
-          {'fromFipId': fromFipId, 'fromName': fromName, 'fromServerUrl': fromServerUrl});
+      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/join-requests', {
+        'fromFipId': fromFipId, 'fromName': fromName, 'fromServerUrl': fromServerUrl,
+        if (fromPublicKey != null) 'fromPublicKey': fromPublicKey,
+      });
       Map<String, dynamic>? body;
       try { body = jsonDecode(r.body) as Map<String, dynamic>; } catch (_) {}
       final token = body?['token'] as String?;
@@ -358,6 +364,33 @@ class KnkApi {
       return r.statusCode == 200 || r.statusCode == 404;
     } catch (_) {}
     return false;
+  }
+
+  // --- Grup anahtarı dağıtımı (uçtan uca şifreleme) ---
+
+  /// Sahip: bir üyeye sarılmış grup anahtarını teslim eder.
+  static Future<bool> putGroupKey(String ownerServerUrl, String groupId, String ownerToken, String memberFipId,
+      {required String encryptedKey, required String keyId}) async {
+    try {
+      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/key/${_seg(memberFipId)}',
+          {'encryptedKey': encryptedKey, 'keyId': keyId}, token: ownerToken);
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
+  }
+
+  /// Üye: kendisine sarılmış en güncel grup anahtarını alır: (sarılmış anahtar, keyId). Henüz yoksa null.
+  static Future<(String, String)?> getMyGroupKey(String ownerServerUrl, String groupId, String token, String myFipId) async {
+    try {
+      final r = await _get(ownerServerUrl, '/groups/${_seg(groupId)}/key/${_seg(myFipId)}', token: token);
+      if (r.statusCode == 200) {
+        final j = jsonDecode(r.body) as Map<String, dynamic>;
+        final k = j['encryptedKey'] as String?;
+        final id = j['keyId'] as String?;
+        if (k != null && id != null) return (k, id);
+      }
+    } catch (_) {}
+    return null;
   }
 
   // --- Group mute (sahip token'ı gerekir) ---

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
+import '../e2e.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
@@ -39,6 +40,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _unreachable = false;
   String? _inputError;
   _Membership _membership = _Membership.loading;
+
+  /// Ham (şifreli) metin -> çözülmüş metin. Her turda tüm geçmişi yeniden çözmemek için.
+  final Map<String, String?> _decryptCache = {};
+  /// Anahtar halkası değişti: mesajlar yeniden çözülmeli.
+  bool _keysChanged = false;
+  /// Bir üyeye anahtar teslimi sürüyor (aynı anda iki kez sarmamak için).
+  final Set<String> _wrapping = {};
 
   Group get _g => widget.group;
   String get _owner => _g.ownerServerUrl;
@@ -81,9 +89,24 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (msgs == null) {
         if (!_unreachable) setState(() => _unreachable = true);
       } else {
-        msgs.removeWhere((m) => m['ts'] is! num || m['from'] is! String);
+        msgs.removeWhere((m) => m['ts'] is! num || m['from'] is! String || m['text'] is! String);
         msgs.sort((a, b) => (a['ts'] as num).compareTo(b['ts'] as num));
-        final changed = msgs.length != _messages.length ||
+        final keysChanged = _keysChanged;
+        _keysChanged = false;
+        for (final m in msgs) {
+          final raw = m['text'] as String;
+          m['_enc'] = isGroupE2EMessage(raw);
+          if (_decryptCache.containsKey(raw)) {
+            m['_plain'] = _decryptCache[raw];
+          } else {
+            final plain = await decryptGroupMessage(raw, _g.keyring);
+            // Anahtarı henüz gelmemiş mesajı önbelleğe alma; anahtar gelince tekrar denenir.
+            if (plain != null || _g.keyring.containsKey(groupMessageKeyId(raw))) _decryptCache[raw] = plain;
+            m['_plain'] = plain;
+          }
+        }
+        if (_disposed) return;
+        final changed = keysChanged || msgs.length != _messages.length ||
             (msgs.isNotEmpty && (msgs.last['ts'] != _messages.last['ts'] || msgs.first['ts'] != _messages.first['ts']));
         if (changed || _unreachable || !_loaded) {
           final nearBottom = !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.offset < 120;
@@ -116,6 +139,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             .whereType<GroupMember>()
             .toList();
         final muted = (info['muted'] as List? ?? const []).whereType<String>().toList();
+        // Güncellemeden önce katılınmış gruplarda sahibin anahtarı ilk kez burada sabitlenir.
+        if (_g.ownerPublicKey == null && info['ownerPublicKey'] is String) {
+          _g.ownerPublicKey = info['ownerPublicKey'] as String;
+          unawaited(LocalStore.updateGroup(_g));
+        }
         var membership = _membership;
         if (_g.isOwner || members.any((m) => m.fipId == _me)) {
           membership = _Membership.member;
@@ -135,6 +163,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _membership = membership;
           if (joins != null) _pendingJoins = joins;
         });
+        if (_g.isOwner) {
+          await _distributeKeys();
+        } else if (membership == _Membership.member) {
+          await _fetchMyKey();
+        }
       }
     } catch (_) {
     } finally {
@@ -165,18 +198,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       setState(() => _inputError = error);
       return;
     }
+    final keyId = _g.currentKeyId;
+    final key = _g.currentKey;
+    if (keyId == null || key == null) {
+      setState(() => _inputError = 'Grup şifreleme anahtarı henüz gelmedi. Grup sahibinin uygulamayı açması gerekiyor.');
+      return;
+    }
     final text = sanitizeMessage(raw);
     final ts = DateTime.now().millisecondsSinceEpoch;
     setState(() { _inputError = null; _sending = true; });
+    final payload = await encryptGroupMessage(text, keyId, key);
+    _decryptCache[payload] = text;
     final err = await KnkApi.sendGroupMessage(_owner, _g.groupId, _token,
-      fromName: widget.displayName, text: text, ts: ts,
+      fromName: widget.displayName, text: payload, ts: ts,
     );
     if (_disposed) return;
     setState(() {
       _sending = false;
       if (err == null) {
         _msgCtrl.clear();
-        _messages = [..._messages, {'from': _me, 'fromName': widget.displayName, 'text': text, 'ts': ts}];
+        _messages = [..._messages, {'from': _me, 'fromName': widget.displayName, 'text': payload, '_plain': text, '_enc': true, 'ts': ts}];
       } else {
         _inputError = err;
       }
@@ -193,9 +234,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     setState(() {
       _pendingJoins.removeWhere((r) => r['fromFipId'] == fipId);
       if (!_g.members.any((m) => m.fipId == fipId)) {
-        _g.members = [..._g.members, GroupMember(fipId: fipId, name: req['fromName'] as String? ?? 'Bilinmeyen', serverUrl: req['fromServerUrl'] as String? ?? '')];
+        _g.members = [..._g.members, GroupMember(fipId: fipId, name: req['fromName'] as String? ?? 'Bilinmeyen',
+            serverUrl: req['fromServerUrl'] as String? ?? '', publicKey: req['fromPublicKey'] as String?)];
       }
     });
+    // Yeni üyeye grup anahtarını hemen teslim et.
+    await _distributeKeys();
   }
 
   Future<void> _rejectMember(Map<String, dynamic> req) async {
@@ -229,6 +273,68 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() => _g.members = _g.members.where((m) => m.fipId != member.fipId).toList());
     _showToast('${member.name} gruptan atıldı.');
+    // Atılan üye eski anahtarı biliyor: yeni mesajlar için anahtarı yenile ve kalanlara dağıt.
+    await _rotateKey();
+  }
+
+  // --- Uçtan uca grup anahtarı ---
+
+  /// Sahip: güncel anahtarı olmayan her üyeye anahtarı sarıp teslim eder.
+  Future<void> _distributeKeys() async {
+    if (!_g.isOwner) return;
+    if (_g.currentKey == null) {
+      // Şifreleme gelmeden önce oluşturulmuş grup: ilk anahtarı şimdi üret.
+      await _rotateKey(distribute: false);
+    }
+    final keyId = _g.currentKeyId!;
+    final key = _g.currentKey!;
+    for (final m in _g.members.toList()) {
+      final pub = m.publicKey;
+      if (m.fipId == _me || pub == null || pub.isEmpty || m.keyId == keyId || _wrapping.contains(m.fipId)) continue;
+      _wrapping.add(m.fipId);
+      try {
+        final wrapped = await wrapGroupKey(groupId: _g.groupId, keyId: keyId, keyBase64: key, memberPublicKeyBase64: pub);
+        await KnkApi.putGroupKey(_owner, _g.groupId, _token, m.fipId, encryptedKey: wrapped, keyId: keyId);
+      } catch (_) {
+        // Bir sonraki turda tekrar denenir (sunucu keyId'yi güncel göstermez).
+      } finally {
+        _wrapping.remove(m.fipId);
+      }
+      if (_disposed) return;
+    }
+  }
+
+  /// Sahip: yeni bir grup anahtarı üretir; eski anahtarlar geçmiş mesajları okumak için tutulur.
+  Future<void> _rotateKey({bool distribute = true}) async {
+    final (keyId, key) = generateGroupKeyEntry();
+    _g.keyring[keyId] = key;
+    _g.currentKeyId = keyId;
+    await LocalStore.updateGroup(_g);
+    if (distribute && !_disposed) await _distributeKeys();
+  }
+
+  /// Üye: sahibin bize sardığı en güncel anahtarı alır ve anahtar halkasına ekler.
+  Future<void> _fetchMyKey() async {
+    final ownerPub = _g.ownerPublicKey;
+    if (ownerPub == null) return;
+    final res = await KnkApi.getMyGroupKey(_owner, _g.groupId, _token, _me);
+    if (res == null || _disposed) return;
+    final (wrapped, keyId) = res;
+    if (_g.keyring.containsKey(keyId)) {
+      if (_g.currentKeyId != keyId) {
+        _g.currentKeyId = keyId;
+        await LocalStore.updateGroup(_g);
+      }
+      return;
+    }
+    final entry = await unwrapGroupKey(groupId: _g.groupId, expectedKeyId: keyId, wrapped: wrapped, ownerPublicKeyBase64: ownerPub);
+    if (entry == null || _disposed) return;
+    _g.keyring[entry.$1] = entry.$2;
+    _g.currentKeyId = entry.$1;
+    await LocalStore.updateGroup(_g);
+    if (_disposed) return;
+    _keysChanged = true;
+    setState(() {});
   }
 
   Future<void> _leaveOrDelete() async {
@@ -411,7 +517,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       case _Membership.legacy:
         text = 'Bu grup uygulamanın eski bir sürümüyle eklendi. Grubu listeden kaldırıp yeniden oluştur veya katıl.';
       case _Membership.member:
-        if (_mutedMembers.contains(_me)) text = 'Grup yöneticisi seni susturdu.';
+        if (_mutedMembers.contains(_me)) {
+          text = 'Grup yöneticisi seni susturdu.';
+        } else if (_g.currentKey == null) {
+          text = 'Şifreleme anahtarı bekleniyor. Grup sahibi uygulamayı açınca mesajlaşabilirsin.';
+        }
       case _Membership.loading:
         break;
     }
@@ -427,7 +537,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me);
+    final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me) && _g.currentKey != null;
     final banner = _statusBanner();
     return Scaffold(
       appBar: AppBar(
@@ -451,6 +561,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         children: [
           Column(
             children: [
+              if (_g.currentKey != null && _membership == _Membership.member)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
+                  child: const Row(children: [
+                    Icon(Icons.lock, color: KnkColors.accent, size: 11),
+                    SizedBox(width: 4),
+                    Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                  ]),
+                ),
               if (banner != null) banner,
               Expanded(
                 child: !_loaded && _messages.isEmpty && !_unreachable && _membership != _Membership.groupGone
@@ -534,7 +655,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildBubble(Map<String, dynamic> m) {
     final isMe = m['from'] == _me;
-    final displayText = filterProfanity(m['text'] as String? ?? '');
+    final plain = m['_plain'] as String?;
+    final undecryptable = plain == null;
+    // Şifreleme öncesinden kalan (veya sunucuya doğrudan yazılmış) düz metin doğrulanamaz.
+    final unverified = !undecryptable && m['_enc'] != true;
+    final displayText = undecryptable ? '🔒 Bu şifreli mesaj çözülemedi.' : filterProfanity(plain);
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -548,9 +673,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
         child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
           if (!isMe) Text(m['fromName'] as String? ?? '', style: const TextStyle(color: KnkColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-          Text(displayText, style: const TextStyle(color: KnkColors.text, fontSize: 14)),
+          Text(displayText, style: TextStyle(
+            color: undecryptable ? KnkColors.textDim : KnkColors.text, fontSize: 14,
+            fontStyle: undecryptable ? FontStyle.italic : FontStyle.normal,
+          )),
           const SizedBox(height: 2),
-          Text(_formatTime(m['ts'] as num), style: const TextStyle(color: KnkColors.textDim, fontSize: 9.5)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            if (unverified) ...[
+              const Tooltip(
+                message: 'Bu mesaj şifresiz; kimden geldiği doğrulanamıyor.',
+                child: Text('⚠ şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 9.5)),
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(_formatTime(m['ts'] as num), style: const TextStyle(color: KnkColors.textDim, fontSize: 9.5)),
+          ]),
         ]),
       ),
     );

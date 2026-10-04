@@ -42,7 +42,7 @@ Future<String> getMyPublicKeyBase64() async {
 }
 
 /// İki tarafın shared secret'ından AES-GCM anahtarı türetir.
-Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64) async {
+Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64, {String info = 'photon-chat-e2e-v1'}) async {
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getString(_kPrivKeyPref) == null) await ensureE2EKeypair();
   final privBytes = base64.decode(prefs.getString(_kPrivKeyPref)!);
@@ -58,7 +58,7 @@ Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64) async {
   final hkdf = Hkdf(hmac: Hmac(Sha256()), outputLength: 32);
   final aesKey = await hkdf.deriveKey(
     secretKey: SecretKey(sharedBytes),
-    info: utf8.encode('photon-chat-e2e-v1'),
+    info: utf8.encode(info),
     nonce: [],
   );
   return aesKey;
@@ -115,48 +115,77 @@ Future<String?> decryptChatMessage(String text, SecretKey? key) async {
 }
 
 // ---------------------------------------------------------------------------
-// Grup şifreleme — rastgele 32-byte grup anahtarı + X25519 sarmalama
+// Grup şifreleme
+//
+// Grup sahibi rastgele 32 byte'lık bir grup anahtarı üretir ve her üye için
+// X25519 + HKDF (ayrı bağlam) + AES-GCM ile "sarar". Sunucu yalnızca sarılmış
+// anahtarı taşır. Mesajlar 'e2eg1:<keyId>:<base64>' biçimindedir; bir üye
+// atıldığında sahip yeni bir anahtar (yeni keyId) üretip kalan üyelere dağıtır.
 // ---------------------------------------------------------------------------
 
-/// Yeni bir grup anahtarı oluşturur.
-List<int> generateGroupKey() {
+const _groupWrapInfo = 'photon-chat-group-wrap-v1';
+const groupE2EPrefix = 'e2eg1:';
+
+/// Grup anahtarı halkası: keyId -> anahtar (Base64). Eski anahtarlar geçmiş mesajlar için saklanır.
+typedef GroupKeyring = Map<String, String>;
+
+/// Yeni bir grup anahtarı üretir: (keyId, anahtar Base64).
+(String, String) generateGroupKeyEntry() {
   final rng = Random.secure();
-  return List<int>.generate(32, (_) => rng.nextInt(256));
+  final key = List<int>.generate(32, (_) => rng.nextInt(256));
+  final id = List<int>.generate(8, (_) => rng.nextInt(256)).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return (id, base64.encode(key));
 }
 
-/// Grup anahtarını bir üyenin public key'i ile şifreler (X25519+HKDF+AES-GCM).
-Future<String> encryptGroupKeyForMember(
-    List<int> groupKey, String memberPublicKeyBase64) async {
-  final memberKey = await deriveSharedKey(memberPublicKeyBase64);
-  final algo = AesGcm.with256bits();
-  final nonce = algo.newNonce();
-  final box = await algo.encrypt(Uint8List.fromList(groupKey),
-      secretKey: memberKey, nonce: nonce);
-  final combined =
-      Uint8List.fromList(nonce + box.cipherText + box.mac.bytes);
-  return base64.encode(combined);
+/// Grup anahtarını bir üyenin public key'i ile sarar. Paket, grup ve anahtar
+/// kimliğini de içerir; açılırken doğrulanır (başka grubun anahtarı sunulamaz).
+Future<String> wrapGroupKey({
+  required String groupId, required String keyId, required String keyBase64, required String memberPublicKeyBase64,
+}) async {
+  final wrapKey = await deriveSharedKey(memberPublicKeyBase64, info: _groupWrapInfo);
+  return e2eEncrypt(jsonEncode({'g': groupId, 'id': keyId, 'k': keyBase64}), wrapKey);
 }
 
-/// Kendi shared secret'ımızla sarmalanmış grup anahtarını çözer.
-Future<SecretKey> decryptGroupKey(
-    String encryptedGroupKeyBase64, String ownerPublicKeyBase64) async {
-  final sharedKey = await deriveSharedKey(ownerPublicKeyBase64);
-  final algo = AesGcm.with256bits();
-  final bytes = base64.decode(encryptedGroupKeyBase64);
-  final nonce = bytes.sublist(0, 12);
-  final mac = Mac(bytes.sublist(bytes.length - 16));
-  final cipherText = bytes.sublist(12, bytes.length - 16);
-  final box = SecretBox(cipherText, nonce: nonce, mac: mac);
-  final rawKey = await algo.decrypt(box, secretKey: sharedKey);
-  return SecretKey(rawKey);
+/// Sahibin sardığı grup anahtarını açar: (keyId, anahtar Base64). Geçersizse null.
+Future<(String, String)?> unwrapGroupKey({
+  required String groupId, required String expectedKeyId, required String wrapped, required String ownerPublicKeyBase64,
+}) async {
+  try {
+    final wrapKey = await deriveSharedKey(ownerPublicKeyBase64, info: _groupWrapInfo);
+    final j = jsonDecode(await e2eDecrypt(wrapped, wrapKey)) as Map<String, dynamic>;
+    final id = j['id'] as String?;
+    final k = j['k'] as String?;
+    if (j['g'] != groupId || id == null || id != expectedKeyId || k == null || base64.decode(k).length != 32) return null;
+    return (id, k);
+  } catch (_) {
+    return null;
+  }
 }
 
-/// Grup mesajını grup anahtarıyla şifreler.
-Future<String> e2eGroupEncrypt(String plaintext, SecretKey groupKey) async {
-  return e2eEncrypt(plaintext, groupKey);
+bool isGroupE2EMessage(String text) => text.startsWith(groupE2EPrefix);
+
+Future<String> encryptGroupMessage(String plaintext, String keyId, String keyBase64) async =>
+    '$groupE2EPrefix$keyId:${await e2eEncrypt(plaintext, SecretKey(base64.decode(keyBase64)))}';
+
+/// Düz metni olduğu gibi döndürür; şifreli mesajın anahtarı yoksa veya çözülemezse null.
+Future<String?> decryptGroupMessage(String text, GroupKeyring keyring) async {
+  if (!isGroupE2EMessage(text)) return text;
+  final rest = text.substring(groupE2EPrefix.length);
+  final sep = rest.indexOf(':');
+  if (sep <= 0) return null;
+  final key = keyring[rest.substring(0, sep)];
+  if (key == null) return null;
+  try {
+    return await e2eDecrypt(rest.substring(sep + 1), SecretKey(base64.decode(key)));
+  } catch (_) {
+    return null;
+  }
 }
 
-/// Grup mesajını grup anahtarıyla çözer.
-Future<String> e2eGroupDecrypt(String cipherBase64, SecretKey groupKey) async {
-  return e2eDecrypt(cipherBase64, groupKey);
+/// Şifreli grup mesajının anahtar kimliği (düz metinse null).
+String? groupMessageKeyId(String text) {
+  if (!isGroupE2EMessage(text)) return null;
+  final rest = text.substring(groupE2EPrefix.length);
+  final sep = rest.indexOf(':');
+  return sep <= 0 ? null : rest.substring(0, sep);
 }

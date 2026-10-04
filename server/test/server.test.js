@@ -307,3 +307,36 @@ test('user security: nobody can hijack presence, swap keys or deactivate others'
   await call('POST', '/presence', { fipId: B, code: '22222' }, null, 'tb');
   assert.equal(JSON.stringify((await call('GET', '/lookup/22222')).json).includes('token'), false);
 });
+
+test('group E2E key distribution: owner wraps, only the member can fetch, server never sees plaintext key', async () => {
+  const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'G', ownerServerUrl: base, ownerPublicKey: 'PK_A' })).json;
+  assert.equal(g.ownerPublicKey, 'PK_A');
+  assert.equal((await call('GET', `/groups/by-code/${g.groupCode}`)).json.ownerPublicKey, 'PK_A');
+  const bt = (await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Bora', fromPublicKey: 'PK_B' })).json.token;
+  const ct = (await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: C, fromName: 'Can', fromPublicKey: 'PK_C' })).json.token;
+  assert.equal((await call('GET', `/groups/${g.groupId}/join-requests`)).json[0].fromPublicKey, 'PK_B');
+  await call('POST', `/groups/${g.groupId}/members`, { fipId: B }, g.token);
+  await call('POST', `/groups/${g.groupId}/members`, { fipId: C }, g.token);
+
+  let info = (await call('GET', `/groups/${g.groupId}/members`)).json;
+  assert.equal(info.ownerPublicKey, 'PK_A');
+  assert.equal(info.members.find(m => m.fipId === B).publicKey, 'PK_B');
+  assert.equal(info.members.find(m => m.fipId === B).keyId, null);
+
+  // Yalnızca sahip anahtar koyabilir
+  assert.equal((await call('POST', `/groups/${g.groupId}/key/${B}`, { encryptedKey: 'WRAP', keyId: 'k1' }, bt)).status, 403);
+  assert.equal((await call('POST', `/groups/${g.groupId}/key/${B}`, { encryptedKey: 'WRAP_B', keyId: 'k1' }, g.token)).status, 200);
+  assert.equal((await call('POST', `/groups/${g.groupId}/key/fip_yok`, { encryptedKey: 'X', keyId: 'k1' }, g.token)).status, 404);
+  info = (await call('GET', `/groups/${g.groupId}/members`)).json;
+  assert.equal(info.members.find(m => m.fipId === B).keyId, 'k1');
+  assert.equal(JSON.stringify(info).includes('WRAP'), false, 'sarılmış anahtar listede görünmez');
+
+  // Yalnızca ilgili üye kendi anahtarını alabilir
+  assert.deepEqual((await call('GET', `/groups/${g.groupId}/key/${B}`, undefined, bt)).json, { encryptedKey: 'WRAP_B', keyId: 'k1' });
+  assert.equal((await call('GET', `/groups/${g.groupId}/key/${B}`, undefined, ct)).status, 403);
+  assert.equal((await call('GET', `/groups/${g.groupId}/key/${B}`)).status, 403);
+
+  // Atılan üyenin anahtar kaydı silinir
+  await call('DELETE', `/groups/${g.groupId}/members/${B}`, undefined, g.token);
+  assert.equal((await call('GET', `/groups/${g.groupId}/key/${B}`, undefined, bt)).status, 403);
+});

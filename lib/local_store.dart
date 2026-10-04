@@ -38,9 +38,16 @@ class GroupMember {
   final String fipId;
   final String name;
   final String serverUrl;
-  GroupMember({required this.fipId, required this.name, required this.serverUrl});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl};
-  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'] as String, name: (j['name'] as String?) ?? 'Bilinmeyen', serverUrl: (j['serverUrl'] as String?) ?? '');
+  /// Üyenin X25519 public key'i (grup anahtarını ona sarmak için).
+  final String? publicKey;
+  /// Sunucuya göre üyeye teslim edilmiş en güncel grup anahtarının kimliği.
+  final String? keyId;
+  GroupMember({required this.fipId, required this.name, required this.serverUrl, this.publicKey, this.keyId});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl, if (publicKey != null) 'publicKey': publicKey};
+  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
+    fipId: j['fipId'] as String, name: (j['name'] as String?) ?? 'Bilinmeyen', serverUrl: (j['serverUrl'] as String?) ?? '',
+    publicKey: j['publicKey'] as String?, keyId: j['keyId'] as String?,
+  );
 }
 
 class Group {
@@ -52,17 +59,35 @@ class Group {
   final bool isOwner;
   /// Sunucunun bu cihaza verdiği gizli grup anahtarı (sahip veya üye). Yalnızca cihazda saklanır.
   final String? token;
+  /// Sahibin X25519 public key'i: katılırken sabitlenir, sarılmış grup anahtarını açmak için kullanılır.
+  String? ownerPublicKey;
+  /// Uçtan uca grup anahtarları (keyId -> Base64). Eski anahtarlar geçmiş mesajlar için tutulur.
+  final Map<String, String> keyring;
+  /// Yeni mesajların şifreleneceği anahtarın kimliği.
+  String? currentKeyId;
   List<GroupMember> members;
-  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members, this.token});
-  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, if (token != null) 'token': token, 'members': members.map((m) => m.toJson()).toList()};
+  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl,
+      required this.isOwner, required this.members, this.token, this.ownerPublicKey, Map<String, String>? keyring, this.currentKeyId})
+      : keyring = keyring ?? {};
+  Map<String, dynamic> toJson() => {
+    'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl,
+    'isOwner': isOwner, if (token != null) 'token': token, if (ownerPublicKey != null) 'ownerPublicKey': ownerPublicKey,
+    if (keyring.isNotEmpty) 'keyring': keyring, if (currentKeyId != null) 'currentKeyId': currentKeyId,
+    'members': members.map((m) => m.toJson()).toList(),
+  };
   factory Group.fromJson(Map<String, dynamic> j) => Group(
     groupId: j['groupId'] as String, groupCode: (j['groupCode'] as String?) ?? '', name: (j['name'] as String?) ?? 'Grup',
     ownerFipId: (j['ownerFipId'] as String?) ?? '', ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
     isOwner: (j['isOwner'] as bool?) ?? false,
     token: j['token'] as String?,
+    ownerPublicKey: j['ownerPublicKey'] as String?,
+    keyring: (j['keyring'] as Map?)?.map((k, v) => MapEntry(k as String, v as String)),
+    currentKeyId: j['currentKeyId'] as String?,
     members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),
   );
   String get address => '$groupCode@$ownerServerUrl';
+  /// Yeni mesajları şifrelemek için kullanılacak anahtar (yoksa null).
+  String? get currentKey => currentKeyId == null ? null : keyring[currentKeyId];
 }
 
 /// Bozuk tek bir kayıt tüm listeyi kaybettirmesin diye öğeleri tek tek çözer.
@@ -144,6 +169,15 @@ class LocalStore {
     final raw = (await SharedPreferences.getInstance()).getString(_kGroupsKey);
     if (raw == null) return [];
     return _decodeList(raw, Group.fromJson);
+  }
+
+  /// Tek bir grubu kalıcı olarak günceller (ör. yeni grup anahtarı alındığında).
+  static Future<void> updateGroup(Group group) async {
+    final groups = await loadGroups();
+    final i = groups.indexWhere((g) => g.groupId == group.groupId);
+    if (i == -1) return; // gruptan ayrıldıysak yeniden ekleme
+    groups[i] = group;
+    await saveGroups(groups);
   }
 
   static Future<void> saveGroups(List<Group> groups) async =>

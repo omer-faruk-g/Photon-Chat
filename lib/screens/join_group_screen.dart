@@ -3,6 +3,7 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../e2e.dart';
 import '../server_setup_screen.dart' show normalizeServerUrl;
 
 class JoinGroupScreen extends StatefulWidget {
@@ -47,10 +48,17 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     if (data == null || groupId == null) return _fail('Grup bulunamadı. Adresi kontrol et.');
     if (widget.existingGroupIds.contains(groupId)) return _fail('Bu grup zaten listende.');
     final groupName = data['name'] as String? ?? 'Grup';
+    final ownerPublicKey = data['ownerPublicKey'] as String?;
+    if (ownerPublicKey == null || ownerPublicKey.isEmpty) {
+      return _fail('Bu grup uçtan uca şifrelemeyi desteklemiyor (eski sürümle oluşturulmuş).');
+    }
+    final myPub = await getMyPublicKeyBase64();
+    if (!mounted) return;
     final (token, err) = await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
       fromFipId: widget.identity.fipId,
       fromName: widget.displayName,
       fromServerUrl: widget.myServerUrl,
+      fromPublicKey: myPub,
     );
     if (!mounted) return;
     if (token == null) return _fail(err ?? 'Katılma isteği gönderilemedi. Tekrar dene.');
@@ -63,6 +71,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       ownerServerUrl: ownerServerUrl,
       isOwner: false,
       token: token,
+      // Sahibin anahtarı burada sabitlenir; grup anahtarı yalnızca bu anahtarla açılır.
+      ownerPublicKey: ownerPublicKey,
       members: [],
     );
     Navigator.pop(context, group);

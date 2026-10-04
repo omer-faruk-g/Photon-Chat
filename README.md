@@ -46,7 +46,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 | Özellik | |
 |---------|--|
 | Telefon / e-posta gerektirmez | ✅ |
-| Birebir mesajlarda uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
+| Birebir ve grup mesajlarında uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
 | Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
 | Ekran görüntüsü engeli (Android) | ✅ |
 | Grup sohbeti (grup sahibinin sunucusunda) | ✅ |
@@ -65,7 +65,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 |------|----------|
 | Kimlik (FIP bloğu) | Yalnızca cihazda saklanır — sunucuya gönderilmez |
 | Birebir mesajlar | Uçtan uca şifreli, sunucu RAM’inde, kalıcı kayıt yok |
-| Grup mesajları | Sunucu RAM’inde, yalnızca grup üyeleri okuyabilir (henüz uçtan uca şifreli değil) |
+| Grup mesajları | Uçtan uca şifreli; grup anahtarı üye çıkarılınca yenilenir |
 | Kişi listesi | Yalnızca cihazda |
 | Hesap silme | Tüm veriler anında imha edilir |
 
