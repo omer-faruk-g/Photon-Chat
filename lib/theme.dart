@@ -32,13 +32,13 @@ class PhotonColors {
   static Color get textDim => _d ? const Color(0xFF9DB3AC) : const Color(0xFF4A5F57);
 
   // Ana renk
-  static Color get accent => _d ? const Color(0xFF3DDC97) : const Color(0xFF0E7A4F);
-  static Color get accentHover => _d ? const Color(0xFF6BE8B1) : const Color(0xFF0A6640);
-  static Color get accentWash => _d ? const Color(0xFF102A20) : const Color(0xFFDDF3E8);
+  static Color get accent => _d ? const Color(0xFF3DDC97) : const Color(0xFF0E6B4B);
+  static Color get accentHover => _d ? const Color(0xFF6BE8B1) : const Color(0xFF0A5239);
+  static Color get accentWash => _d ? const Color(0xFF102A20) : const Color(0xFFE3EFE8);
   static Color get onAccent => _d ? const Color(0xFF06251A) : const Color(0xFFFFFFFF);
 
   // Vurgu
-  static Color get accent2 => _d ? const Color(0xFFF2A33D) : const Color(0xFF9A5600);
+  static Color get accent2 => _d ? const Color(0xFFF2A33D) : const Color(0xFF9A5A00);
   static Color get danger => _d ? const Color(0xFFF07167) : const Color(0xFFB3261E);
 
   /// Gölgeler gri değil, markanın koyu yeşilinden türetilir.

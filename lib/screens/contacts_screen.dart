@@ -41,6 +41,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _myStatusMsg = '';
   final Map<String, int> _groupPendingCounts = {};
   final Map<String, bool> _online = {};
+  final Map<String, int> _profileFetchedAt = {};
+  final Map<String, int> _groupRegisteredAt = {};
   List<StoryItem> _stories = [];
   VipStatus _myVip = VipStatus.none;
 
@@ -114,15 +116,39 @@ class _ContactsScreenState extends State<ContactsScreen> {
       final idx = _contacts.indexWhere((c) => c.fipId == fipId);
       if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
     }
-    for (final c in _contacts.where((c) => c.status == 'on').toList()) {
+    // Çevrimiçi durumu sunucu başına tek istekte: kişi başına istek, kalabalık
+    // bir rehberde sunucunun dakikalık istek sınırını tek başına aşıyordu.
+    final onContacts = _contacts.where((c) => c.status == 'on').toList();
+    final byServer = <String, List<String>>{};
+    for (final c in onContacts) {
+      byServer.putIfAbsent(c.serverUrl, () => []).add(c.fipId);
+    }
+    final activeSet = <String>{};
+    final failedServers = <String>{};
+    for (final e in byServer.entries) {
+      final r = await PhotonApi.activeAmong(e.key, e.value);
+      if (r == null) {
+        failedServers.add(e.key);
+      } else {
+        activeSet.addAll(r);
+      }
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final c in onContacts) {
       // Contact's presence lookup may miss if their server is cold-starting
       // (Render free tier sleeps after 15 min). One miss must NOT delete the
       // contact — mark them offline, retry next sync. Only give up if the
       // contact's user record itself is gone (profile fetch succeeds and
       // returns null status? — we treat this as still-present for safety).
-      final active = await PhotonApi.isActive(c.serverUrl, c.fipId);
+      // Sunucuya ulaşılamadıysa son bilinen durum korunur.
+      if (failedServers.contains(c.serverUrl)) continue;
+      final active = activeSet.contains(c.fipId);
+      final wasOnline = _online[c.fipId] ?? false;
       _online[c.fipId] = active;
-      if (active) {
+      // Profil (ad, avatar, durum) 30 sn'de bir yeterli; yeni çevrimiçi olan hemen yenilenir.
+      final due = now - (_profileFetchedAt[c.fipId] ?? 0) > 30000;
+      if (active && (due || !wasOnline)) {
+        _profileFetchedAt[c.fipId] = now;
         final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
         if (profile != null) {
           // The name is refreshed like any other profile field. It used to be
@@ -143,7 +169,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     await VipCache.instance
         .refresh(bridgeUrl, [..._contacts.map((c) => c.fipId), me.fipId]);
     if (mounted) setState(() {});
-    await Future.delayed(const Duration(seconds: 3));
+    // Ana ekran görünmüyorken (sohbet, ayarlar açık) daha seyrek senkronla.
+    final visible = mounted && (ModalRoute.of(context)?.isCurrent ?? true);
+    await Future.delayed(Duration(seconds: visible ? 3 : 12));
     if (mounted) _sync();
   }
 
@@ -152,7 +180,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
       try {
         // Re-register the group's code on the bridge each cycle so members
         // can join by code alone (bridge is in-memory; survives via snapshot).
-        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
+        // ...ama her 5 saniyede değil: köprü kaydı 5 dakikada bir yeter.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now - (_groupRegisteredAt[g.groupId] ?? 0) > 5 * 60 * 1000) {
+          _groupRegisteredAt[g.groupId] = now;
+          PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
+        }
         final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
         if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
       } catch (_) {}

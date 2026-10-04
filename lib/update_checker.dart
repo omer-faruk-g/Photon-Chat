@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,6 +15,8 @@ class UpdateChecker {
   static const _releasesApi = 'https://api.github.com/repos/omer-faruk-g/Photon-Chat/releases/latest';
 
   static Future<void> check(BuildContext context) async {
+    // Web sürümü her açılışta en yenisini zaten sunucudan alır; indirilecek bir şey yok.
+    if (kIsWeb) return;
     try {
       final info = await PackageInfo.fromPlatform();
       final current = _parseVersion(info.version);
@@ -128,7 +131,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isAndroid = Platform.isAndroid;
+    final isAndroid = (!kIsWeb && Platform.isAndroid);
     final hasApk = _apkUrl() != null;
 
     return AlertDialog(

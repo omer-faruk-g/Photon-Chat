@@ -10,7 +10,10 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors());
 app.use(compression());
-app.use(rateLimit({ windowMs: 60_000, max: 300 }));
+// Uygulama yoklama (polling) ile çalışır: tek kullanıcı sohbet açıkken dakikada
+// ~100-150 istek üretir. 300'lük sınır aynı ağdan (ev/okul NAT'ı) bağlanan iki
+// kullanıcıyı 429'a düşürüp mesajları kaybettiriyordu.
+app.use(rateLimit({ windowMs: 60_000, max: 600 }));
 app.use(express.json({ limit: '8kb' })); // default tiny limit for endpoints that don't opt in
 // Larger body limit for endpoints that carry base64 media (avatars, images, files, stories, group keys).
 // Files travel as base64 inside JSON, which inflates them by ~33%: the client's

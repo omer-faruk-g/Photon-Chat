@@ -174,7 +174,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        color: isMe ? PhotonColors.panel : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -207,7 +207,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        color: isMe ? PhotonColors.panel : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -428,6 +428,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         groupId: widget.group.groupId, fromName: widget.displayName,
       ));
       if (mounted) setState(() {});
+    } catch (_) {
+      // Sunucu reddetti: iyimser eklenen mesajı geri al, yazılanı kaybettirme.
+      if (!mounted) return;
+      setState(() {
+        _messages = _messages.where((m) => !(m['ts'] == ts && m['from'] == widget.identity.fipId && m['msgId'] == null)).toList();
+        _inputError = AppLang.instance.t('messageSendFailed');
+        if (_msgCtrl.text.isEmpty) _msgCtrl.text = text;
+      });
     }
   }
 
@@ -774,11 +782,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildSenderInitials(String fromName) {
-    final initial = fromName.isNotEmpty ? fromName[0].toUpperCase() : '?';
-    return CircleAvatar(
-      radius: 14,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
-      child: Text(initial, style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+    final initial = fromName.isNotEmpty ? trUpper(fromName[0]) : '?';
+    return Container(
+      width: 28, height: 28, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: PhotonColors.line),
+      ),
+      child: Text(initial, style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: 12)),
     );
   }
 
@@ -1082,7 +1094,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     final msgId = m['msgId'] as String? ?? '';
                     final rawText = m['text'] as String? ?? '';
                     // v10.0.2: composite key so messages with empty msgId don't collide
-                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}';
+                    // Metin de anahtarda: düzenlenen mesaj eski haliyle kalmasın.
+                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}_${rawText.hashCode}';
                     String displayText;
                     if (_filtered.containsKey(cacheKey)) {
                       displayText = _filtered[cacheKey]!;
@@ -1126,10 +1139,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             Flexible(child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
+                          // Birebir sohbetle aynı balon dili: kendi mesajın marka yeşili.
                           decoration: BoxDecoration(
-                            color: isMe ? PhotonColors.accent.withOpacity(0.18) : PhotonColors.panel,
-                            border: Border.all(color: isMe ? PhotonColors.accent.withOpacity(0.3) : PhotonColors.line),
-                            borderRadius: BorderRadius.circular(8),
+                            color: isMe ? PhotonColors.accent : PhotonColors.panel,
+                            border: isMe ? null : Border.all(color: PhotonColors.line),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(PhotonRadius.bubble), topRight: const Radius.circular(PhotonRadius.bubble),
+                              bottomLeft: Radius.circular(isMe ? PhotonRadius.bubble : 4), bottomRight: Radius.circular(isMe ? 4 : PhotonRadius.bubble),
+                            ),
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                             if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [
@@ -1155,8 +1172,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             // Profanity filtering and translation already ran
                             // on displayText; tier styling is applied last so
                             // /k cannot be used to slip past the filter.
-                            vipMessageText(displayText, senderVip,
-                                style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
+                            vipMessageText(displayText,
+                                // Kendi balonun yeşil: katman rengi yazıya uygulanırsa okunmaz,
+                                // yalnızca kalın yazı (/k) hakkı kalır — birebir sohbetteki gibi.
+                                isMe && senderVip != null
+                                    ? VipStatus(tier: senderVip.tier, fakeName: senderVip.fakeName, fakeActive: senderVip.fakeActive, expiresAt: senderVip.expiresAt)
+                                    : senderVip,
+                                style: TextStyle(color: isMe ? PhotonColors.onAccent : PhotonColors.text, fontSize: _msgFontSize, height: 1.45)),
                             if (_translating.contains(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
@@ -1169,7 +1191,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
                                   const SizedBox(height: 2),
                                   Text(_translations[msgId]!,
-                                    style: TextStyle(color: PhotonColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                                    style: TextStyle(color: (isMe ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
                                 ]),
                               ),
                           ]),

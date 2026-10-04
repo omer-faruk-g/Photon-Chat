@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,7 +45,7 @@ void main() async {
   await ensureE2EKeypair();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
-  if (Platform.isAndroid) {
+  if ((!kIsWeb && Platform.isAndroid)) {
     await NotificationService.init();
     await Workmanager().initialize(_bgDispatcher);
     await Workmanager().registerPeriodicTask(

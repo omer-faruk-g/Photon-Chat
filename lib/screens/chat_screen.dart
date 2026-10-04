@@ -56,6 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _contactTyping = false;
   bool _isBlocked = false;
   SecretKey? _sharedKey;
+  Future<void>? _e2eReady;
+  int _lastMarkedTs = 0;
   String? _editingMsgId;
   Map<String, dynamic> _readStatus = {};
   Map<String, dynamic>? _replyToMsg;
@@ -133,7 +135,8 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _chatKey = chatKeyFor(widget.identity.fipId, widget.contact.fipId);
     LocalStore.loadDisplayName().then((n) { if (mounted) setState(() => _myDisplayName = n ?? ''); });
-    _initE2E();
+    // Mesajlar anahtar hazır olmadan çekilirse ilk görüntü şifreli metin olur.
+    _e2eReady = _initE2E();
     _checkBlocked();
     _poll();
     _pollContactStatus();
@@ -451,6 +454,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _poll() async {
+    try { await _e2eReady?.timeout(const Duration(seconds: 10)); } catch (_) {}
     while (_alive) {
       try {
       await OfflineQueue.instance.flush();
@@ -512,7 +516,12 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() => _messages = merged);
         if (hadNew) _scrollToBottom();
       }
-      await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      // Okundu bilgisi yalnızca karşı taraftan yeni mesaj geldiğinde gider.
+      final lastTheirs = msgs.where((x) => x.from == widget.contact.fipId).fold<int>(0, (a, x) => x.ts > a ? x.ts : a);
+      if (lastTheirs > _lastMarkedTs) {
+        _lastMarkedTs = lastTheirs;
+        await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      }
       } catch (_) {
         // Swallow errors so poll loop keeps running; next tick tries again.
       }
@@ -755,7 +764,8 @@ class _ChatScreenState extends State<ChatScreen> {
         String displayText;
         // v10.0.2: cache key includes ts+from so messages with empty msgId
         // don't share a slot and clobber each other on new profanity match.
-        final cacheKey = '${m.msgId}_${m.ts}_${m.from}';
+        // Metin de anahtarda: düzenlenen ya da sonradan çözülen mesaj eski haliyle kalmasın.
+        final cacheKey = '${m.msgId}_${m.ts}_${m.from}_${m.text.hashCode}';
         if (m.deleted) {
           displayText = AppLang.instance.t('messageDeleted');
         } else if (_filtered.containsKey(cacheKey)) {
@@ -1428,13 +1438,21 @@ class _ChatScreenState extends State<ChatScreen> {
     if (avatar.isNotEmpty) {
       try {
         final bytes = base64Decode(avatar);
-        return CircleAvatar(radius: size / 2, backgroundImage: MemoryImage(bytes));
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(size / 4),
+          child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover),
+        );
       } catch (_) {}
     }
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: size * 0.4, fontWeight: FontWeight.bold)),
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: Border.all(color: PhotonColors.line),
+      ),
+      child: Text(name.isNotEmpty ? trUpper(name[0]) : '?',
+          style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: size * 0.42)),
     );
   }
 

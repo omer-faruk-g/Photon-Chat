@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -12,7 +13,7 @@ class NotificationService {
   static const int _dedupeWindowMs = 30 * 1000;
 
   static Future<void> init() async {
-    if (!Platform.isAndroid) return;
+    if (!(!kIsWeb && Platform.isAndroid)) return;
     if (_initialized) return;
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _plugin.initialize(const InitializationSettings(android: android));
@@ -23,7 +24,7 @@ class NotificationService {
   }
 
   static Future<void> show(String title, String body) async {
-    if (!Platform.isAndroid) return;
+    if (!(!kIsWeb && Platform.isAndroid)) return;
     if (!_initialized) await init();
     final now = DateTime.now().millisecondsSinceEpoch;
     final key = '$title|$body';

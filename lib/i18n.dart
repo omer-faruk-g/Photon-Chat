@@ -376,6 +376,7 @@ class AppLang extends ChangeNotifier {
     'fileTooLarge': 'Dosya çok büyük (maks 50 MB)',
     'encryptionError': 'Şifreleme hatası, mesaj gönderilemedi.',
     'editFailed': 'Düzenleme başarısız',
+    'messageSendFailed': 'Mesaj gönderilemedi. Tekrar dene.',
     'reactionFailed': 'Reaksiyon gönderilemedi',
     'translation': 'çeviri',
     'forward': 'İlet',

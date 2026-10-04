@@ -344,17 +344,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAvatar() {
+    const size = Space.s7 - Space.s3; // 72
     if (_avatar.isNotEmpty) {
       try {
         final bytes = base64Decode(_avatar);
-        return CircleAvatar(radius: 36, backgroundImage: MemoryImage(bytes));
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(size / 4),
+          child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover),
+        );
       } catch (_) {}
     }
     final name = widget.displayName;
-    return CircleAvatar(
-      radius: 36,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: 26, fontWeight: FontWeight.bold)),
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: Border.all(color: PhotonColors.line),
+      ),
+      child: Text(name.isNotEmpty ? trUpper(name[0]) : '?',
+          style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: 32)),
     );
   }
 
