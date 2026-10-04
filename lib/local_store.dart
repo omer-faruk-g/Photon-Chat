@@ -49,13 +49,16 @@ class Group {
   final String ownerFipId;
   final String ownerServerUrl;
   final bool isOwner;
+  /// Sunucunun bu cihaza verdiği gizli grup anahtarı (sahip veya üye). Yalnızca cihazda saklanır.
+  final String? token;
   List<GroupMember> members;
-  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
-  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
+  Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members, this.token});
+  Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, if (token != null) 'token': token, 'members': members.map((m) => m.toJson()).toList()};
   factory Group.fromJson(Map<String, dynamic> j) => Group(
     groupId: j['groupId'] as String, groupCode: (j['groupCode'] as String?) ?? '', name: (j['name'] as String?) ?? 'Grup',
     ownerFipId: (j['ownerFipId'] as String?) ?? '', ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
     isOwner: (j['isOwner'] as bool?) ?? false,
+    token: j['token'] as String?,
     members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),
   );
   String get address => '$groupCode@$ownerServerUrl';

@@ -9,7 +9,7 @@ import '../profanity_filter.dart';
 import '../message_guard.dart';
 
 /// Kullanıcının bu gruptaki durumu.
-enum _Membership { loading, member, pending, removed, groupGone }
+enum _Membership { loading, member, pending, removed, groupGone, legacy }
 
 /// Grup sohbeti. Grubun tüm verisi grup sahibinin sunucusunda tutulur; tüm üyeler
 /// oradan okur ve oraya yazar. Ekran kapanırken grup bırakıldıysa `true` döner.
@@ -43,10 +43,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Group get _g => widget.group;
   String get _owner => _g.ownerServerUrl;
   String get _me => widget.identity.fipId;
+  String get _token => _g.token ?? '';
 
   @override
   void initState() {
     super.initState();
+    if (_g.token == null) {
+      // Güncellemeden önce oluşturulmuş/katılınmış grup: yetki anahtarı yok.
+      _membership = _Membership.legacy;
+      _loaded = true;
+      return;
+    }
     if (_g.isOwner) _membership = _Membership.member;
     _pollInfo();
     _pollMessages();
@@ -69,7 +76,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (_disposed || _msgPolling) return;
     _msgPolling = true;
     try {
-      final msgs = await KnkApi.getGroupMessages(_owner, _g.groupId, _me);
+      final msgs = await KnkApi.getGroupMessages(_owner, _g.groupId, _token);
       if (_disposed) return;
       if (msgs == null) {
         if (!_unreachable) setState(() => _unreachable = true);
@@ -161,8 +168,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final text = sanitizeMessage(raw);
     final ts = DateTime.now().millisecondsSinceEpoch;
     setState(() { _inputError = null; _sending = true; });
-    final err = await KnkApi.sendGroupMessage(_owner, _g.groupId,
-      from: _me, fromName: widget.displayName, text: text, ts: ts,
+    final err = await KnkApi.sendGroupMessage(_owner, _g.groupId, _token,
+      fromName: widget.displayName, text: text, ts: ts,
     );
     if (_disposed) return;
     setState(() {
@@ -180,11 +187,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _acceptMember(Map<String, dynamic> req) async {
     final fipId = req['fromFipId'] as String?;
     if (fipId == null) return;
-    final ok = await KnkApi.acceptGroupMember(_owner, _g.groupId,
-      fipId: fipId,
-      name: req['fromName'] as String? ?? 'Bilinmeyen',
-      serverUrl: req['fromServerUrl'] as String? ?? '',
-    );
+    final ok = await KnkApi.acceptGroupMember(_owner, _g.groupId, _token, fipId: fipId);
     if (_disposed) return;
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() {
@@ -198,14 +201,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _rejectMember(Map<String, dynamic> req) async {
     final fipId = req['fromFipId'] as String?;
     if (fipId == null) return;
-    final ok = await KnkApi.rejectGroupMember(_owner, _g.groupId, fipId);
+    final ok = await KnkApi.rejectGroupMember(_owner, _g.groupId, _token, fipId);
     if (_disposed) return;
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() => _pendingJoins.removeWhere((r) => r['fromFipId'] == fipId));
   }
 
   Future<void> _muteMember(GroupMember member) async {
-    final ok = await KnkApi.muteGroupMember(_owner, _g.groupId, member.fipId);
+    final ok = await KnkApi.muteGroupMember(_owner, _g.groupId, _token, member.fipId);
     if (_disposed) return;
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
@@ -213,7 +216,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _unmuteMember(GroupMember member) async {
-    final ok = await KnkApi.unmuteGroupMember(_owner, _g.groupId, member.fipId);
+    final ok = await KnkApi.unmuteGroupMember(_owner, _g.groupId, _token, member.fipId);
     if (_disposed) return;
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() => _mutedMembers.remove(member.fipId));
@@ -221,7 +224,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _kickMember(GroupMember member) async {
-    final ok = await KnkApi.leaveGroup(_owner, _g.groupId, member.fipId);
+    final ok = await KnkApi.leaveGroup(_owner, _g.groupId, _token, member.fipId);
     if (_disposed) return;
     if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
     setState(() => _g.members = _g.members.where((m) => m.fipId != member.fipId).toList());
@@ -247,8 +250,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
     if (confirm != true || _disposed) return;
     // Grup sunucuda zaten yoksa yalnızca yerelden kaldır.
-    final ok = _membership == _Membership.groupGone ||
-        (owner ? await KnkApi.deleteGroup(_owner, _g.groupId, _me) : await KnkApi.leaveGroup(_owner, _g.groupId, _me));
+    final ok = _membership == _Membership.groupGone || _membership == _Membership.legacy ||
+        (owner ? await KnkApi.deleteGroup(_owner, _g.groupId, _token) : await KnkApi.leaveGroup(_owner, _g.groupId, _token, _me));
     if (_disposed || !mounted) return;
     if (!ok) { _showToast('Sunucuya ulaşılamadı. Tekrar dene.'); return; }
     Navigator.pop(context, true);
@@ -405,6 +408,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         text = 'Bu grubun üyesi değilsin (istek reddedildi veya gruptan çıkarıldın).';
       case _Membership.groupGone:
         text = 'Bu grup artık mevcut değil (silinmiş veya sunucu sıfırlanmış).';
+      case _Membership.legacy:
+        text = 'Bu grup uygulamanın eski bir sürümüyle eklendi. Grubu listeden kaldırıp yeniden oluştur veya katıl.';
       case _Membership.member:
         if (_mutedMembers.contains(_me)) text = 'Grup yöneticisi seni susturdu.';
       case _Membership.loading:

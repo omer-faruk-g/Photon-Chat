@@ -36,14 +36,16 @@ class KnkApi {
 
   static String _seg(String s) => Uri.encodeComponent(s);
 
-  static Future<http.Response> _get(String serverUrl, String path, {Duration timeout = _timeout}) =>
-      _client.get(_u(serverUrl, path)).timeout(timeout);
+  static Map<String, String>? _auth(String? token) => token == null ? null : {'x-group-token': token};
 
-  static Future<http.Response> _post(String serverUrl, String path, Object body, {Duration timeout = _timeout}) =>
-      _client.post(_u(serverUrl, path), headers: _json, body: jsonEncode(body)).timeout(timeout);
+  static Future<http.Response> _get(String serverUrl, String path, {Duration timeout = _timeout, String? token}) =>
+      _client.get(_u(serverUrl, path), headers: _auth(token)).timeout(timeout);
 
-  static Future<http.Response> _delete(String serverUrl, String path) =>
-      _client.delete(_u(serverUrl, path)).timeout(_timeout);
+  static Future<http.Response> _post(String serverUrl, String path, Object body, {Duration timeout = _timeout, String? token}) =>
+      _client.post(_u(serverUrl, path), headers: {..._json, ...?_auth(token)}, body: jsonEncode(body)).timeout(timeout);
+
+  static Future<http.Response> _delete(String serverUrl, String path, {String? token}) =>
+      _client.delete(_u(serverUrl, path), headers: _auth(token)).timeout(_timeout);
 
   static List<Map<String, dynamic>> _list(String body) =>
       (jsonDecode(body) as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
@@ -227,7 +229,9 @@ class KnkApi {
 
   // --- Group API ---
   // Bir grubun tüm verisi (üyeler, mesajlar, susturma) grup sahibinin sunucusunda tutulur.
+  // [token]: grubu oluştururken (sahip) veya katılma isteği gönderirken (üye) alınan gizli anahtar.
 
+  /// Başarılıysa {groupId, groupCode, name, ownerFipId, ownerServerUrl, token} döner.
   static Future<Map<String, dynamic>?> createGroup(String myServerUrl, {
     required String ownerFipId, required String ownerName, required String name, required String ownerServerUrl,
   }) async {
@@ -246,15 +250,21 @@ class KnkApi {
     return null;
   }
 
-  static Future<bool> sendGroupJoinRequest(String ownerServerUrl, String groupId, {
+  /// Katılma isteği gönderir. Başarılıysa (üye token'ı, null), aksi halde (null, hata) döner.
+  static Future<(String?, String?)> sendGroupJoinRequest(String ownerServerUrl, String groupId, {
     required String fromFipId, required String fromName, required String fromServerUrl,
   }) async {
     try {
       final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/join-requests',
           {'fromFipId': fromFipId, 'fromName': fromName, 'fromServerUrl': fromServerUrl});
-      return r.statusCode == 200;
+      Map<String, dynamic>? body;
+      try { body = jsonDecode(r.body) as Map<String, dynamic>; } catch (_) {}
+      final token = body?['token'] as String?;
+      if (r.statusCode == 200 && token != null) return (token, null);
+      if (r.statusCode == 200) return (null, 'Grup sunucusu eski bir sürüm. Grup sahibinden sunucusunu güncellemesini iste.');
+      return (null, (body?['error'] as String?) ?? 'Katılma isteği gönderilemedi (${r.statusCode}).');
     } catch (_) {}
-    return false;
+    return (null, 'Grup sunucusuna ulaşılamadı. Tekrar dene.');
   }
 
   /// Sunucuya ulaşılamazsa null döner.
@@ -266,19 +276,17 @@ class KnkApi {
     return null;
   }
 
-  static Future<bool> acceptGroupMember(String ownerServerUrl, String groupId, {
-    required String fipId, required String name, required String serverUrl,
-  }) async {
+  static Future<bool> acceptGroupMember(String ownerServerUrl, String groupId, String token, {required String fipId}) async {
     try {
-      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/members', {'fipId': fipId, 'name': name, 'serverUrl': serverUrl});
+      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/members', {'fipId': fipId}, token: token);
       return r.statusCode == 200;
     } catch (_) {}
     return false;
   }
 
-  static Future<bool> rejectGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+  static Future<bool> rejectGroupMember(String ownerServerUrl, String groupId, String token, String fipId) async {
     try {
-      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/join-requests/${_seg(fipId)}');
+      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/join-requests/${_seg(fipId)}', token: token);
       return r.statusCode == 200;
     } catch (_) {}
     return false;
@@ -295,12 +303,12 @@ class KnkApi {
     return null;
   }
 
-  static Future<SendResult> sendGroupMessage(String ownerServerUrl, String groupId, {
-    required String from, required String fromName, required String text, required int ts,
+  static Future<SendResult> sendGroupMessage(String ownerServerUrl, String groupId, String token, {
+    required String fromName, required String text, required int ts,
   }) async {
     try {
       final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/messages',
-          {'from': from, 'fromName': fromName, 'text': text, 'ts': ts});
+          {'fromName': fromName, 'text': text, 'ts': ts}, token: token);
       if (r.statusCode == 200) return null;
       if (r.statusCode == 404) return 'Grup artık mevcut değil.';
       try {
@@ -315,44 +323,45 @@ class KnkApi {
 
   /// Yalnızca grup üyeleri okuyabilir. Üye değilsek (403) veya grup yoksa (404) boş liste,
   /// sunucuya ulaşılamazsa null döner.
-  static Future<List<Map<String, dynamic>>?> getGroupMessages(String ownerServerUrl, String groupId, String myFipId) async {
+  static Future<List<Map<String, dynamic>>?> getGroupMessages(String ownerServerUrl, String groupId, String token) async {
     try {
-      final r = await _get(ownerServerUrl, '/groups/${_seg(groupId)}/messages?fipId=${_seg(myFipId)}');
+      final r = await _get(ownerServerUrl, '/groups/${_seg(groupId)}/messages', token: token);
       if (r.statusCode == 200) return _list(r.body);
       if (r.statusCode == 403 || r.statusCode == 404) return [];
     } catch (_) {}
     return null;
   }
 
-  static Future<bool> leaveGroup(String ownerServerUrl, String groupId, String fipId) async {
+  /// Üyeyi gruptan çıkarır (sahip token'ı ile) veya kendi token'ımızla gruptan ayrılır.
+  static Future<bool> leaveGroup(String ownerServerUrl, String groupId, String token, String fipId) async {
     try {
-      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/members/${_seg(fipId)}');
+      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/members/${_seg(fipId)}', token: token);
       return r.statusCode == 200 || r.statusCode == 404;
     } catch (_) {}
     return false;
   }
 
-  static Future<bool> deleteGroup(String ownerServerUrl, String groupId, String ownerFipId) async {
+  static Future<bool> deleteGroup(String ownerServerUrl, String groupId, String token) async {
     try {
-      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}?ownerFipId=${_seg(ownerFipId)}');
+      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}', token: token);
       return r.statusCode == 200 || r.statusCode == 404;
     } catch (_) {}
     return false;
   }
 
-  // --- Group mute ---
+  // --- Group mute (sahip token'ı gerekir) ---
 
-  static Future<bool> muteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+  static Future<bool> muteGroupMember(String ownerServerUrl, String groupId, String token, String fipId) async {
     try {
-      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/muted', {'fipId': fipId});
+      final r = await _post(ownerServerUrl, '/groups/${_seg(groupId)}/muted', {'fipId': fipId}, token: token);
       return r.statusCode == 200;
     } catch (_) {}
     return false;
   }
 
-  static Future<bool> unmuteGroupMember(String ownerServerUrl, String groupId, String fipId) async {
+  static Future<bool> unmuteGroupMember(String ownerServerUrl, String groupId, String token, String fipId) async {
     try {
-      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/muted/${_seg(fipId)}');
+      final r = await _delete(ownerServerUrl, '/groups/${_seg(groupId)}/muted/${_seg(fipId)}', token: token);
       return r.statusCode == 200;
     } catch (_) {}
     return false;

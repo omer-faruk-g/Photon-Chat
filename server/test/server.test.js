@@ -14,10 +14,12 @@ before(async () => {
 after(() => server.close());
 beforeEach(() => resetStore());
 
-async function call(method, path, body) {
+async function call(method, path, body, token) {
+  const headers = body ? { 'Content-Type': 'application/json' } : {};
+  if (token) headers['x-group-token'] = token;
   const res = await fetch(base + path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -139,65 +141,103 @@ test('deactivate wipes user data, chats and owned groups', async () => {
   assert.deepEqual((await call('GET', `/chat/${key}`)).json, []);
   assert.equal((await call('GET', '/lookup/11111')).status, 404);
   assert.equal((await call('GET', '/registry/lookup/11111')).status, 404);
-  assert.equal((await call('GET', `/groups/${g.groupId}/messages?fipId=${A}`)).status, 404);
+  assert.equal((await call('GET', `/groups/${g.groupId}/messages`, undefined, g.token)).status, 404);
 });
+
+async function makeGroupWithMember() {
+  const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'Takım', ownerServerUrl: base })).json;
+  const jr = await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Bora', fromServerUrl: base });
+  assert.equal(jr.status, 200);
+  assert.equal((await call('POST', `/groups/${g.groupId}/members`, { fipId: B }, g.token)).status, 200);
+  return { g, ownerToken: g.token, memberToken: jr.json.token };
+}
 
 test('group lifecycle: join, accept, message, mute, kick', async () => {
   const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'Takım', ownerServerUrl: base })).json;
   assert.match(g.groupCode, /^\d{7}$/);
+  assert.ok(g.token);
   assert.equal((await call('GET', `/groups/by-code/${g.groupCode}`)).json.groupId, g.groupId);
+  assert.equal((await call('GET', `/groups/by-code/${g.groupCode}`)).json.token, undefined, 'token sızmamalı');
 
-  // Üye olmayan mesaj gönderemez
-  let r = await call('POST', `/groups/${g.groupId}/messages`, { from: B, fromName: 'Bora', text: 'hi', ts: 1 });
-  assert.equal(r.status, 403);
+  const jr = await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Bora', fromServerUrl: base });
+  const bt = jr.json.token;
+  assert.ok(bt);
+  // İkinci istek token vermez (başkası adına token alınamaz)
+  const again = await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Sahte' });
+  assert.equal(again.status, 409);
+  assert.equal(again.json.token, undefined);
+  const reqs = (await call('GET', `/groups/${g.groupId}/join-requests`)).json;
+  assert.equal(reqs.length, 1);
+  assert.equal(reqs[0].token, undefined, 'istek listesinde token görünmemeli');
 
-  await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Bora', fromServerUrl: base });
-  await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: B, fromName: 'Bora', fromServerUrl: base });
-  assert.equal((await call('GET', `/groups/${g.groupId}/join-requests`)).json.length, 1);
+  // Onaylanmadan mesaj gönderemez / okuyamaz
+  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { text: 'hi', ts: 1 }, bt)).status, 403);
+  assert.equal((await call('GET', `/groups/${g.groupId}/messages`, undefined, bt)).status, 403);
 
-  await call('POST', `/groups/${g.groupId}/members`, { fipId: B, name: 'Bora', serverUrl: base });
+  await call('POST', `/groups/${g.groupId}/members`, { fipId: B }, g.token);
   assert.equal((await call('GET', `/groups/${g.groupId}/join-requests`)).json.length, 0);
   const members = (await call('GET', `/groups/${g.groupId}/members`)).json;
   assert.deepEqual(members.members.map(m => m.fipId), [A, B]);
+  assert.ok(members.members.every(m => m.token === undefined), 'üye listesinde token görünmemeli');
   assert.equal(members.ownerFipId, A);
 
-  r = await call('POST', `/groups/${g.groupId}/messages`, { from: B, fromName: 'Bora', text: 'hi', ts: 1 });
-  assert.equal(r.status, 200);
+  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { fromName: 'Bora', text: 'hi', ts: 1 }, bt)).status, 200);
 
-  await call('POST', `/groups/${g.groupId}/muted`, { fipId: B });
-  r = await call('POST', `/groups/${g.groupId}/messages`, { from: B, fromName: 'Bora', text: 'hi2', ts: 2 });
+  await call('POST', `/groups/${g.groupId}/muted`, { fipId: B }, g.token);
+  let r = await call('POST', `/groups/${g.groupId}/messages`, { fromName: 'Bora', text: 'hi2', ts: 2 }, bt);
   assert.equal(r.status, 403);
   assert.ok(r.json.error);
   // Sahip susturulamaz / atılamaz
-  assert.equal((await call('POST', `/groups/${g.groupId}/muted`, { fipId: A })).status, 400);
-  assert.equal((await call('DELETE', `/groups/${g.groupId}/members/${A}`)).status, 400);
+  assert.equal((await call('POST', `/groups/${g.groupId}/muted`, { fipId: A }, g.token)).status, 400);
+  assert.equal((await call('DELETE', `/groups/${g.groupId}/members/${A}`, undefined, g.token)).status, 400);
 
-  await call('DELETE', `/groups/${g.groupId}/muted/${B}`);
-  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { from: B, text: 'hi3', ts: 3 })).status, 200);
+  await call('DELETE', `/groups/${g.groupId}/muted/${B}`, undefined, g.token);
+  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { text: 'hi3', ts: 3 }, bt)).status, 200);
 
-  await call('DELETE', `/groups/${g.groupId}/members/${B}`);
-  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { from: B, text: 'hi4', ts: 4 })).status, 403);
+  await call('DELETE', `/groups/${g.groupId}/members/${B}`, undefined, g.token);
+  assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { text: 'hi4', ts: 4 }, bt)).status, 403);
 
-  const msgs = (await call('GET', `/groups/${g.groupId}/messages?fipId=${A}`)).json;
+  const msgs = (await call('GET', `/groups/${g.groupId}/messages`, undefined, g.token)).json;
   assert.deepEqual(msgs.map(m => m.text), ['hi', 'hi3']);
   // Atılan üye ve yabancılar mesajları okuyamaz
-  assert.equal((await call('GET', `/groups/${g.groupId}/messages?fipId=${B}`)).status, 403);
+  assert.equal((await call('GET', `/groups/${g.groupId}/messages`, undefined, bt)).status, 403);
   assert.equal((await call('GET', `/groups/${g.groupId}/messages`)).status, 403);
+});
+
+test('group security: no self-approval, impersonation or unauthorized admin actions', async () => {
+  const { g, ownerToken, memberToken } = await makeGroupWithMember();
+  // C, onay beklemeden kendini üye ekleyemez
+  assert.equal((await call('POST', `/groups/${g.groupId}/members`, { fipId: C, name: 'Can' })).status, 403);
+  // Üye, sahip yetkisi kullanamaz
+  assert.equal((await call('POST', `/groups/${g.groupId}/members`, { fipId: C }, memberToken)).status, 403);
+  assert.equal((await call('POST', `/groups/${g.groupId}/muted`, { fipId: A }, memberToken)).status, 403);
+  assert.equal((await call('DELETE', `/groups/${g.groupId}`, undefined, memberToken)).status, 403);
+  assert.equal((await call('DELETE', `/groups/${g.groupId}?ownerFipId=${A}`)).status, 403, 'eski fipId tabanlı silme kapalı');
+  // Kimse başkasını gruptan çıkaramaz (sahip hariç)
+  assert.equal((await call('DELETE', `/groups/${g.groupId}/members/${B}`)).status, 403);
+  // Gönderen token'dan belirlenir: B, A adına yazamaz
+  await call('POST', `/groups/${g.groupId}/messages`, { from: A, fromName: 'Ali', text: 'sahte', ts: 9 }, memberToken);
+  const msgs = (await call('GET', `/groups/${g.groupId}/messages`, undefined, ownerToken)).json;
+  assert.equal(msgs.at(-1).from, B);
+  // Üye kendi isteğiyle ayrılabilir
+  assert.equal((await call('DELETE', `/groups/${g.groupId}/members/${B}`, undefined, memberToken)).status, 200);
+  assert.equal((await call('GET', `/groups/${g.groupId}/messages`, undefined, memberToken)).status, 403);
 });
 
 test('groups allow more than 10 senders', async () => {
   const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'Büyük', ownerServerUrl: base })).json;
   for (let i = 0; i < 15; i++) {
     const id = `fip_member${String(i).padStart(8, '0')}`;
-    await call('POST', `/groups/${g.groupId}/members`, { fipId: id, name: `U${i}` });
-    assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { from: id, text: 'x', ts: 100 + i })).status, 200);
+    const t = (await call('POST', `/groups/${g.groupId}/join-requests`, { fromFipId: id, fromName: `U${i}` })).json.token;
+    await call('POST', `/groups/${g.groupId}/members`, { fipId: id }, g.token);
+    assert.equal((await call('POST', `/groups/${g.groupId}/messages`, { text: 'x', ts: 100 + i }, t)).status, 200);
   }
 });
 
 test('only the owner can delete a group', async () => {
-  const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'G', ownerServerUrl: base })).json;
-  assert.equal((await call('DELETE', `/groups/${g.groupId}?ownerFipId=${B}`)).status, 403);
-  assert.equal((await call('DELETE', `/groups/${g.groupId}?ownerFipId=${A}`)).status, 200);
+  const { g, ownerToken, memberToken } = await makeGroupWithMember();
+  assert.equal((await call('DELETE', `/groups/${g.groupId}`, undefined, memberToken)).status, 403);
+  assert.equal((await call('DELETE', `/groups/${g.groupId}`, undefined, ownerToken)).status, 200);
   assert.equal((await call('GET', `/groups/${g.groupId}/members`)).status, 404);
 });
 

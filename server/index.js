@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 
 // --- Limits ---
@@ -217,20 +218,35 @@ function createApp() {
   });
 
   // --- Groups ---
+  // Yetkilendirme: grubu oluşturan bir "sahip token'ı", katılma isteği gönderen
+  // bir "üye token'ı" alır. Token'lar yalnızca ilgili cihazda saklanır ve
+  // x-group-token başlığıyla gönderilir. groupId ve fipId'ler herkese açık
+  // olduğundan, yönetim ve mesajlaşma işlemleri yalnızca token ile yapılabilir.
+  const newToken = () => crypto.randomBytes(24).toString('hex');
+  const tokenOf = (req) => req.get('x-group-token') || '';
+  const isOwner = (g, req) => tokenOf(req) !== '' && tokenOf(req) === g.ownerToken;
+  const actorOf = (g, req) => {
+    const t = tokenOf(req);
+    return t ? g.members.find(m => m.token === t) : undefined;
+  };
+  const publicMember = ({ fipId, name, serverUrl }) => ({ fipId, name, serverUrl });
+  const publicRequest = ({ fromFipId, fromName, fromServerUrl, ts }) => ({ fromFipId, fromName, fromServerUrl, ts });
+
   app.post('/groups', (req, res) => {
     const { ownerFipId, ownerName, name, ownerServerUrl } = req.body || {};
     if (!isStr(ownerFipId, 128) || !isStr(name, 64) || !optStr(ownerName, 64) || !optStr(ownerServerUrl, 512))
       return res.sendStatus(400);
-    const groupId = `grp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const groupId = `grp_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
     const groupCode = uniqueGroupCode();
+    const ownerToken = newToken();
     groups.set(groupId, {
-      groupId, groupCode, name, ownerFipId, ownerName, ownerServerUrl,
-      members: [{ fipId: ownerFipId, name: ownerName, serverUrl: ownerServerUrl }],
+      groupId, groupCode, name, ownerFipId, ownerName, ownerServerUrl, ownerToken,
+      members: [{ fipId: ownerFipId, name: ownerName, serverUrl: ownerServerUrl, token: ownerToken }],
       joinRequests: [], messages: [],
       muted: [],       // susturulan üyeler [fipId, ...]
       groupKeys: {},   // { memberFipId: encryptedKey }
     });
-    res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl });
+    res.json({ groupId, groupCode, name, ownerFipId, ownerServerUrl, token: ownerToken });
   });
 
   app.get('/groups/by-code/:code', (req, res) => {
@@ -252,58 +268,72 @@ function createApp() {
   // Grubu sil (yalnızca sahip)
   app.delete('/groups/:groupId', (req, res) => {
     const g = req.group;
-    if (req.query.ownerFipId !== g.ownerFipId) return res.sendStatus(403);
+    if (!isOwner(g, req)) return res.sendStatus(403);
     groups.delete(g.groupId);
     res.sendStatus(200);
   });
 
+  // Katılma isteği: isteği gönderene üye token'ı verilir (onaylanınca geçerli olur).
+  // Aynı fipId için ikinci istek token vermez; başkası adına token alınamaz.
   app.post('/groups/:groupId/join-requests', (req, res) => {
     const g = req.group;
     const { fromFipId, fromName, fromServerUrl } = req.body || {};
     if (!isStr(fromFipId, 128) || !optStr(fromName, 64) || !optStr(fromServerUrl, 512)) return res.sendStatus(400);
-    if (g.members.some(m => m.fipId === fromFipId)) return res.sendStatus(200); // zaten üye
-    if (!g.joinRequests.find(r => r.fromFipId === fromFipId))
-      g.joinRequests.push({ fromFipId, fromName, fromServerUrl, ts: Date.now() });
-    res.sendStatus(200);
+    if (g.members.some(m => m.fipId === fromFipId)) return res.status(409).json({ error: 'Zaten üyesin.' });
+    if (g.joinRequests.some(r => r.fromFipId === fromFipId)) return res.status(409).json({ error: 'İstek zaten gönderilmiş.' });
+    const token = newToken();
+    g.joinRequests.push({ fromFipId, fromName, fromServerUrl, ts: Date.now(), token });
+    res.json({ token });
   });
 
   app.get('/groups/:groupId/join-requests', (req, res) => {
-    res.json(req.group.joinRequests);
+    res.json(req.group.joinRequests.map(publicRequest));
   });
 
   app.delete('/groups/:groupId/join-requests/:fipId', (req, res) => {
     const g = req.group;
+    if (!isOwner(g, req)) return res.sendStatus(403);
     g.joinRequests = g.joinRequests.filter(r => r.fromFipId !== req.params.fipId);
     res.sendStatus(200);
   });
 
   app.get('/groups/:groupId/members', (req, res) => {
     const g = req.group;
-    res.json({ members: g.members, muted: g.muted, ownerFipId: g.ownerFipId, name: g.name });
+    res.json({ members: g.members.map(publicMember), muted: g.muted, ownerFipId: g.ownerFipId, name: g.name });
   });
 
+  // Katılma isteğini onayla (yalnızca sahip; yalnızca istek göndermiş biri eklenebilir)
   app.post('/groups/:groupId/members', (req, res) => {
     const g = req.group;
-    const { fipId, name, serverUrl } = req.body || {};
-    if (!isStr(fipId, 128) || !optStr(name, 64) || !optStr(serverUrl, 512)) return res.sendStatus(400);
-    if (!g.members.find(m => m.fipId === fipId)) g.members.push({ fipId, name, serverUrl });
-    g.joinRequests = g.joinRequests.filter(r => r.fromFipId !== fipId);
+    if (!isOwner(g, req)) return res.sendStatus(403);
+    const { fipId } = req.body || {};
+    if (!isStr(fipId, 128)) return res.sendStatus(400);
+    if (g.members.some(m => m.fipId === fipId)) return res.sendStatus(200);
+    const r = g.joinRequests.find(x => x.fromFipId === fipId);
+    if (!r) return res.sendStatus(404);
+    g.members.push({ fipId, name: r.fromName, serverUrl: r.fromServerUrl, token: r.token });
+    g.joinRequests = g.joinRequests.filter(x => x.fromFipId !== fipId);
     res.sendStatus(200);
   });
 
+  // Üyeyi at (sahip) veya gruptan ayrıl (üyenin kendisi)
   app.delete('/groups/:groupId/members/:fipId', (req, res) => {
     const g = req.group;
-    if (req.params.fipId === g.ownerFipId) return res.sendStatus(400); // sahip atılamaz
-    g.members = g.members.filter(m => m.fipId !== req.params.fipId);
-    // Susturma listesinden de çıkar
-    g.muted = g.muted.filter(id => id !== req.params.fipId);
-    delete g.groupKeys[req.params.fipId];
+    const target = req.params.fipId;
+    const actor = actorOf(g, req);
+    if (!isOwner(g, req) && !(actor && actor.fipId === target)) return res.sendStatus(403);
+    if (target === g.ownerFipId) return res.sendStatus(400); // sahip atılamaz / ayrılamaz (grubu silebilir)
+    g.members = g.members.filter(m => m.fipId !== target);
+    g.joinRequests = g.joinRequests.filter(r => r.fromFipId !== target);
+    g.muted = g.muted.filter(id => id !== target);
+    delete g.groupKeys[target];
     res.sendStatus(200);
   });
 
-  // --- Group mute ---
+  // --- Group mute (yalnızca sahip) ---
   app.post('/groups/:groupId/muted', (req, res) => {
     const g = req.group;
+    if (!isOwner(g, req)) return res.sendStatus(403);
     const { fipId } = req.body || {};
     if (!isStr(fipId, 128)) return res.sendStatus(400);
     if (fipId === g.ownerFipId) return res.sendStatus(400);
@@ -313,6 +343,7 @@ function createApp() {
 
   app.delete('/groups/:groupId/muted/:fipId', (req, res) => {
     const g = req.group;
+    if (!isOwner(g, req)) return res.sendStatus(403);
     g.muted = g.muted.filter(id => id !== req.params.fipId);
     res.sendStatus(200);
   });
@@ -321,21 +352,23 @@ function createApp() {
     res.json(req.group.muted);
   });
 
-  // --- Group messages ---
+  // --- Group messages (yalnızca üyeler, kendi adlarına) ---
   app.post('/groups/:groupId/messages', (req, res) => {
     const g = req.group;
-    const { from, fromName, text, ts } = req.body || {};
-    if (!isStr(from, 128) || !optStr(fromName, 64) || !isStr(text, MAX_TEXT_LENGTH)) return res.sendStatus(400);
-    if (!g.members.some(m => m.fipId === from)) {
+    const { fromName, text, ts } = req.body || {};
+    if (!optStr(fromName, 64) || !isStr(text, MAX_TEXT_LENGTH)) return res.sendStatus(400);
+    const actor = actorOf(g, req);
+    if (!actor) {
       return res.status(403).json({ error: 'Bu grubun üyesi değilsin (katılma isteğin onay bekliyor olabilir).' });
     }
     // Susturulan kullanıcı mesaj gönderemez
-    if (g.muted.includes(from)) {
+    if (g.muted.includes(actor.fipId)) {
       return res.status(403).json({ error: 'Grup yöneticisi seni susturdu.' });
     }
+    const from = actor.fipId; // gönderen, token'dan belirlenir (başkası adına yazılamaz)
     const msgTs = isTs(ts) ? ts : Date.now();
     if (!g.messages.some(m => m.from === from && m.ts === msgTs)) {
-      g.messages.push({ from, fromName, text, ts: msgTs });
+      g.messages.push({ from, fromName: fromName || actor.name, text, ts: msgTs });
       if (g.messages.length > MAX_GROUP_MESSAGES) g.messages.splice(0, g.messages.length - MAX_GROUP_MESSAGES);
     }
     res.sendStatus(200);
@@ -344,15 +377,14 @@ function createApp() {
   // Mesajları yalnızca grubun güncel üyeleri okuyabilir (atılan / onay bekleyen kişiler göremez).
   app.get('/groups/:groupId/messages', (req, res) => {
     const g = req.group;
-    if (!g.members.some(m => m.fipId === req.query.fipId)) {
-      return res.status(403).json({ error: 'Bu grubun üyesi değilsin.' });
-    }
+    if (!actorOf(g, req)) return res.status(403).json({ error: 'Bu grubun üyesi değilsin.' });
     res.json(g.messages);
   });
 
   // --- Group E2E key distribution ---
   app.post('/groups/:groupId/key/:memberFipId', (req, res) => {
     const g = req.group;
+    if (!isOwner(g, req)) return res.sendStatus(403);
     const { encryptedKey } = req.body || {};
     if (!isStr(encryptedKey, 1024)) return res.sendStatus(400);
     g.groupKeys[req.params.memberFipId] = encryptedKey;
@@ -360,6 +392,8 @@ function createApp() {
   });
 
   app.get('/groups/:groupId/key/:memberFipId', (req, res) => {
+    const actor = actorOf(req.group, req);
+    if (!actor || actor.fipId !== req.params.memberFipId) return res.sendStatus(403);
     const key = req.group.groupKeys[req.params.memberFipId];
     if (!key) return res.sendStatus(404);
     res.json({ encryptedKey: key });

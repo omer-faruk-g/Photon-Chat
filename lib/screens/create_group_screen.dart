@@ -41,6 +41,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       );
       if (!mounted) return;
       if (data == null) { setState(() { _error = 'Grup oluşturulamadı. Sunucu bağlantını kontrol et.'; _loading = false; }); return; }
+      if (data['token'] == null) { setState(() { _error = 'Sunucun eski bir sürüm. Grup için sunucunu güncelle.'; _loading = false; }); return; }
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
@@ -48,6 +49,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerFipId: widget.identity.fipId,
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
+        token: data['token'] as String?,
         members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl)],
       );
       setState(() { _created = group; _loading = false; });

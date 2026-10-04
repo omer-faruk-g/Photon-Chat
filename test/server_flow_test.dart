@@ -111,38 +111,51 @@ void main() {
     final g = await KnkApi.createGroup(base, ownerFipId: owner.fipId, ownerName: 'Sahip', name: 'Takım', ownerServerUrl: base);
     final groupId = g!['groupId'] as String;
     final code = g['groupCode'] as String;
+    final ownerToken = g['token'] as String;
 
     final byCode = await KnkApi.getGroupByCode(base, code);
     expect(byCode!['groupId'], groupId);
+    expect(byCode['token'], isNull, reason: 'sahip token\'ı sızmamalı');
 
-    expect(await KnkApi.sendGroupMessage(base, groupId, from: member.fipId, fromName: 'Üye', text: 'x', ts: 1), isNotNull,
-        reason: 'üye olmayan yazamaz');
+    final (memberToken, err) = await KnkApi.sendGroupJoinRequest(base, groupId, fromFipId: member.fipId, fromName: 'Üye', fromServerUrl: base);
+    expect(err, isNull);
+    expect(memberToken, isNotNull);
+    final (dupToken, dupErr) = await KnkApi.sendGroupJoinRequest(base, groupId, fromFipId: member.fipId, fromName: 'Sahte', fromServerUrl: base);
+    expect(dupToken, isNull, reason: 'başkası adına ikinci istekle token alınamaz');
+    expect(dupErr, isNotNull);
 
-    expect(await KnkApi.sendGroupJoinRequest(base, groupId, fromFipId: member.fipId, fromName: 'Üye', fromServerUrl: base), isTrue);
+    expect(await KnkApi.sendGroupMessage(base, groupId, memberToken!, fromName: 'Üye', text: 'x', ts: 1), isNotNull,
+        reason: 'onaylanmamış üye yazamaz');
+    expect(await KnkApi.acceptGroupMember(base, groupId, memberToken, fipId: member.fipId), isFalse,
+        reason: 'üye kendini onaylayamaz');
+
     expect((await KnkApi.getGroupJoinRequests(base, groupId))!.single['fromFipId'], member.fipId);
-    expect(await KnkApi.acceptGroupMember(base, groupId, fipId: member.fipId, name: 'Üye', serverUrl: base), isTrue);
+    expect(await KnkApi.acceptGroupMember(base, groupId, ownerToken, fipId: member.fipId), isTrue);
 
     final info = await KnkApi.getGroupMembers(base, groupId);
     expect((info!['members'] as List).length, 2);
 
-    expect(await KnkApi.sendGroupMessage(base, groupId, from: member.fipId, fromName: 'Üye', text: 'merhaba', ts: 2), isNull);
-    expect(await KnkApi.sendGroupMessage(base, groupId, from: owner.fipId, fromName: 'Sahip', text: 'hoş geldin', ts: 3), isNull);
-    expect((await KnkApi.getGroupMessages(base, groupId, member.fipId))!.map((m) => m['text']), ['merhaba', 'hoş geldin']);
-    expect(await KnkApi.getGroupMessages(base, groupId, 'fip_yabanci'), isEmpty, reason: 'üye olmayan okuyamaz');
+    expect(await KnkApi.sendGroupMessage(base, groupId, memberToken, fromName: 'Üye', text: 'merhaba', ts: 2), isNull);
+    expect(await KnkApi.sendGroupMessage(base, groupId, ownerToken, fromName: 'Sahip', text: 'hoş geldin', ts: 3), isNull);
+    final msgs = (await KnkApi.getGroupMessages(base, groupId, memberToken))!;
+    expect(msgs.map((m) => m['text']), ['merhaba', 'hoş geldin']);
+    expect(msgs.map((m) => m['from']), [member.fipId, owner.fipId]);
+    expect(await KnkApi.getGroupMessages(base, groupId, 'yanlis-token'), isEmpty, reason: 'üye olmayan okuyamaz');
 
-    expect(await KnkApi.muteGroupMember(base, groupId, member.fipId), isTrue);
-    final muted = await KnkApi.sendGroupMessage(base, groupId, from: member.fipId, fromName: 'Üye', text: 'x', ts: 4);
+    expect(await KnkApi.muteGroupMember(base, groupId, memberToken, owner.fipId), isFalse, reason: 'üye sahibi susturamaz');
+    expect(await KnkApi.muteGroupMember(base, groupId, ownerToken, member.fipId), isTrue);
+    final muted = await KnkApi.sendGroupMessage(base, groupId, memberToken, fromName: 'Üye', text: 'x', ts: 4);
     expect(muted, contains('sustur'));
-    expect(await KnkApi.unmuteGroupMember(base, groupId, member.fipId), isTrue);
+    expect(await KnkApi.unmuteGroupMember(base, groupId, ownerToken, member.fipId), isTrue);
 
-    expect(await KnkApi.leaveGroup(base, groupId, member.fipId), isTrue);
-    expect(await KnkApi.getGroupMessages(base, groupId, member.fipId), isEmpty, reason: 'ayrılan üye artık okuyamaz');
-    expect(await KnkApi.sendGroupMessage(base, groupId, from: member.fipId, fromName: 'Üye', text: 'x', ts: 5), isNotNull);
+    expect(await KnkApi.leaveGroup(base, groupId, memberToken, member.fipId), isTrue);
+    expect(await KnkApi.getGroupMessages(base, groupId, memberToken), isEmpty, reason: 'ayrılan üye artık okuyamaz');
+    expect(await KnkApi.sendGroupMessage(base, groupId, memberToken, fromName: 'Üye', text: 'x', ts: 5), isNotNull);
 
-    expect(await KnkApi.deleteGroup(base, groupId, member.fipId), isFalse, reason: 'sadece sahip silebilir');
-    expect(await KnkApi.deleteGroup(base, groupId, owner.fipId), isTrue);
+    expect(await KnkApi.deleteGroup(base, groupId, memberToken), isFalse, reason: 'sadece sahip silebilir');
+    expect(await KnkApi.deleteGroup(base, groupId, ownerToken), isTrue);
     expect((await KnkApi.getGroupMembers(base, groupId))!['notFound'], isTrue);
-    expect(await KnkApi.sendGroupMessage(base, groupId, from: owner.fipId, fromName: 'Sahip', text: 'x', ts: 6), 'Grup artık mevcut değil.');
+    expect(await KnkApi.sendGroupMessage(base, groupId, ownerToken, fromName: 'Sahip', text: 'x', ts: 6), 'Grup artık mevcut değil.');
   });
 
   test('unreachable servers fail fast with null / false, never throw', () async {
@@ -150,7 +163,7 @@ void main() {
     expect(await KnkApi.getMessages('a__b', receiverServerUrl: dead), isNull);
     expect(await KnkApi.getIncomingRequests(dead, 'fip_x'), isNull);
     expect(await KnkApi.sendMessage(receiverServerUrl: dead, chatKey: 'a__b', from: 'a', text: 't', ts: 1), isFalse);
-    expect(await KnkApi.sendGroupMessage(dead, 'g', from: 'a', fromName: 'A', text: 't', ts: 1), isNotNull);
+    expect(await KnkApi.sendGroupMessage(dead, 'g', 'tok', fromName: 'A', text: 't', ts: 1), isNotNull);
     final (reply, err) = await KnkApi.chatWithPulseAI(dead, [{'role': 'user', 'content': 'selam'}]);
     expect(reply, isNull);
     expect(err, isNotNull);

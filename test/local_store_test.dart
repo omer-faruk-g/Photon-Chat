@@ -51,4 +51,14 @@ void main() {
     expect(await LocalStore.loadIdentity(), isNull);
     expect(await LocalStore.loadBlockList(), isEmpty);
   });
+
+  test('group token survives save/load; legacy groups load without one', () async {
+    SharedPreferences.setMockInitialValues({});
+    await LocalStore.saveGroups([
+      Group(groupId: 'g1', groupCode: '1234567', name: 'G', ownerFipId: 'fip_a', ownerServerUrl: 's', isOwner: true, members: [], token: 'tok'),
+      Group(groupId: 'g2', groupCode: '7654321', name: 'Eski', ownerFipId: 'fip_a', ownerServerUrl: 's', isOwner: false, members: []),
+    ]);
+    final groups = await LocalStore.loadGroups();
+    expect(groups.map((g) => g.token), ['tok', null]);
+  });
 }

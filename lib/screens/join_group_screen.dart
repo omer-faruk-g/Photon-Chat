@@ -47,13 +47,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     if (data == null || groupId == null) return _fail('Grup bulunamadı. Adresi kontrol et.');
     if (widget.existingGroupIds.contains(groupId)) return _fail('Bu grup zaten listende.');
     final groupName = data['name'] as String? ?? 'Grup';
-    final sent = await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
+    final (token, err) = await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
       fromFipId: widget.identity.fipId,
       fromName: widget.displayName,
       fromServerUrl: widget.myServerUrl,
     );
     if (!mounted) return;
-    if (!sent) return _fail('Katılma isteği gönderilemedi. Tekrar dene.');
+    if (token == null) return _fail(err ?? 'Katılma isteği gönderilemedi. Tekrar dene.');
     final ownerFipId = data['ownerFipId'] as String? ?? '';
     final group = Group(
       groupId: groupId,
@@ -61,7 +61,8 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
       name: groupName,
       ownerFipId: ownerFipId,
       ownerServerUrl: ownerServerUrl,
-      isOwner: ownerFipId == widget.identity.fipId,
+      isOwner: false,
+      token: token,
       members: [],
     );
     Navigator.pop(context, group);
