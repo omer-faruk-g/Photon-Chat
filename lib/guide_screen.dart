@@ -15,34 +15,34 @@ class _GuideScreenState extends State<GuideScreen> {
 
   List<_GuidePage> get _pages => [
     _GuidePage(
-      icon: '⚡',
+      icon: Icons.sensors_outlined,
       title: AppLang.instance.t('guideWelcomeTitle'),
       body: AppLang.instance.t('guideWelcomeBody'),
     ),
     _GuidePage(
-      icon: '🌐',
+      icon: Icons.dns_outlined,
       title: AppLang.instance.t('guideSetupServer'),
       body: AppLang.instance.t('guideServerBody'),
       tip: AppLang.instance.t('guideServerTip'),
     ),
     _GuidePage(
-      icon: '🔢',
+      icon: Icons.pin_outlined,
       title: AppLang.instance.t('guideYourCode'),
       body: AppLang.instance.t('guideCodeBody'),
-      highlight: '1 2 3 4 5',
+      highlight: '12345',
     ),
     _GuidePage(
-      icon: '🤝',
+      icon: Icons.person_add_outlined,
       title: AppLang.instance.t('guideAddFriend'),
       body: AppLang.instance.t('guideAddFriendBody'),
     ),
     _GuidePage(
-      icon: '👥',
+      icon: Icons.group_outlined,
       title: AppLang.instance.t('guideGroupChats'),
       body: AppLang.instance.t('guideGroupBody'),
     ),
     _GuidePage(
-      icon: '🔒',
+      icon: Icons.lock_outline,
       title: AppLang.instance.t('guidePrivacy'),
       body: AppLang.instance.t('guidePrivacyBody'),
     ),
@@ -72,28 +72,35 @@ class _GuideScreenState extends State<GuideScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s1, 0),
+              child: Row(children: [
+                BrandMark(size: 28),
+                const SizedBox(width: Space.s1),
+                Expanded(child: Text('Photon Chat', maxLines: 1, overflow: TextOverflow.ellipsis, style: PText.h2)),
+                Text('${_page + 1} / ${_pages.length}', style: PText.small.merge(PText.tabular)),
+                const SizedBox(width: Space.s1),
+                // Son sayfada da yer tutsun ki başlık zıplamasın.
+                Opacity(
+                  opacity: _page == _pages.length - 1 ? 0 : 1,
+                  child: TextButton(
+                    onPressed: _page == _pages.length - 1 ? null : _skip,
+                    child: Text(AppLang.instance.t('skip')),
+                  ),
+                ),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.s3, Space.s1, Space.s3, 0),
               child: Row(
                 children: List.generate(_pages.length, (i) => Expanded(
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     height: 3,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      color: i <= _page ? PhotonColors.accent : PhotonColors.line,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                    margin: EdgeInsets.only(right: i == _pages.length - 1 ? 0 : Space.s1),
+                    color: i <= _page ? PhotonColors.accent : PhotonColors.line,
                   ),
                 )),
               ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: _page == _pages.length - 1
-                  ? const SizedBox(height: 48)
-                  : TextButton(
-                      onPressed: _skip,
-                      child: Text(AppLang.instance.t('skip'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
-                    ),
             ),
             Expanded(
               child: PageView.builder(
@@ -104,16 +111,12 @@ class _GuideScreenState extends State<GuideScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+              padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s4),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: photonPrimaryButtonStyle(),
                   onPressed: _next,
-                  child: Text(
-                    _page == _pages.length - 1 ? AppLang.instance.t('letsStart') : AppLang.instance.t('continueArrow'),
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  child: Text(_page == _pages.length - 1 ? AppLang.instance.t('letsStart') : AppLang.instance.t('continueArrow')),
                 ),
               ),
             ),
@@ -125,7 +128,7 @@ class _GuideScreenState extends State<GuideScreen> {
 }
 
 class _GuidePage {
-  final String icon;
+  final IconData icon;
   final String title;
   final String body;
   final String? tip;
@@ -140,67 +143,69 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
           Container(
-            width: 72, height: 72,
+            width: Space.s6, height: Space.s6,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: PhotonColors.accent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: PhotonColors.accent.withOpacity(0.25)),
+              color: PhotonColors.accentWash,
+              borderRadius: BorderRadius.circular(PhotonRadius.card),
+              border: Border.all(color: PhotonColors.line),
             ),
-            child: Text(page.icon, style: const TextStyle(fontSize: 34)),
+            child: Icon(page.icon, color: PhotonColors.accent, size: 28),
           ),
-          const SizedBox(height: 24),
-          Text(page.title, style: TextStyle(color: PhotonColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
-          const SizedBox(height: 18),
-          Text(page.body, style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.8)),
+          const SizedBox(height: Space.s4),
+          Text(page.title, style: PText.display.copyWith(fontSize: 30)),
+          const SizedBox(height: Space.s3),
+          Text(page.body, style: PText.bodyDim),
           if (page.highlight != null) ...[
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: PhotonColors.accent.withOpacity(0.08),
-                border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                page.highlight!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: PhotonColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
-              ),
-            ),
+            const SizedBox(height: Space.s4),
+            LayoutBuilder(builder: (context, c) {
+              // 5 kutu + 4 boşluk; dar ekranda kutular küçülür, geniş ekranda 48'de kalır.
+              final box = ((c.maxWidth - Space.s1 * 4) / 5).clamp(0.0, Space.s5);
+              return Row(children: [
+                for (final (i, d) in page.highlight!.split('').indexed) ...[
+                  if (i > 0) const SizedBox(width: Space.s1),
+                  Container(
+                    width: box, height: box * 4 / 3,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: PhotonColors.panel,
+                      borderRadius: BorderRadius.circular(PhotonRadius.card),
+                      border: Border.all(color: PhotonColors.line),
+                    ),
+                    child: Stack(children: [
+                      Center(child: Text(d, style: PText.h2.merge(PText.tabular).copyWith(fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600))),
+                      Positioned(left: 0, right: 0, bottom: 0, child: SizedBox(height: 3, child: ColoredBox(color: PhotonColors.accent))),
+                    ]),
+                  ),
+                ],
+              ]);
+            }),
           ],
           if (page.tip != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: Space.s4),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.all(Space.s2),
               decoration: BoxDecoration(
-                color: PhotonColors.panelAlt,
+                color: PhotonColors.panel,
                 border: Border.all(color: PhotonColors.line),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(PhotonRadius.card),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('💡 ', style: TextStyle(fontSize: 14)),
-                  Expanded(
-                    child: Text(
-                      page.tip!,
-                      style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6),
-                    ),
-                  ),
+                  Icon(Icons.lightbulb_outline, color: PhotonColors.accent2, size: 18),
+                  const SizedBox(width: Space.s1),
+                  Expanded(child: Text(page.tip!, style: PText.small)),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 32),
         ],
       ),
     );

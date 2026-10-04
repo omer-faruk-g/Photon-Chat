@@ -128,7 +128,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
           if (_error != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: PhotonColors.danger.withOpacity(0.12),
               child: Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
             ),
@@ -139,10 +139,10 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                 ? Center(
                     child: Text(AppLang.instance.t('gifFramesEmpty'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.7)),
+                        style: TextStyle(color: PhotonColors.textDim, fontSize: 15, height: 1.7)),
                   )
                 : GridView.builder(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       mainAxisSpacing: 8,
@@ -163,15 +163,15 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                             child: Container(
                               width: 22, height: 22,
                               decoration: BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                              child: const Icon(Icons.close, color: Colors.white, size: 14),
+                              child: const Icon(Icons.close_outlined, color: Colors.white, size: 14),
                             ),
                           ),
                         ),
                         Positioned(
                           bottom: 4, left: 4,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
                             child: Text('${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 11)),
                           ),
                         ),
@@ -192,7 +192,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
               children: [
                 TextField(
                   controller: _captionCtrl,
-                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 15),
                   maxLength: 100,
                   decoration: InputDecoration(
                     hintText: AppLang.instance.t('gifCaptionHint'),
@@ -209,7 +209,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: PhotonColors.text,
                           side: BorderSide(color: PhotonColors.line),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: (_scanning || _encoding) ? null : _addFrame,
@@ -220,7 +220,7 @@ class _GifCreatorScreenState extends State<GifCreatorScreen> {
                       ),
                     ),
                     if (_frames.isNotEmpty) ...[
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
                           style: photonPrimaryButtonStyle(),

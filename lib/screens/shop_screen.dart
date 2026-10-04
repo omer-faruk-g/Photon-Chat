@@ -111,7 +111,7 @@ class _ShopScreenState extends State<ShopScreen> {
       body: _loading
           ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(Space.s2, Space.s3, Space.s2, Space.s5),
               children: [
                 _currentTierCard(active),
                 const SizedBox(height: 16),
@@ -120,23 +120,17 @@ class _ShopScreenState extends State<ShopScreen> {
                   const SizedBox(height: 16),
                   _colorPicker(),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 ...VipTier.purchasable.map((t) => _tierRow(t, active)),
-                const SizedBox(height: 22),
-                Text(AppLang.instance.t('animSectionTitle'),
-                    style: TextStyle(
-                        color: PhotonColors.textDim,
-                        fontSize: 10,
-                        letterSpacing: 1.5)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 24),
+                Text(trUpper(AppLang.instance.t('animSectionTitle')),
+                    style: PText.label),
+                const SizedBox(height: 8),
                 ...ProfileAnim.purchasable.map((a) => _animRow(a, active)),
                 _animRow(null, active),
                 const SizedBox(height: 8),
                 Text(AppLang.instance.t('animFreeNote'),
-                    style: TextStyle(
-                        color: PhotonColors.textDim,
-                        fontSize: 11,
-                        height: 1.5)),
+                    style: PText.meta),
               ],
             ),
     );
@@ -144,23 +138,18 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _currentTierCard(VipTier active) => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: PhotonColors.panel,
+          color: PhotonColors.accentWash,
           border: Border.all(color: PhotonColors.line),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PhotonRadius.card),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(AppLang.instance.t('shopCurrentTier'),
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-          const SizedBox(height: 6),
+          Text(trUpper(AppLang.instance.t('shopCurrentTier')), style: PText.label),
+          const SizedBox(height: Space.s1),
           Text(
             active == VipTier.none ? AppLang.instance.t('vipNone') : active.label,
-            style: TextStyle(
-              color: _status.color ?? PhotonColors.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+            style: PText.h1.copyWith(color: _status.color ?? PhotonColors.text),
           ),
         ]),
       );
@@ -168,17 +157,17 @@ class _ShopScreenState extends State<ShopScreen> {
   /// TEMPORARY test-code panel. Delete with [_ownerMode].
   Widget _redeemSection() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: PhotonColors.panel,
           border: Border.all(
               color: _ownerMode ? PhotonColors.accent2 : PhotonColors.line),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PhotonRadius.card),
         ),
         child: _ownerMode
             ? Row(children: [
-                Icon(Icons.science, size: 18, color: PhotonColors.accent2),
-                const SizedBox(width: 10),
+                Icon(Icons.science_outlined, size: 18, color: PhotonColors.accent2),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,33 +175,29 @@ class _ShopScreenState extends State<ShopScreen> {
                         Text(AppLang.instance.t('shopOwnerMode'),
                             style: TextStyle(
                                 color: PhotonColors.accent2,
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700)),
                         Text(AppLang.instance.t('shopOwnerModeDesc'),
-                            style: TextStyle(
-                                color: PhotonColors.textDim, fontSize: 11)),
+                            style: PText.meta),
                       ]),
                 ),
                 TextButton(
                   onPressed: _revoke,
                   child: Text(AppLang.instance.t('shopRevoke'),
                       style: TextStyle(
-                          color: PhotonColors.danger, fontSize: 12)),
+                          color: PhotonColors.danger, fontSize: 13)),
                 ),
               ])
             : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLang.instance.t('shopRedeemTitle'),
-                    style: TextStyle(
-                        color: PhotonColors.textDim,
-                        fontSize: 10,
-                        letterSpacing: 1.5)),
-                const SizedBox(height: 10),
+                Text(trUpper(AppLang.instance.t('shopRedeemTitle')),
+                    style: PText.label),
+                const SizedBox(height: 8),
                 Row(children: [
                   Expanded(
                     child: TextField(
                       controller: _codeCtrl,
                       textCapitalization: TextCapitalization.characters,
-                      style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                      style: TextStyle(color: PhotonColors.text, fontSize: 15),
                       decoration: InputDecoration(
                         hintText: AppLang.instance.t('shopRedeemHint'),
                         hintStyle: TextStyle(
@@ -228,7 +213,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       onSubmitted: (_) => _redeem(),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     style: photonPrimaryButtonStyle(),
                     onPressed: _redeem,
@@ -240,16 +225,16 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _colorPicker() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: PhotonColors.panel,
           border: Border.all(color: PhotonColors.line),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PhotonRadius.card),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(AppLang.instance.t('shopColorSection'),
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-          const SizedBox(height: 12),
+          Text(trUpper(AppLang.instance.t('shopColorSection')),
+              style: PText.label),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -292,8 +277,8 @@ class _ShopScreenState extends State<ShopScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+      child: HoverCard(
+        padding: EdgeInsets.zero,
         onTap: () async {
           await Navigator.push(
             context,
@@ -310,16 +295,10 @@ class _ShopScreenState extends State<ShopScreen> {
           );
           if (mounted) _load();
         },
+        borderColor: owned ? PhotonColors.accent : null,
+        color: owned ? PhotonColors.accentWash : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: PhotonColors.panel,
-            border: Border.all(
-              color: owned ? PhotonColors.accent : PhotonColors.line,
-              width: owned ? 1.5 : 1,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1 + 4),
           child: Row(children: [
             Expanded(
               child: Column(
@@ -328,28 +307,25 @@ class _ShopScreenState extends State<ShopScreen> {
                     Row(children: [
                       Flexible(
                         child: Text(label,
-                            style: TextStyle(
-                                color: PhotonColors.text,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700),
+                            style: PText.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                       ),
                       if (owned) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                              horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
                             color: PhotonColors.accent.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                               AppLang.instance.t(
                                   isBundle ? 'animBundleOwned' : 'animOwned'),
                               style: TextStyle(
                                   color: PhotonColors.accent,
-                                  fontSize: 9,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700)),
                         ),
                       ],
@@ -364,11 +340,8 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
             if (!owned)
               Text(price,
-                  style: TextStyle(
-                      color: PhotonColors.accent,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-            Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 18),
+                  style: PText.title.merge(PText.tabular).copyWith(color: PhotonColors.accent)),
+            Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 18),
           ]),
         ),
       ),
@@ -384,8 +357,8 @@ class _ShopScreenState extends State<ShopScreen> {
     final isActive = tier == active;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+      child: HoverCard(
+        padding: EdgeInsets.zero,
         onTap: () async {
           await Navigator.push(
             context,
@@ -400,52 +373,53 @@ class _ShopScreenState extends State<ShopScreen> {
           );
           if (mounted) _load();
         },
+        borderColor: isActive ? PhotonColors.accent : null,
+        color: isActive ? PhotonColors.accentWash : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: PhotonColors.panel,
-            border: Border.all(
-              color: isActive ? PhotonColors.accent : PhotonColors.line,
-              width: isActive ? 1.5 : 1,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1 + 4),
           child: Row(children: [
+            // Merdivendeki yeri: her katman bir öncekinin hepsini kapsar.
+            Container(
+              width: Space.s4, height: Space.s4, alignment: Alignment.center,
+              margin: const EdgeInsets.only(right: Space.s2),
+              decoration: BoxDecoration(
+                color: isActive ? PhotonColors.accent : PhotonColors.bg,
+                border: Border.all(color: isActive ? PhotonColors.accent : PhotonColors.line),
+                borderRadius: BorderRadius.circular(PhotonRadius.pill),
+              ),
+              child: Text('${tier.rank}',
+                  style: PText.small.merge(PText.tabular).copyWith(
+                      color: isActive ? PhotonColors.onAccent : PhotonColors.textDim, fontWeight: FontWeight.w600)),
+            ),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
                   Text(tier.label,
-                      style: TextStyle(
-                          color: PhotonColors.text,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700)),
+                      style: PText.title),
                   if (isActive) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: PhotonColors.accent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(AppLang.instance.t('shopActive'),
                           style: TextStyle(
                               color: PhotonColors.accent,
-                              fontSize: 9,
+                              fontSize: 11,
                               fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ]),
                 const SizedBox(height: 2),
                 Text('+ ${AppLang.instance.t(tier.addsKey)}',
-                    style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                    style: PText.meta),
               ]),
             ),
             Text('${tier.priceTry}₺${AppLang.instance.t('shopPerMonth')}',
-                style: TextStyle(
-                    color: PhotonColors.accent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
-            Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 18),
+                style: PText.title.merge(PText.tabular).copyWith(color: PhotonColors.accent)),
+            Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 18),
           ]),
         ),
       ),

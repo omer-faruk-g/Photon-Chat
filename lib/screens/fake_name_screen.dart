@@ -90,7 +90,7 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
                   decoration: BoxDecoration(
                     color: PhotonColors.panel,
                     border: Border.all(color: PhotonColors.line),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,13 +98,13 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
                         Text(AppLang.instance.t('fakeNameField'),
                             style: TextStyle(
                                 color: PhotonColors.textDim,
-                                fontSize: 10,
+                                fontSize: 11,
                                 letterSpacing: 1.5)),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         TextField(
                           controller: _ctrl,
                           maxLength: 40,
-                          style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                          style: TextStyle(color: PhotonColors.text, fontSize: 15),
                           decoration: InputDecoration(
                             hintText: AppLang.instance.t('fakeNameHint'),
                             hintStyle: TextStyle(
@@ -112,7 +112,7 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
                             filled: true,
                             fillColor: PhotonColors.bg,
                             counterStyle: TextStyle(
-                                color: PhotonColors.textDim, fontSize: 10),
+                                color: PhotonColors.textDim, fontSize: 11),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                               borderSide: BorderSide(color: PhotonColors.line),
@@ -124,11 +124,10 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
                           Expanded(
                             child: Text(AppLang.instance.t('fakeNameEnabled'),
                                 style: TextStyle(
-                                    color: PhotonColors.text, fontSize: 14)),
+                                    color: PhotonColors.text, fontSize: 15)),
                           ),
                           Switch(
                             value: _active,
-                            activeColor: PhotonColors.accent,
                             onChanged: (v) => setState(() => _active = v),
                           ),
                         ]),
@@ -136,22 +135,22 @@ class _FakeNameScreenState extends State<FakeNameScreen> {
                         Text(
                           '${AppLang.instance.t('fakeNameShowing')}: $shown',
                           style: TextStyle(
-                              color: PhotonColors.textDim, fontSize: 12),
+                              color: PhotonColors.textDim, fontSize: 13),
                         ),
                       ]),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: photonPrimaryButtonStyle(),
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Color(0xFF06251A)))
+                                strokeWidth: 2, color: PhotonColors.onAccent))
                         : Text(AppLang.instance.t('save')),
                   ),
                 ),

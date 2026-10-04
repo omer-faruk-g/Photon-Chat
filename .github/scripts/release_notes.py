@@ -687,10 +687,27 @@ CHANGELOGS = {
         "- Katman bilgisi henüz yüklenmemişken profil animasyonu sessizce atlanıyordu — düzeltildi.\n\n"
         "> v10.6.0'ı kurduysan bu sürümü üzerine kurman yeterli."
     ),
+    'v10.8.0': (
+        "### 🎨 v10.8.0 — Yeni arayüz ve web sürümü\n\n"
+        "v10.5.0'ın bütün özellikleri yerinde; görünüşü baştan çizildi.\n\n"
+        "**Yeni tasarım dili**\n"
+        "- Başlıklarda Young Serif, metinlerde IBM Plex Sans — ikisi de uygulamanın içinde, internetten indirilmez.\n"
+        "- Tek bir marka yeşili, kehribar vurgu ve 8 piksellik boşluk ölçeği; bütün ekranlar aynı kurallarla hizalandı.\n"
+        "- Açık tema yeniden ayarlandı: yeşil ve kehribar beyaz zeminde okunaklı (WCAG AA).\n"
+        "- Arayüzdeki emoji ikonlar tek bir çizgisel ikon ailesine geçti.\n\n"
+        "**Daha rahat kullanım**\n"
+        "- Sohbette fotoğraf, dosya, GIF, konum ve hızlı yanıtlar tek bir **+** düğmesinde; yazma alanı küçük ekranda da tam genişlikte.\n"
+        "- Davetlerde Kabul/Sil düğmeleri büyüdü, yanlışlıkla dokunma azaldı.\n"
+        "- Profil, ayarlar ve dükkan sadeleşti; katmanlar sırasıyla numaralı.\n"
+        "- Grup sohbetinde masaüstünde Enter artık mesajı gönderiyor.\n"
+        "- Windows ve Linux'ta geniş pencerede uygulama ortada okunaklı bir sütunda duruyor.\n\n"
+        "**Web sürümü**\n"
+        "- Kurulum yapmadan tarayıcıda kullan: https://omer-faruk-g.github.io/Photon-Chat/app/"
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0'}
 
 
 def make_body(tag):
@@ -711,6 +728,7 @@ def make_body(tag):
         installer_row +
         f"| 🪟 Windows | [PhotonChat-Windows.zip]({base}/PhotonChat-Windows.zip) | ✅ İndir |\n"
         f"| 🐧 Linux | [PhotonChat-Linux.tar.gz]({base}/PhotonChat-Linux.tar.gz) | ✅ İndir |\n"
+        "| 🌐 Web | [Tarayıcıda aç](https://omer-faruk-g.github.io/Photon-Chat/app/) | ✅ Kurulum gerekmez |\n"
         "| 🍎 iOS | — | 🔜 Yakında |\n\n"
         "---\n\n"
         "### 🚀 Kurulum\n\n"

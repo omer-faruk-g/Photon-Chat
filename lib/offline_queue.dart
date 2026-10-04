@@ -133,6 +133,11 @@ class OfflineQueue {
       } on TimeoutException {
         msg.sending = false;
         break;
+      } on GroupSendRejected catch (e) {
+        // 429: sonra tekrar dene. Diğer red (susturulmuş, üye değil) kalıcıdır;
+        // kuyrukta sonsuza kadar denemek yerine bırak.
+        msg.sending = false;
+        if (e.statusCode != 429) toRemove.add(msg);
       } catch (_) {
         msg.sending = false;
       }

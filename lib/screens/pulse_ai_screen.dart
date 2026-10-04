@@ -75,9 +75,9 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
             ),
-            child: Text('⚡', style: TextStyle(fontSize: 14)),
+            child: Icon(Icons.bolt_outlined, size: 16, color: PhotonColors.accent),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(AppLang.instance.t('pulseAiTitle')),
         ]),
       ),
@@ -86,37 +86,28 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
         children: [
           Expanded(
             child: _messages.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 36),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64, height: 64,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: PhotonColors.accent.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: PhotonColors.accent.withOpacity(0.3)),
-                            ),
-                            child: Text('⚡', style: TextStyle(fontSize: 30)),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(AppLang.instance.t('pulseAiTitle'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 18)),
-                          const SizedBox(height: 8),
-                          Text(
-                            AppLang.instance.t('pulseAiWelcome'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.7),
-                          ),
-                        ],
+                ? ListView(
+                    padding: const EdgeInsets.fromLTRB(Space.s3, Space.s6, Space.s3, Space.s3),
+                    children: [
+                      Container(
+                        width: Space.s6, height: Space.s6,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accentWash,
+                          borderRadius: BorderRadius.circular(PhotonRadius.card),
+                          border: Border.all(color: PhotonColors.line),
+                        ),
+                        child: Icon(Icons.bolt_outlined, size: 32, color: PhotonColors.accent),
                       ),
-                    ),
+                      const SizedBox(height: Space.s3),
+                      Text(AppLang.instance.t('pulseAiTitle'), style: PText.display),
+                      const SizedBox(height: Space.s2),
+                      Text(AppLang.instance.t('pulseAiWelcome'), style: PText.bodyDim),
+                    ],
                   )
                 : ListView.builder(
                     controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
                       final m = _messages[i];
@@ -125,7 +116,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
                           decoration: BoxDecoration(
                             color: isUser ? PhotonColors.accent : PhotonColors.panel,
@@ -143,13 +134,17 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                               if (!isUser)
                                 Padding(
                                   padding: EdgeInsets.only(bottom: 4),
-                                  child: Text('⚡ Pulse AI', style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.bolt_outlined, size: 13, color: PhotonColors.accent),
+                                    const SizedBox(width: 4),
+                                    Text('Pulse AI', style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                                  ]),
                                 ),
                               SelectableText(
                                 m['content'] ?? '',
                                 style: TextStyle(
-                                  color: isUser ? const Color(0xFF06251A) : PhotonColors.text,
-                                  fontSize: 14,
+                                  color: isUser ? PhotonColors.onAccent : PhotonColors.text,
+                                  fontSize: 15,
                                   height: 1.55,
                                 ),
                               ),
@@ -162,11 +157,11 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
           ),
           if (_loading)
             Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+              padding: EdgeInsets.symmetric(vertical: 8),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)),
-                SizedBox(width: 10),
-                Text(AppLang.instance.t('pulseAiTyping'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+                SizedBox(width: 8),
+                Text(AppLang.instance.t('pulseAiTyping'), style: PText.small),
               ]),
             ),
           if (_inputError != null)
@@ -174,7 +169,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: PhotonColors.danger.withOpacity(0.1),
-              child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
+              child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
             ),
           Container(
             padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).viewInsets.bottom + 16),
@@ -187,11 +182,11 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                 child: TextField(
                   controller: _ctrl,
                   enabled: !_loading,
-                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                  style: TextStyle(color: PhotonColors.text, fontSize: 15),
                   decoration: InputDecoration(
                     hintText: AppLang.instance.t('pulseAiHint'),
-                    hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    hintStyle: PText.small,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(999)),
                     focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(999)),
                     disabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(999)),
@@ -210,7 +205,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                     color: _loading ? PhotonColors.line : PhotonColors.accent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.arrow_upward, color: _loading ? PhotonColors.textDim : const Color(0xFF06251A), size: 20),
+                  child: Icon(Icons.arrow_upward_outlined, color: _loading ? PhotonColors.textDim : PhotonColors.onAccent, size: 20),
                 ),
               ),
             ]),

@@ -72,7 +72,7 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
                 const SizedBox(height: 16),
                 _row(ProfileAnim.none),
                 ...ProfileAnim.purchasable.map(_row),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(AppLang.instance.t('animFreeNote'),
                     style: TextStyle(
                         color: PhotonColors.textDim, fontSize: 11, height: 1.5)),
@@ -87,7 +87,7 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         onTap: () {
           if (!owned) {
             Navigator.push(
@@ -106,14 +106,14 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: PhotonColors.panel,
             border: Border.all(
               color: isSelected ? PhotonColors.accent : PhotonColors.line,
               width: isSelected ? 1.5 : 1,
             ),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
             Icon(
@@ -123,7 +123,7 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
               size: 18,
               color: isSelected ? PhotonColors.accent : PhotonColors.textDim,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +131,7 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
                     Text(AppLang.instance.t(a.nameKey),
                         style: TextStyle(
                             color: PhotonColors.text,
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(AppLang.instance.t(a.descKey),
@@ -143,12 +143,12 @@ class _ProfileAnimScreenState extends State<ProfileAnimScreen> {
               Text(AppLang.instance.t('animActive'),
                   style: TextStyle(
                       color: PhotonColors.accent,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700))
             else if (!owned)
               Text(AppLang.instance.t('animLocked'),
                   style:
-                      TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+                      PText.meta),
           ]),
         ),
       ),

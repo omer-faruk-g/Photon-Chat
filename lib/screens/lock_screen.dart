@@ -100,14 +100,14 @@ class _LockScreenState extends State<LockScreen> {
       children: [
         Icon(Icons.lock_outline, color: PhotonColors.accent, size: 48),
         const SizedBox(height: 16),
-        Text(AppLang.instance.t('enterPin'), style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
+        Text(AppLang.instance.t('enterPin'), style: TextStyle(color: PhotonColors.text, fontSize: 19, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        if (_error != null) Text(_error!, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+        if (_error != null) Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(_pinLen, (i) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 6),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
             width: 14,
             height: 14,
             decoration: BoxDecoration(
@@ -153,10 +153,10 @@ class _LockScreenState extends State<LockScreen> {
               margin: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 color: PhotonColors.panel,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: PhotonColors.line),
               ),
-              child: Text(k, style: TextStyle(color: PhotonColors.text, fontSize: 22, fontWeight: FontWeight.w500)),
+              child: Text(k, style: TextStyle(color: PhotonColors.text, fontSize: 26, fontWeight: FontWeight.w500)),
             ),
           );
         }).toList(),
@@ -168,11 +168,11 @@ class _LockScreenState extends State<LockScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.pattern, color: PhotonColors.accent, size: 48),
+        Icon(Icons.pattern_outlined, color: PhotonColors.accent, size: 48),
         const SizedBox(height: 16),
-        Text(AppLang.instance.t('drawPattern'), style: TextStyle(color: PhotonColors.text, fontSize: 18, fontWeight: FontWeight.w600)),
+        Text(AppLang.instance.t('drawPattern'), style: TextStyle(color: PhotonColors.text, fontSize: 19, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        if (_error != null) Text(_error!, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+        if (_error != null) Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
         const SizedBox(height: 24),
         _PatternGrid(
           selected: _pattern,
@@ -294,8 +294,8 @@ class _SetLockScreenState extends State<SetLockScreen> {
       backgroundColor: PhotonColors.bg,
       appBar: AppBar(
         backgroundColor: PhotonColors.bg,
-        leading: IconButton(icon: Icon(Icons.close, color: PhotonColors.text), onPressed: () => Navigator.pop(context)),
-        title: Text(AppLang.instance.t('setLock'), style: TextStyle(color: PhotonColors.text, fontSize: 16)),
+        leading: IconButton(icon: Icon(Icons.close_outlined, color: PhotonColors.text), onPressed: () => Navigator.pop(context)),
+        title: Text(AppLang.instance.t('setLock'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -303,13 +303,13 @@ class _SetLockScreenState extends State<SetLockScreen> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               _buildTypeChip('pin', 'PIN'),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildTypeChip('pattern', 'Desen'),
             ]),
             const SizedBox(height: 32),
             if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: Colors.redAccent, fontSize: 12)),
-              const SizedBox(height: 12),
+              Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
+              const SizedBox(height: 16),
             ],
             if (_type == 'pin') _buildPinSetup() else _buildPatternSetup(),
           ]),
@@ -323,13 +323,13 @@ class _SetLockScreenState extends State<SetLockScreen> {
     return GestureDetector(
       onTap: () => setState(() { _type = type; _pin = ''; _confirmPin = null; _pattern = []; _confirmPattern = null; _error = null; }),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: active ? PhotonColors.accent : PhotonColors.panel,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: active ? PhotonColors.accent : PhotonColors.line),
         ),
-        child: Text(label, style: TextStyle(color: active ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600)),
+        child: Text(label, style: TextStyle(color: active ? PhotonColors.onAccent : PhotonColors.text, fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -337,12 +337,12 @@ class _SetLockScreenState extends State<SetLockScreen> {
   Widget _buildPinSetup() {
     final isConfirm = _confirmPin != null;
     return Column(children: [
-      Text(isConfirm ? AppLang.instance.t('confirmPin') : AppLang.instance.t('newPinEnter'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+      Text(isConfirm ? AppLang.instance.t('confirmPin') : AppLang.instance.t('newPinEnter'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
       const SizedBox(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate((_pin.length + 1) < 4 ? 4 : ((_pin.length + 1) > 6 ? 6 : _pin.length + 1), (i) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 6),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
           width: 14,
           height: 14,
           decoration: BoxDecoration(
@@ -378,8 +378,8 @@ class _SetLockScreenState extends State<SetLockScreen> {
                 width: 72, height: 56,
                 alignment: Alignment.center,
                 margin: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: PhotonColors.panel, borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
-                child: Text(k, style: TextStyle(color: PhotonColors.text, fontSize: 22, fontWeight: FontWeight.w500)),
+                decoration: BoxDecoration(color: PhotonColors.panel, borderRadius: BorderRadius.circular(16), border: Border.all(color: PhotonColors.line)),
+                child: Text(k, style: TextStyle(color: PhotonColors.text, fontSize: 26, fontWeight: FontWeight.w500)),
               ),
             );
           }).toList(),
@@ -389,9 +389,9 @@ class _SetLockScreenState extends State<SetLockScreen> {
           GestureDetector(
             onTap: _onPinSubmit,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(8)),
-              child: Text(AppLang.instance.t('confirm'), style: TextStyle(color: const Color(0xFF06251A), fontWeight: FontWeight.w700)),
+              child: Text(AppLang.instance.t('confirm'), style: TextStyle(color: PhotonColors.onAccent, fontWeight: FontWeight.w700)),
             ),
           ),
       ],
@@ -417,7 +417,7 @@ class _SetLockScreenState extends State<SetLockScreen> {
   Widget _buildPatternSetup() {
     final isConfirm = _confirmPattern != null;
     return Column(children: [
-      Text(isConfirm ? AppLang.instance.t('confirmPattern') : AppLang.instance.t('newPatternDraw'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+      Text(isConfirm ? AppLang.instance.t('confirmPattern') : AppLang.instance.t('newPatternDraw'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
       const SizedBox(height: 24),
       _PatternGrid(
         selected: _pattern,

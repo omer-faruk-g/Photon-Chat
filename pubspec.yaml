@@ -1,7 +1,7 @@
 name: photon_chat
 description: "Photon Chat - FIP tabanlı, telefon numarası gerektirmeyen güvenli mesajlaşma uygulaması"
 publish_to: 'none'
-version: 10.7.0+52
+version: 10.8.0+53
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -41,6 +41,28 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/icon.png
+  # Marka font çifti (SIL Open Font License, assets/fonts/OFL.txt):
+  # Young Serif başlıklar, IBM Plex Sans gövde metni.
+  fonts:
+    - family: YoungSerif
+      fonts:
+        - asset: assets/fonts/YoungSerif-Regular.ttf
+    - family: IBMPlexSans
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Regular.ttf
+        - asset: assets/fonts/IBMPlexSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
+          weight: 700
+    # Flutter web, yazı tipi belirtilmemiş metinler için "Roboto"yu Google'dan indirir.
+    # Bu adı gövde fontumuza yönlendirerek açılışta Google'a istek gitmesini önlüyoruz.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/IBMPlexSans-Regular.ttf
+        - asset: assets/fonts/IBMPlexSans-SemiBold.ttf
+          weight: 600
 
 flutter_launcher_icons:
   android: true

@@ -55,12 +55,12 @@ class _StoriesRowState extends State<StoriesRow> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
-          leading: Icon(Icons.text_fields, color: PhotonColors.accent),
+          leading: Icon(Icons.text_fields_outlined, color: PhotonColors.accent),
           title: Text(AppLang.instance.t('textStory'), style: TextStyle(color: PhotonColors.text)),
           onTap: () { Navigator.pop(context); _addTextStory(); },
         ),
         ListTile(
-          leading: Icon(Icons.image, color: PhotonColors.accent),
+          leading: Icon(Icons.image_outlined, color: PhotonColors.accent),
           title: Text(AppLang.instance.t('imageStory'), style: TextStyle(color: PhotonColors.text)),
           onTap: () { Navigator.pop(context); _addImageStory(); },
         ),
@@ -132,7 +132,7 @@ class _StoriesRowState extends State<StoriesRow> {
       return SizedBox(
         height: 90,
         child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), children: [
-          _storyCircle(label: AppLang.instance.t('addYourStory'), icon: Icons.add, onTap: _addStory),
+          _storyCircle(label: AppLang.instance.t('addYourStory'), icon: Icons.add_outlined, onTap: _addStory),
         ]),
       );
     }
@@ -141,7 +141,7 @@ class _StoriesRowState extends State<StoriesRow> {
       child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8), children: [
         _storyCircle(
           label: AppLang.instance.t('myStory'),
-          icon: _myStories.isEmpty ? Icons.add : null,
+          icon: _myStories.isEmpty ? Icons.add_outlined : null,
           hasStory: _myStories.isNotEmpty,
           onTap: _myStories.isNotEmpty ? () => _viewStories(_myStories, widget.displayName) : _addStory,
           onLongPress: _addStory,
@@ -168,7 +168,7 @@ class _StoriesRowState extends State<StoriesRow> {
               border: Border.all(color: hasStory ? PhotonColors.accent : PhotonColors.line, width: hasStory ? 2.5 : 1.5),
               color: PhotonColors.panelAlt,
             ),
-            child: icon != null ? Icon(icon, color: PhotonColors.accent, size: 24) : Center(child: Text(label.isNotEmpty ? label[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold, fontSize: 20))),
+            child: icon != null ? Icon(icon, color: PhotonColors.accent, size: 24) : Center(child: Text(label.isNotEmpty ? label[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.bold, fontSize: 19))),
           ),
           const SizedBox(height: 4),
           // Two lines: "Hikayeni Ekle" / "Add Your Story" do not fit on one at
@@ -177,7 +177,7 @@ class _StoriesRowState extends State<StoriesRow> {
             width: 68,
             child: Text(
               label,
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 9.5, height: 1.15),
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.15),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -275,15 +275,15 @@ class _StoryViewerScreenState extends State<_StoryViewerScreen> {
           )),
           // Header
           Positioned(top: 28, left: 16, right: 16, child: Row(children: [
-            Text(widget.authorName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(widget.authorName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(width: 8),
             Text(_formatAgo(story.ts), style: const TextStyle(color: Colors.white60, fontSize: 11)),
             const Spacer(),
-            GestureDetector(onTap: () => Navigator.pop(context), child: const Icon(Icons.close, color: Colors.white, size: 24)),
+            GestureDetector(onTap: () => Navigator.pop(context), child: const Icon(Icons.close_outlined, color: Colors.white, size: 24)),
           ])),
           // Content
           Center(child: story.type == 'text'
-            ? Padding(padding: const EdgeInsets.all(32), child: Text(story.content, style: const TextStyle(color: Colors.white, fontSize: 22, height: 1.6), textAlign: TextAlign.center))
+            ? Padding(padding: const EdgeInsets.all(32), child: Text(story.content, style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.6), textAlign: TextAlign.center))
             : _buildImageStory(story.content)),
         ])),
       ),

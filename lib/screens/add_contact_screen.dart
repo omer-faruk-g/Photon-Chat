@@ -33,27 +33,25 @@ class _AddContactScreenState extends State<AddContactScreen> {
   void _showMyQr() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: PhotonColors.panel,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(AppLang.instance.t('myQrCode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+            Text(AppLang.instance.t('myQrCode'), style: PText.label),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(PhotonRadius.card)),
               child: QrImageView(data: widget.identity.code, size: 200),
             ),
             const SizedBox(height: 16),
             Text(widget.identity.code,
-              style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontFamily: 'monospace', letterSpacing: 10, fontWeight: FontWeight.bold)),
+              style: PText.h1.merge(PText.tabular).copyWith(color: PhotonColors.accent, fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600, letterSpacing: 8)),
             const SizedBox(height: 8),
             Text(AppLang.instance.t('qrHint'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 12)),
+              style: PText.small),
             const SizedBox(height: 16),
           ],
         ),
@@ -117,12 +115,12 @@ class _AddContactScreenState extends State<AddContactScreen> {
         title: Text(AppLang.instance.t('addContact')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.qr_code),
+            icon: const Icon(Icons.qr_code_outlined),
             tooltip: AppLang.instance.t('myQrTooltip'),
             onPressed: () => _showMyQr(),
           ),
           IconButton(
-            icon: const Icon(Icons.qr_code_scanner),
+            icon: const Icon(Icons.qr_code_scanner_outlined),
             tooltip: AppLang.instance.t('scanFriendQr'),
             onPressed: () async {
               final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const QrScanScreen(mode: QrScanMode.contact)));
@@ -136,84 +134,67 @@ class _AddContactScreenState extends State<AddContactScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          margin: const EdgeInsets.only(top: 24),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: PhotonColors.panel,
-            border: Border.all(color: PhotonColors.line),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        padding: const EdgeInsets.fromLTRB(Space.s3, Space.s4, Space.s3, Space.s4),
+        child: ContentWidth(
+          max: 560,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                AppLang.instance.t('friendCode5Digit'),
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5),
-              ),
-              const SizedBox(height: 12),
+              Text(trUpper(AppLang.instance.t('friendCode5Digit')), style: PText.label),
+              const SizedBox(height: Space.s2),
               TextField(
                 controller: _addrCtrl,
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 maxLength: 5,
-                style: TextStyle(
-                  color: PhotonColors.accent,
-                  fontSize: 22,
-                  fontFamily: 'monospace',
-                  letterSpacing: 8,
-                ),
+                style: PText.display.merge(PText.tabular).copyWith(color: PhotonColors.accent, fontFamily: PhotonFonts.body, fontWeight: FontWeight.w600, letterSpacing: 16),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  hintText: '• • • • •',
-                  hintStyle: TextStyle(color: Color(0xFF5C6E6B), fontSize: 22, letterSpacing: 8),
+                  hintText: '00000',
+                  hintStyle: PText.display.merge(PText.tabular).copyWith(color: PhotonColors.line, fontFamily: PhotonFonts.body, letterSpacing: 16),
                   counterText: '',
-                  filled: true,
-                  fillColor: PhotonColors.bg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: PhotonColors.line),
-                  ),
+                  errorText: _error,
+                  errorMaxLines: 3,
+                  contentPadding: const EdgeInsets.symmetric(vertical: Space.s3),
                 ),
                 autocorrect: false,
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) { if (_addrCtrl.text.trim().length == 5 && !_sending) _send(); },
               ),
-              const SizedBox(height: 12),
-              Text(
-                AppLang.instance.t('friendCodeHint'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.6),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
-              ],
-              const SizedBox(height: 18),
+              const SizedBox(height: Space.s2),
+              Text(AppLang.instance.t('friendCodeHint'), style: PText.small),
+              const SizedBox(height: Space.s4),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      style: photonGhostButtonStyle(),
                       onPressed: () => Navigator.pop(context),
                       child: Text(AppLang.instance.t('cancel')),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: Space.s1),
                   Expanded(
+                    flex: 2,
                     child: ElevatedButton(
-                      style: photonPrimaryButtonStyle(),
                       onPressed: (_addrCtrl.text.trim().length == 5 && !_sending) ? _send : null,
                       child: _sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A)),
-                            )
+                          ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.onAccent))
                           : Text(AppLang.instance.t('sendInvite')),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: Space.s4),
+              HoverCard(
+                onTap: _showMyQr,
+                child: Row(children: [
+                  Icon(Icons.qr_code_outlined, color: PhotonColors.accent),
+                  const SizedBox(width: Space.s2),
+                  Expanded(child: Text(trUpper(AppLang.instance.t('myQrCode')), style: PText.label.copyWith(color: PhotonColors.text))),
+                  Text(widget.identity.code, style: PText.title.merge(PText.tabular).copyWith(color: PhotonColors.accent, letterSpacing: 2)),
+                  const SizedBox(width: Space.s1),
+                  Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim),
+                ]),
               ),
             ],
           ),

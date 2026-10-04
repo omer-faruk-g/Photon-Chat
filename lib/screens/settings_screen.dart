@@ -149,14 +149,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDlgState) {
         return AlertDialog(
           backgroundColor: PhotonColors.panel,
-          title: Text(AppLang.instance.t('quickRepliesTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 16)),
+          title: Text(AppLang.instance.t('quickRepliesTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               if (replies.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Text(AppLang.instance.t('noQuickReplyYet'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                  child: Text(AppLang.instance.t('noQuickReplyYet'), style: PText.small),
                 )
               else
                 ...replies.map((r) => ListTile(
@@ -227,13 +227,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         expand: false,
         builder: (ctx, scrollCtrl) => Column(children: [
           Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-            Icon(Icons.notifications_active, color: PhotonColors.accent, size: 20),
-            const SizedBox(width: 10),
+            Icon(Icons.notifications_active_outlined, color: PhotonColors.accent, size: 20),
+            const SizedBox(width: 8),
             Text(AppLang.instance.t('pickNotifSound'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
             const Spacer(),
             GestureDetector(
               onTap: () { SoundPicker.stopSound(); Navigator.pop(ctx); },
-              child: Icon(Icons.close, color: PhotonColors.textDim, size: 20),
+              child: Icon(Icons.close_outlined, color: PhotonColors.textDim, size: 20),
             ),
           ])),
           Divider(color: PhotonColors.line, height: 1),
@@ -264,7 +264,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(color: PhotonColors.line, height: 1),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(AppLang.instance.t('deviceSounds'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5))),
+            child: Text(AppLang.instance.t('deviceSounds'), style: PText.label)),
           Expanded(
             child: ListView.builder(
               controller: scrollCtrl,
@@ -324,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         width: 28, height: 28,
         decoration: BoxDecoration(
           color: Color(int.parse(ChatWallpaper.value, radix: 16)),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: PhotonColors.line),
         ),
       );
@@ -334,7 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final bytes = base64Decode(ChatWallpaper.value);
         return Container(
           width: 28, height: 28,
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: PhotonColors.line)),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
           clipBehavior: Clip.antiAlias,
           child: Image.memory(bytes, fit: BoxFit.cover),
         );
@@ -344,17 +344,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAvatar() {
+    const size = Space.s7 - Space.s3; // 72
     if (_avatar.isNotEmpty) {
       try {
         final bytes = base64Decode(_avatar);
-        return CircleAvatar(radius: 36, backgroundImage: MemoryImage(bytes));
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(size / 4),
+          child: Image.memory(bytes, width: size, height: size, fit: BoxFit.cover),
+        );
       } catch (_) {}
     }
     final name = widget.displayName;
-    return CircleAvatar(
-      radius: 36,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
-      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: 28, fontWeight: FontWeight.bold)),
+    return Container(
+      width: size, height: size, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: Border.all(color: PhotonColors.line),
+      ),
+      child: Text(name.isNotEmpty ? trUpper(name[0]) : '?',
+          style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: 32)),
     );
   }
 
@@ -377,8 +386,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isActive ? const Color(0xFF06251A) : PhotonColors.text,
-              fontSize: 12,
+              color: isActive ? PhotonColors.onAccent : PhotonColors.text,
+              fontSize: 13,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -410,7 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   AppLang.instance.translateStatus.isNotEmpty
                     ? AppLang.instance.translateStatus
                     : (progress > 0 ? '${(progress * 100).toInt()}%' : AppLang.instance.t('translationPreparing')),
-                  style: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                  style: PText.small,
                   textAlign: TextAlign.center,
                 ),
               ]),
@@ -447,8 +456,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             textAlign: TextAlign.center,
             textDirection: code == 'ar' ? TextDirection.rtl : TextDirection.ltr,
             style: TextStyle(
-              color: isActive ? const Color(0xFF06251A) : PhotonColors.text,
-              fontSize: 12,
+              color: isActive ? PhotonColors.onAccent : PhotonColors.text,
+              fontSize: 13,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -470,7 +479,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(AppLang.instance.t('selectLanguage'), style: TextStyle(color: PhotonColors.text, fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(AppLang.instance.t('selectLanguage'), style: TextStyle(color: PhotonColors.text, fontSize: 15, fontWeight: FontWeight.bold)),
               ),
               Divider(color: PhotonColors.line, height: 1),
               Expanded(
@@ -480,7 +489,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final lang = AppLang.supportedLanguages[i];
                     final isActive = AppLang.instance.lang == lang['code'];
                     return ListTile(
-                      leading: Text(lang['flag']!, style: const TextStyle(fontSize: 24)),
+                      leading: Text(lang['flag']!, style: const TextStyle(fontSize: 26)),
                       title: Text(AppLang.instance.languageLabel(lang['code']!, lang['name']!),
                           style: TextStyle(color: PhotonColors.text, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
                       trailing: isActive ? Icon(Icons.check_circle, color: PhotonColors.accent, size: 20) : null,
@@ -518,42 +527,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Container(
                     width: 26, height: 26,
                     decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle, border: Border.all(color: PhotonColors.bg, width: 2)),
-                    child: const Icon(Icons.camera_alt, color: Color(0xFF06251A), size: 14),
+                    child: Icon(Icons.camera_alt_outlined, color: PhotonColors.onAccent, size: 14),
                   ),
                 ),
               ),
             ]),
           ),
           const SizedBox(height: 8),
-          Center(child: Text(widget.displayName, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.bold, fontSize: 16))),
-          const SizedBox(height: 20),
+          Center(child: Text(widget.displayName, style: PText.h2)),
+          const SizedBox(height: 16),
 
           // Durum mesajı
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(AppLang.instance.t('statusMessage'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-              const SizedBox(height: 10),
+              Text(AppLang.instance.t('statusMessage'), style: PText.label),
+              const SizedBox(height: 8),
               TextField(
                 controller: _statusCtrl,
-                style: TextStyle(color: PhotonColors.text, fontSize: 13),
+                style: PText.body,
                 maxLength: 60,
                 decoration: InputDecoration(
                   hintText: AppLang.instance.t('statusMsgHint'),
-                  hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                  hintStyle: PText.small,
                   filled: true, fillColor: PhotonColors.bg,
-                  counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+                  counterStyle: PText.meta,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
                 ),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: photonPrimaryButtonStyle(),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
                   onPressed: _savingStatus ? null : _saveStatus,
-                  child: _savingStatus ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : Text(AppLang.instance.t('save')),
+                  child: _savingStatus ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)) : Text(AppLang.instance.t('save')),
                 ),
               ),
             ]),
@@ -563,35 +571,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Bio
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(AppLang.instance.t('bioSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-              const SizedBox(height: 10),
+              Text(AppLang.instance.t('bioSection'), style: PText.label),
+              const SizedBox(height: 8),
               Focus(
                 onFocusChange: (hasFocus) { if (!hasFocus) _saveBio(); },
                 child: TextField(
                   controller: _bioCtrl,
-                  style: TextStyle(color: PhotonColors.text, fontSize: 13),
+                  style: PText.body,
                   maxLength: 100,
                   maxLines: 1,
                   decoration: InputDecoration(
                     hintText: AppLang.instance.t('bioHint'),
-                    hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+                    hintStyle: PText.small,
                     filled: true, fillColor: PhotonColors.bg,
                     counterText: '${_bioCtrl.text.length}/100',
-                    counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+                    counterStyle: PText.meta,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: PhotonColors.line)),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: photonPrimaryButtonStyle(),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
                   onPressed: _savingBio ? null : _saveBio,
-                  child: _savingBio ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF06251A))) : Text(AppLang.instance.t('save')),
+                  child: _savingBio ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)) : Text(AppLang.instance.t('save')),
                 ),
               ),
             ]),
@@ -600,14 +607,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Tema Toggle
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Row(children: [
-              Icon(PhotonTheme.instance.isDark ? Icons.dark_mode : Icons.light_mode, color: PhotonColors.textDim, size: 18),
-              const SizedBox(width: 12),
+              Icon(PhotonTheme.instance.isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined, color: PhotonColors.textDim, size: 18),
+              const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLang.instance.t('themeSection'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(PhotonTheme.instance.isDark ? AppLang.instance.t('darkMode') : AppLang.instance.t('lightMode'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(AppLang.instance.t('themeSection'), style: PText.title),
+                Text(PhotonTheme.instance.isDark ? AppLang.instance.t('darkMode') : AppLang.instance.t('lightMode'), style: PText.meta),
               ])),
               Switch(
                 value: PhotonTheme.instance.isDark,
@@ -616,7 +623,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   await LocalStore.saveThemeDark(v);
                   setState(() {});
                 },
-                activeColor: PhotonColors.accent,
               ),
             ]),
           ),
@@ -624,14 +630,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Uygulama Kilidi
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Row(children: [
               Icon(Icons.lock_outline, color: PhotonColors.textDim, size: 18),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLang.instance.t('appLockSection'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(_lockEnabled ? AppLang.instance.t('lockProtected') : AppLang.instance.t('lockOff'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(AppLang.instance.t('appLockSection'), style: PText.title),
+                Text(_lockEnabled ? AppLang.instance.t('lockProtected') : AppLang.instance.t('lockOff'), style: PText.meta),
               ])),
               if (_lockEnabled)
                 GestureDetector(
@@ -642,7 +648,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Text(AppLang.instance.t('remove'), style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text(AppLang.instance.t('remove'), style: TextStyle(color: PhotonColors.danger, fontSize: 13, fontWeight: FontWeight.w600)),
                   ),
                 ),
               GestureDetector(
@@ -652,9 +658,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   })));
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(8)),
-                  child: Text(_lockEnabled ? AppLang.instance.t('change') : AppLang.instance.t('setUp'), style: TextStyle(color: const Color(0xFF06251A), fontSize: 12, fontWeight: FontWeight.w700)),
+                  padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
+                  decoration: BoxDecoration(color: PhotonColors.accentWash, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
+                  child: Text(_lockEnabled ? AppLang.instance.t('change') : AppLang.instance.t('setUp'), style: PText.small.copyWith(color: PhotonColors.accent, fontWeight: FontWeight.w600)),
                 ),
               ),
             ]),
@@ -663,11 +669,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Yazı Boyutu
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(AppLang.instance.t('fontSizeSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-              const SizedBox(height: 10),
+              Text(AppLang.instance.t('fontSizeSection'), style: PText.label),
+              const SizedBox(height: 8),
               Row(children: [
                 _buildFontSizeChip('kucuk', AppLang.instance.t('smallSize')),
                 const SizedBox(width: 8),
@@ -675,14 +681,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 8),
                 _buildFontSizeChip('buyuk', AppLang.instance.t('bigSize')),
               ]),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: PhotonColors.bg, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('preview'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
-                  const SizedBox(height: 6),
+                  Text(AppLang.instance.t('preview'), style: PText.label),
+                  const SizedBox(height: 8),
                   Text(
                     AppLang.instance.t('previewMessage'),
                     style: TextStyle(color: PhotonColors.text, fontSize: FontSizeNotifier.instance.msgFontSize, height: 1.4),
@@ -695,14 +701,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Sesli Mesaj (STT)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Row(children: [
-              Icon(Icons.mic, color: PhotonColors.textDim, size: 18),
-              const SizedBox(width: 12),
+              Icon(Icons.mic_outlined, color: PhotonColors.textDim, size: 18),
+              const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLang.instance.t('sttTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(AppLang.instance.t('sttDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, height: 1.5)),
+                Text(AppLang.instance.t('sttTitle'), style: PText.title),
+                Text(AppLang.instance.t('sttDesc'), style: PText.meta),
               ])),
               Switch(
                 value: _sttEnabled,
@@ -710,21 +716,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   await LocalStore.saveSttEnabled(v);
                   setState(() => _sttEnabled = v);
                 },
-                activeColor: PhotonColors.accent,
               ),
             ]),
           ),
           const SizedBox(height: 16),
           // Ses Cinsiyeti
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Row(children: [
-              Icon(Icons.record_voice_over, color: PhotonColors.textDim, size: 18),
-              const SizedBox(width: 12),
+              Icon(Icons.record_voice_over_outlined, color: PhotonColors.textDim, size: 18),
+              const SizedBox(width: 16),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(AppLang.instance.t('voiceGender'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                Text(AppLang.instance.t('voiceGenderDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                Text(AppLang.instance.t('voiceGender'), style: PText.title),
+                Text(AppLang.instance.t('voiceGenderDesc'), style: PText.meta),
               ])),
               DropdownButton<String>(
                 value: _voiceGender,
@@ -743,21 +748,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ]),
           ),
+          const SizedBox(height: 16),
 
           // Cihaz Yönetimi
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, borderColor: PhotonColors.accent.withOpacity(0.3), 
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DevicesScreen(identity: widget.identity, myServerUrl: widget.myServerUrl))),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.devices, color: PhotonColors.accent, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.devices_outlined, color: PhotonColors.accent, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('deviceManagement'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(AppLang.instance.t('deviceManagementSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('deviceManagement'), style: PText.title),
+                  Text(AppLang.instance.t('deviceManagementSubtitle'), style: PText.meta),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
@@ -765,7 +770,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Fake İsim — photonPulseVip perk. Locked rows route to the shop
           // rather than doing nothing, so the upsell is discoverable.
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () async {
               await Navigator.push(context, MaterialPageRoute(
                 builder: (_) => _vip.effectiveTier.fakeName
@@ -783,22 +788,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(_vip.effectiveTier.fakeName ? Icons.theater_comedy : Icons.lock_outline,
+                Icon(_vip.effectiveTier.fakeName ? Icons.theater_comedy_outlined : Icons.lock_outline,
                     color: _vip.effectiveTier.fakeName ? PhotonColors.accent : PhotonColors.textDim, size: 18),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('fakeNameTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('fakeNameTitle'), style: PText.title),
                   Text(
                     _vip.effectiveTier.fakeName
                         ? AppLang.instance.t('fakeNameSubtitle')
                         : AppLang.instance.t('vipLocked'),
-                    style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+                    style: PText.meta,
                   ),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
@@ -806,7 +810,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Profil Animasyonu — profil açılırken oynayan efekt. Katmandan
           // bağımsız: animasyonlar tek tek satın alınır, abonelik bitse de kalır.
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () async {
               await Navigator.push(context, MaterialPageRoute(
                 builder: (_) => ProfileAnimScreen(fipId: widget.identity.fipId),
@@ -814,23 +818,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (mounted) setState(() {});
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.auto_awesome, color: PhotonColors.accent, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.auto_awesome_outlined, color: PhotonColors.accent, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('animSettingsRow'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(AppLang.instance.t('animSettingsRowDesc'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('animSettingsRow'), style: PText.title),
+                  Text(AppLang.instance.t('animSettingsRowDesc'), style: PText.meta),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
           const SizedBox(height: 16),
 
           // Sohbet Duvar Kağıdı
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () async {
               await Navigator.push(context, MaterialPageRoute(builder: (_) => const WallpaperPickerScreen()));
               await ChatWallpaper.loadWallpaper();
@@ -838,78 +841,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() {});
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.wallpaper, color: PhotonColors.textDim, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.wallpaper_outlined, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('chatWallpaperTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(AppLang.instance.t('chatWallpaperTitle'), style: PText.title),
                   Text(
                     ChatWallpaper.type == 'none' ? AppLang.instance.t('wallpaperTypeDefault') : ChatWallpaper.type == 'color' ? AppLang.instance.t('wallpaperTypeColor') : AppLang.instance.t('wallpaperTypeImage'),
-                    style: TextStyle(color: PhotonColors.textDim, fontSize: 11),
+                    style: PText.meta,
                   ),
                 ])),
                 _buildWallpaperPreview(),
                 const SizedBox(width: 8),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
           const SizedBox(height: 16),
 
           // Yildizli Mesajlar
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StarredMessagesScreen())),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.star, color: Colors.amber, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.star, color: PhotonColors.accent2, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('starredMessagesLabel'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(AppLang.instance.t('starredMessagesSubtitle'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('starredMessagesLabel'), style: PText.title),
+                  Text(AppLang.instance.t('starredMessagesSubtitle'), style: PText.meta),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
           const SizedBox(height: 16),
 
           // Bildirim Sesi
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () => _openSoundPicker(),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.notifications_active, color: PhotonColors.textDim, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.notifications_active_outlined, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('notifSoundTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(_notifSoundLabel, style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('notifSoundTitle'), style: PText.title),
+                  Text(_notifSoundLabel, style: PText.meta),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
           const SizedBox(height: 16),
 
           // Hızlı Yanıtlar
-          GestureDetector(
+          HoverCard(padding: EdgeInsets.zero, 
             onTap: () => _openQuickRepliesDialog(),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(Space.s2),
               child: Row(children: [
-                Icon(Icons.flash_on, color: PhotonColors.textDim, size: 18),
-                const SizedBox(width: 12),
+                Icon(Icons.flash_on_outlined, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 16),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(AppLang.instance.t('quickReplies'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
-                  Text(AppLang.instance.t('manageFrequentMessages'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  Text(AppLang.instance.t('quickReplies'), style: PText.title),
+                  Text(AppLang.instance.t('manageFrequentMessages'), style: PText.meta),
                 ])),
-                Icon(Icons.chevron_right, color: PhotonColors.textDim, size: 20),
+                Icon(Icons.chevron_right_outlined, color: PhotonColors.textDim, size: 20),
               ]),
             ),
           ),
@@ -917,15 +916,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Dil Seçimi
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                Icon(Icons.language, color: PhotonColors.textDim, size: 18),
-                const SizedBox(width: 12),
-                Text(AppLang.instance.t('language'), style: TextStyle(color: PhotonColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                Icon(Icons.language_outlined, color: PhotonColors.textDim, size: 18),
+                const SizedBox(width: 16),
+                Text(AppLang.instance.t('language'), style: PText.title),
               ]),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(children: [
                 _buildLangChip('tr', '🇹🇷 Türkçe'),
                 const SizedBox(width: 8),
@@ -942,8 +941,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     side: BorderSide(color: PhotonColors.line),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  icon: Icon(Icons.translate, size: 16, color: PhotonColors.accent),
-                  label: Text('${AppLang.supportedLanguages.length} ${AppLang.instance.t('language')}', style: TextStyle(fontSize: 12)),
+                  icon: Icon(Icons.translate_outlined, size: 16, color: PhotonColors.accent),
+                  label: Text('${AppLang.supportedLanguages.length} ${AppLang.instance.t('language')}', style: TextStyle(fontSize: 13)),
                   onPressed: _openLanguagePicker,
                 ),
               ),
@@ -953,7 +952,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Row(children: [
                     SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: PhotonColors.accent)),
                     const SizedBox(width: 8),
-                    Text(AppLang.instance.t('translating'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                    Text(AppLang.instance.t('translating'), style: PText.meta),
                   ]),
                 ),
             ]),
@@ -963,17 +962,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Adres
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.3)), borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(AppLang.instance.t('yourAddressLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+              Text(AppLang.instance.t('yourAddressLabel'), style: PText.label),
               const SizedBox(height: 8),
-              Text(myAddress, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace')),
-              const SizedBox(height: 10),
+              Text(myAddress, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()])),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                  icon: const Icon(Icons.copy, size: 15),
+                  style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  icon: const Icon(Icons.copy_outlined, size: 15),
                   label: Text(AppLang.instance.t('copyCode'), style: const TextStyle(fontSize: 13)),
                   onPressed: () => Clipboard.setData(ClipboardData(text: widget.identity.code)),
                 ),
@@ -982,17 +981,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           FipCard(title: AppLang.instance.t('thisDeviceFipBlock'), fip: widget.identity),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Hesap silme
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: PhotonColors.danger.withOpacity(0.08), border: Border.all(color: PhotonColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: PhotonColors.danger.withOpacity(0.08), border: Border.all(color: PhotonColors.danger.withOpacity(0.27)), borderRadius: BorderRadius.circular(16)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(AppLang.instance.t('deactivateAccountTitle'), style: TextStyle(color: PhotonColors.danger, fontWeight: FontWeight.w700, fontSize: 14)),
+              Text(AppLang.instance.t('deactivateAccountTitle'), style: TextStyle(color: PhotonColors.danger, fontWeight: FontWeight.w700, fontSize: 15)),
               const SizedBox(height: 8),
-              Text(AppLang.instance.t('deactivateAccountBody'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11.5, height: 1.6)),
-              const SizedBox(height: 14),
+              Text(AppLang.instance.t('deactivateAccountBody'), style: PText.meta),
+              const SizedBox(height: 16),
               if (!_confirming)
                 ElevatedButton(
                   style: photonDangerButtonStyle(),
@@ -1002,7 +1001,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               else
                 Row(children: [
                   Expanded(child: OutlinedButton(style: photonGhostButtonStyle(), onPressed: _deleting ? null : () => setState(() => _confirming = false), child: Text(AppLang.instance.t('giveUp')))),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(child: ElevatedButton(
                     style: photonDangerButtonStyle(),
                     onPressed: _deleting ? null : _deactivate,

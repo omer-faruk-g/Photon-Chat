@@ -125,7 +125,7 @@ class VipBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(3),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.workspace_premium, size: fontSize + 3, color: c),
+        Icon(Icons.workspace_premium_outlined, size: fontSize + 3, color: c),
         const SizedBox(width: 2),
         // Brand-style marker, kept untranslated like the MOD and FAKE chips.
         Text('PREMIUM',

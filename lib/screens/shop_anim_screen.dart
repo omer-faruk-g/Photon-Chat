@@ -86,22 +86,22 @@ class ShopAnimScreen extends StatelessWidget {
             accent: accent,
             height: 200,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(_priceLabel,
                 style: TextStyle(
                     color: PhotonColors.accent,
-                    fontSize: 30,
+                    fontSize: 34,
                     fontWeight: FontWeight.w700)),
             if (discount > 0) ...[
               const SizedBox(width: 8),
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   '$kAnimPriceTry₺',
                   style: TextStyle(
                       color: PhotonColors.textDim,
-                      fontSize: 14,
+                      fontSize: 15,
                       decoration: TextDecoration.lineThrough),
                 ),
               ),
@@ -113,7 +113,7 @@ class ShopAnimScreen extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: PhotonColors.accent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                     AppLang.instance
@@ -125,18 +125,18 @@ class ShopAnimScreen extends StatelessWidget {
               ),
           ]),
           if (discount > 0) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text('%$discount ${AppLang.instance.t('animDiscountNote')}',
                 style:
                     TextStyle(color: PhotonColors.accent2, fontSize: 11)),
           ],
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: PhotonColors.panel,
               border: Border.all(color: PhotonColors.line),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: _isBundle
                 ? Column(
@@ -144,11 +144,11 @@ class ShopAnimScreen extends StatelessWidget {
                     children: ProfileAnim.purchasable
                         .map((a) => Padding(
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 5),
+                                  const EdgeInsets.symmetric(vertical: 4),
                               child: Row(children: [
-                                Icon(Icons.check,
+                                Icon(Icons.check_outlined,
                                     size: 15, color: PhotonColors.accent),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                       AppLang.instance.t(a.nameKey),

@@ -31,7 +31,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
       body: _loading
           ? Center(child: CircularProgressIndicator(color: PhotonColors.accent))
           : _starred.isEmpty
-          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('noStarredMessagesYet'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13))))
+          ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('noStarredMessagesYet'), style: PText.small)))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _starred.length,
@@ -39,15 +39,15 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                 final m = _starred[i];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
                   child: Row(children: [
-                    Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 12),
+                    Icon(Icons.star, color: PhotonColors.accent2, size: 20),
+                    const SizedBox(width: 16),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(m['text'] as String? ?? '', style: TextStyle(color: PhotonColors.text, fontSize: 13), maxLines: 3, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
-                      Text(_formatTime(m['ts'] as int? ?? 0), style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+                      Text(_formatTime(m['ts'] as int? ?? 0), style: PText.meta),
                     ])),
                     GestureDetector(
                       onTap: () async {
@@ -56,7 +56,7 @@ class _StarredMessagesScreenState extends State<StarredMessagesScreen> {
                         if (!mounted) return;
                         setState(() => _starred.removeAt(i));
                       },
-                      child: Icon(Icons.close, color: PhotonColors.textDim, size: 18),
+                      child: Icon(Icons.close_outlined, color: PhotonColors.textDim, size: 18),
                     ),
                   ]),
                 );

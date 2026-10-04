@@ -167,33 +167,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildLocationBubble(String text, bool isMe) {
     final match = RegExp(r'\[📍KONUM:([-\d.]+),([-\d.]+)\]').firstMatch(text);
-    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 14));
+    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 15));
     final lat = match.group(1)!;
     final lng = match.group(2)!;
     final url = 'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng&zoom=15';
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        color: isMe ? PhotonColors.panel : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
-          const SizedBox(width: 6),
+          Icon(Icons.location_on_outlined, color: PhotonColors.accent, size: 18),
+          const SizedBox(width: 8),
           Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.map, color: PhotonColors.accent, size: 14),
-              const SizedBox(width: 6),
-              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              Icon(Icons.map_outlined, color: PhotonColors.accent, size: 14),
+              const SizedBox(width: 8),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
           ),
         ),
@@ -205,9 +205,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final match = RegExp(r'\[🎤SES:(.*)\]', dotAll: true).firstMatch(text);
     final transcript = match?.group(1) ?? '';
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        color: isMe ? PhotonColors.panel : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
       ),
@@ -217,16 +217,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           child: Container(
             width: 36, height: 36,
             decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), shape: BoxShape.circle),
-            child: Icon(Icons.play_arrow, color: PhotonColors.accent, size: 20),
+            child: Icon(Icons.play_arrow_outlined, color: PhotonColors.accent, size: 20),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
           if (transcript.isNotEmpty)
             Text(transcript, style: TextStyle(color: PhotonColors.text.withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
         ])),
-        Icon(Icons.mic, color: PhotonColors.accent.withOpacity(0.6), size: 16),
+        Icon(Icons.mic_outlined, color: PhotonColors.accent.withOpacity(0.6), size: 16),
       ]),
     );
   }
@@ -256,7 +256,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
-          leading: Icon(Icons.translate, color: PhotonColors.accent),
+          leading: Icon(Icons.translate_outlined, color: PhotonColors.accent),
           title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
           onTap: () {
             Navigator.pop(context);
@@ -428,6 +428,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         groupId: widget.group.groupId, fromName: widget.displayName,
       ));
       if (mounted) setState(() {});
+    } catch (_) {
+      // Sunucu reddetti: iyimser eklenen mesajı geri al, yazılanı kaybettirme.
+      if (!mounted) return;
+      setState(() {
+        _messages = _messages.where((m) => !(m['ts'] == ts && m['from'] == widget.identity.fipId && m['msgId'] == null)).toList();
+        _inputError = AppLang.instance.t('messageSendFailed');
+        if (_msgCtrl.text.isEmpty) _msgCtrl.text = text;
+      });
     }
   }
 
@@ -537,15 +545,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     showModalBottomSheet(
       context: context, backgroundColor: PhotonColors.panel,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
-          Text(AppLang.instance.t('joinRequests'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        builder: (ctx, set) => ListView(padding: const EdgeInsets.all(16), children: [
+          Text(AppLang.instance.t('joinRequests'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: 16),
-          if (_pendingJoins.isEmpty) Text(AppLang.instance.t('noPendingRequests'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+          if (_pendingJoins.isEmpty) Text(AppLang.instance.t('noPendingRequests'), style: PText.small),
           ..._pendingJoins.map((req) => ListTile(
-            title: Text(req['fromName'] as String? ?? AppLang.instance.t('unknown'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+            title: Text(req['fromName'] as String? ?? AppLang.instance.t('unknown'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () async { await _acceptMember(req); set(() {}); }),
-              IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () async { await _rejectMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.check_outlined, color: PhotonColors.accent), onPressed: () async { await _acceptMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.close_outlined, color: PhotonColors.danger), onPressed: () async { await _rejectMember(req); set(() {}); }),
             ]),
           )),
         ]),
@@ -566,7 +574,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             if (widget.group.isOwner)
               ListTile(
-                leading: Icon(member.isMod ? Icons.remove_moderator : Icons.shield, color: Colors.amber),
+                leading: Icon(member.isMod ? Icons.remove_moderator_outlined : Icons.shield_outlined, color: PhotonColors.accent2),
                 title: Text(member.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('modMake'), style: TextStyle(color: PhotonColors.text)),
                 onTap: () async {
                   Navigator.pop(context);
@@ -588,7 +596,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 },
               ),
             ListTile(
-              leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
+              leading: Icon(isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined, color: PhotonColors.accent),
               title: Text(isMuted ? '${shownName} ${AppLang.instance.t('unmuteUserSuffix')}' : '${shownName} ${AppLang.instance.t('muteUserSuffix')}',
                   style: TextStyle(color: PhotonColors.text)),
               onTap: () {
@@ -602,7 +610,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
             if (widget.group.isOwner)
               ListTile(
-                leading: Icon(Icons.person_remove, color: PhotonColors.danger),
+                leading: Icon(Icons.person_remove_outlined, color: PhotonColors.danger),
                 title: Text('${shownName} ${AppLang.instance.t('kickUserSuffix')}', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () {
                   Navigator.pop(context);
@@ -623,23 +631,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   void _showInfo() {
     showModalBottomSheet(
       context: context, backgroundColor: PhotonColors.panel,
-      builder: (_) => ListView(padding: const EdgeInsets.all(20), children: [
-        Text(widget.group.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+      builder: (_) => ListView(padding: const EdgeInsets.all(16), children: [
+        Text(widget.group.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
         if (widget.group.description.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(widget.group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.5)),
+          const SizedBox(height: 8),
+          Text(widget.group.description, style: PText.small),
         ],
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         if (widget.group.isOwner) ...[
-          Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+          Text(AppLang.instance.t('groupAddress'), style: PText.label),
           const SizedBox(height: 4),
           GestureDetector(
             onTap: () => Clipboard.setData(ClipboardData(text: widget.group.address)),
-            child: Text(widget.group.address, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace')),
+            child: Text(widget.group.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()])),
           ),
           const SizedBox(height: 16),
         ],
-        Text(AppLang.instance.t('members'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+        Text(AppLang.instance.t('members'), style: PText.label),
         const SizedBox(height: 8),
         ...widget.group.members.map((m) {
           final isMuted = _mutedMembers.contains(m.fipId);
@@ -668,23 +676,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       color: vipNameColor(memberVip) ?? PhotonColors.text,
                       fontSize: 13)),
               if (memberVip?.effectiveTier.premiumTag ?? false) ...[
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 VipBadge(status: memberVip),
               ],
-              if (isOwner) const SizedBox(width: 6),
-              if (isOwner) Text(AppLang.instance.t('ownerLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
-              if (m.isMod && !isOwner) const SizedBox(width: 6),
+              if (isOwner) const SizedBox(width: 8),
+              if (isOwner) Text(AppLang.instance.t('ownerLabel'), style: PText.meta),
+              if (m.isMod && !isOwner) const SizedBox(width: 8),
               if (m.isMod && !isOwner) Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
-                child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w700)),
               ),
-              if (isMuted) const SizedBox(width: 6),
-              if (isMuted) Icon(Icons.volume_off, color: PhotonColors.textDim, size: 13),
+              if (isMuted) const SizedBox(width: 8),
+              if (isMuted) Icon(Icons.volume_off_outlined, color: PhotonColors.textDim, size: 13),
             ]),
             trailing: _isOwnerOrMod && !isOwner
                 ? IconButton(
-                    icon: Icon(Icons.more_vert, color: PhotonColors.textDim, size: 18),
+                    icon: Icon(Icons.more_vert_outlined, color: PhotonColors.textDim, size: 18),
                     onPressed: () {
                       Navigator.pop(context);
                       _showMemberMenu(m);
@@ -715,14 +723,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(AppLang.instance.t('groupInviteQr'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
-              const SizedBox(height: 12),
+              Text(AppLang.instance.t('groupInviteQr'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+              const SizedBox(height: 16),
               // Action buttons up top so they're always thumb-reachable.
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: photonPrimaryButtonStyle(),
-                    icon: const Icon(Icons.copy, size: 16),
+                    icon: const Icon(Icons.copy_outlined, size: 16),
                     label: Text(AppLang.instance.t('justCopy')),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: link));
@@ -731,16 +739,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: PhotonColors.accent,
                       side: BorderSide(color: PhotonColors.accent),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    icon: const Icon(Icons.share, size: 16),
+                    icon: const Icon(Icons.share_outlined, size: 16),
                     label: Text(AppLang.instance.t('share')),
                     onPressed: () {
                       Navigator.pop(context);
@@ -752,18 +760,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: PhotonColors.bg,
                   border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace'), textAlign: TextAlign.center),
+                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()]), textAlign: TextAlign.center),
               ),
               const SizedBox(height: 16),
               Center(child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
                 child: QrImageView(data: link, size: 180, backgroundColor: Colors.white),
               )),
             ],
@@ -774,11 +782,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _buildSenderInitials(String fromName) {
-    final initial = fromName.isNotEmpty ? fromName[0].toUpperCase() : '?';
-    return CircleAvatar(
-      radius: 14,
-      backgroundColor: PhotonColors.accent.withOpacity(0.2),
-      child: Text(initial, style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+    final initial = fromName.isNotEmpty ? trUpper(fromName[0]) : '?';
+    return Container(
+      width: 28, height: 28, alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PhotonColors.accentWash,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: PhotonColors.line),
+      ),
+      child: Text(initial, style: TextStyle(fontFamily: PhotonFonts.display, color: PhotonColors.accent, fontSize: 12)),
     );
   }
 
@@ -839,7 +851,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               ...List.generate(optCtrls.length, (i) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(children: [
@@ -856,7 +868,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     ),
                   ),
                   if (i >= 2) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => ss(() { optCtrls[i].dispose(); optCtrls.removeAt(i); }),
                       child: Icon(Icons.remove_circle_outline, color: PhotonColors.danger, size: 22),
@@ -866,7 +878,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               )),
               TextButton.icon(
                 onPressed: () => ss(() => optCtrls.add(TextEditingController())),
-                icon: Icon(Icons.add, color: PhotonColors.accent, size: 18),
+                icon: Icon(Icons.add_outlined, color: PhotonColors.accent, size: 18),
                 label: Text(AppLang.instance.t('addOption'), style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
               ),
             ]),
@@ -914,18 +926,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final myVote = votes[widget.identity.fipId];
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(12)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(16)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.poll, color: PhotonColors.accent, size: 14),
-          const SizedBox(width: 6),
-          Text(AppLang.instance.t('pollBadge'), style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
-          const SizedBox(width: 6),
-          Text(m['fromName'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+          Icon(Icons.poll_outlined, color: PhotonColors.accent, size: 14),
+          const SizedBox(width: 8),
+          Text(AppLang.instance.t('pollBadge'), style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          const SizedBox(width: 8),
+          Text(m['fromName'] as String? ?? '', style: PText.meta),
         ]),
         const SizedBox(height: 8),
-        Text(question, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
+        Text(question, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 15)),
         const SizedBox(height: 8),
         ...options.asMap().entries.map((entry) {
           final optionVotes = votes.values.where((v) => v == entry.key).length;
@@ -934,7 +946,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           return GestureDetector(
             onTap: myVote == null ? () => _vote(m, entry.key) : null,
             child: Container(
-              margin: const EdgeInsets.only(bottom: 6),
+              margin: const EdgeInsets.only(bottom: 8),
               child: Stack(children: [
                 Container(
                   height: 36,
@@ -957,10 +969,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ),
                 Container(
                   height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(children: [
                     Expanded(child: Text(entry.value, style: TextStyle(color: PhotonColors.text, fontSize: 13))),
-                    Text('${(pct * 100).toStringAsFixed(0)}%  $optionVotes', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                    Text('${(pct * 100).toStringAsFixed(0)}%  $optionVotes', style: PText.meta),
                   ]),
                 ),
               ]),
@@ -968,7 +980,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           );
         }).toList(),
         const SizedBox(height: 4),
-        Text('$totalVotes ${AppLang.instance.t('votesCastSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+        Text('$totalVotes ${AppLang.instance.t('votesCastSuffix')}', style: PText.meta),
       ]),
     );
   }
@@ -987,35 +999,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.group.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            Text(widget.group.name, style: PText.h2, maxLines: 1, overflow: TextOverflow.ellipsis),
             if (widget.group.description.isNotEmpty)
-              Text(widget.group.description, style: TextStyle(fontSize: 11, color: PhotonColors.textDim, fontWeight: FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(widget.group.description, style: PText.meta, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
         actions: [
           PopupMenuButton<String>(
             color: PhotonColors.panel,
-            icon: Icon(Icons.more_vert, color: PhotonColors.text),
+            icon: Icon(Icons.more_vert_outlined, color: PhotonColors.text),
             onSelected: (v) {
               if (v == 'announce') _showAnnounceDialog();
               if (v == 'poll') _showPollDialog();
               if (v == 'invite') _showInviteLink();
             },
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), const SizedBox(width: 8), Text(AppLang.instance.t('inviteLink'), style: TextStyle(color: PhotonColors.text))])),
+              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link_outlined, color: PhotonColors.accent, size: 16), const SizedBox(width: 8), Text(AppLang.instance.t('inviteLink'), style: TextStyle(color: PhotonColors.text))])),
               if (widget.group.isOwner) ...[
-                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text))])),
-                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign_outlined, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll_outlined, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text))])),
               ],
             ],
           ),
           if (widget.group.isOwner && _pendingJoins.isNotEmpty)
             Stack(children: [
-              IconButton(icon: Icon(Icons.person_add, color: PhotonColors.text), onPressed: _showJoinRequests),
+              IconButton(icon: Icon(Icons.person_add_outlined, color: PhotonColors.text), onPressed: _showJoinRequests),
               Positioned(top: 8, right: 8, child: Container(width: 8, height: 8, decoration: BoxDecoration(color: PhotonColors.accent2, shape: BoxShape.circle))),
             ])
           else if (widget.group.isOwner)
-            IconButton(icon: Icon(Icons.person_add, color: PhotonColors.textDim), onPressed: _showJoinRequests),
+            IconButton(icon: Icon(Icons.person_add_outlined, color: PhotonColors.textDim), onPressed: _showJoinRequests),
           IconButton(icon: Icon(Icons.info_outline, color: PhotonColors.text), onPressed: _showInfo),
         ],
       ),
@@ -1030,26 +1042,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 GestureDetector(
                   onTap: () => setState(() => _annExpanded = !_annExpanded),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(color: PhotonColors.accent2.withOpacity(0.1), border: Border(bottom: BorderSide(color: PhotonColors.accent2.withOpacity(0.3)))),
                     child: Row(children: [
-                      Icon(Icons.campaign, color: PhotonColors.accent2, size: 16),
+                      Icon(Icons.campaign_outlined, color: PhotonColors.accent2, size: 16),
                       const SizedBox(width: 8),
                       Expanded(child: Text(
                         _annExpanded
                           ? _announcements.map((a) => '${a['fromName']}: ${a['text']}').join('\n')
                           : (_announcements.last['text'] as String? ?? ''),
-                        style: TextStyle(color: PhotonColors.text, fontSize: 12),
+                        style: TextStyle(color: PhotonColors.text, fontSize: 13),
                         maxLines: _annExpanded ? null : 1, overflow: _annExpanded ? null : TextOverflow.ellipsis,
                       )),
-                      Icon(_annExpanded ? Icons.expand_less : Icons.expand_more, color: PhotonColors.accent2, size: 16),
+                      Icon(_annExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined, color: PhotonColors.accent2, size: 16),
                     ]),
                   ),
                 ),
               Expanded(
                 child: ListView.builder(
                   controller: _scroll,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   itemCount: _messages.length + _queuedGroupMessages.length,
                   itemBuilder: (_, i) {
                     if (i >= _messages.length) {
@@ -1058,17 +1070,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         alignment: Alignment.centerRight,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 3),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                           decoration: BoxDecoration(
                             color: PhotonColors.accent.withOpacity(0.12),
                             border: Border.all(color: PhotonColors.accent.withOpacity(0.2)),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                            Text(q.text, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                            Text(q.text, style: TextStyle(color: PhotonColors.text, fontSize: 15)),
                             const SizedBox(height: 2),
-                            Icon(Icons.access_time, color: PhotonColors.textDim, size: 11),
+                            Icon(Icons.access_time_outlined, color: PhotonColors.textDim, size: 11),
                           ]),
                         ),
                       );
@@ -1082,7 +1094,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     final msgId = m['msgId'] as String? ?? '';
                     final rawText = m['text'] as String? ?? '';
                     // v10.0.2: composite key so messages with empty msgId don't collide
-                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}';
+                    // Metin de anahtarda: düzenlenen mesaj eski haliyle kalmasın.
+                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}_${rawText.hashCode}';
                     String displayText;
                     if (_filtered.containsKey(cacheKey)) {
                       displayText = _filtered[cacheKey]!;
@@ -1121,19 +1134,23 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           children: [
                             if (!isMe) ...[
                               _buildSenderInitials(fromName),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                             ],
                             Flexible(child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
+                          // Birebir sohbetle aynı balon dili: kendi mesajın marka yeşili.
                           decoration: BoxDecoration(
-                            color: isMe ? PhotonColors.accent.withOpacity(0.18) : PhotonColors.panel,
-                            border: Border.all(color: isMe ? PhotonColors.accent.withOpacity(0.3) : PhotonColors.line),
-                            borderRadius: BorderRadius.circular(10),
+                            color: isMe ? PhotonColors.accent : PhotonColors.panel,
+                            border: isMe ? null : Border.all(color: PhotonColors.line),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(PhotonRadius.bubble), topRight: const Radius.circular(PhotonRadius.bubble),
+                              bottomLeft: Radius.circular(isMe ? PhotonRadius.bubble : 4), bottomRight: Radius.circular(isMe ? 4 : PhotonRadius.bubble),
+                            ),
                           ),
                           child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
                             if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [
-                              Text(fromName, style: TextStyle(color: vipNameColor(senderVip) ?? PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                              Text(fromName, style: TextStyle(color: vipNameColor(senderVip) ?? PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
                               if ((senderVip ?? VipStatus.none).effectiveTier.premiumTag) ...[
                                 const SizedBox(width: 4),
                                 VipBadge(status: senderVip),
@@ -1143,7 +1160,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                   decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(3)),
-                                  child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 8, fontWeight: FontWeight.w700)),
+                                  child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w700)),
                                 ),
                               ],
                             ]),
@@ -1155,8 +1172,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             // Profanity filtering and translation already ran
                             // on displayText; tier styling is applied last so
                             // /k cannot be used to slip past the filter.
-                            vipMessageText(displayText, senderVip,
-                                style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
+                            vipMessageText(displayText,
+                                // Kendi balonun yeşil: katman rengi yazıya uygulanırsa okunmaz,
+                                // yalnızca kalın yazı (/k) hakkı kalır — birebir sohbetteki gibi.
+                                isMe && senderVip != null
+                                    ? VipStatus(tier: senderVip.tier, fakeName: senderVip.fakeName, fakeActive: senderVip.fakeActive, expiresAt: senderVip.expiresAt)
+                                    : senderVip,
+                                style: TextStyle(color: isMe ? PhotonColors.onAccent : PhotonColors.text, fontSize: _msgFontSize, height: 1.45)),
                             if (_translating.contains(msgId))
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
@@ -1166,10 +1188,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                                  Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
                                   const SizedBox(height: 2),
                                   Text(_translations[msgId]!,
-                                    style: TextStyle(color: PhotonColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                                    style: TextStyle(color: (isMe ? PhotonColors.onAccent : PhotonColors.text).withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
                                 ]),
                               ),
                           ]),
@@ -1186,32 +1208,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   color: PhotonColors.danger.withOpacity(0.1),
-                  child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
+                  child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 13)),
                 ),
               Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                padding: const EdgeInsets.fromLTRB(Space.s1, Space.s1, Space.s2, Space.s1),
                 decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
-                child: Row(children: [
+                child: SafeArea(top: false, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   IconButton(
-                    icon: Icon(Icons.location_on, color: PhotonColors.textDim),
+                    icon: Icon(Icons.location_on_outlined, color: PhotonColors.textDim),
                     tooltip: AppLang.instance.t('shareLocation'),
                     onPressed: _shareLocation,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    constraints: const BoxConstraints(minWidth: Space.s5, minHeight: Space.s5),
                   ),
                   GestureDetector(
                     onLongPressStart: (_) => _startVoiceMessage(),
                     onLongPressEnd: (_) {},
                     child: Container(
-                      width: 36, height: 36,
-                      margin: const EdgeInsets.only(right: 4),
+                      width: Space.s5, height: Space.s5,
+                      margin: const EdgeInsets.only(right: Space.s1),
                       decoration: BoxDecoration(
                         color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
                         shape: BoxShape.circle,
                         border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
                       ),
                       child: Icon(
-                        _isRecordingVoice ? Icons.stop : Icons.mic_none,
+                        _isRecordingVoice ? Icons.stop_outlined : Icons.mic_none_outlined,
                         color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
                         size: 18,
                       ),
@@ -1220,29 +1241,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _msgCtrl,
-                      style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                      style: PText.body,
                       decoration: InputDecoration(
                         hintText: AppLang.instance.t('writeMessage'),
-                        hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(20)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(20)),
+                        fillColor: PhotonColors.bg,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: 12),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(Space.s3)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent, width: 1.5), borderRadius: BorderRadius.circular(Space.s3)),
                       ),
                       minLines: 1, maxLines: 4,
+                      textInputAction: TextInputAction.send,
                       onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
                       onSubmitted: (_) => _send(),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
+                  const SizedBox(width: Space.s1),
+                  InkWell(
                     onTap: _send,
+                    borderRadius: BorderRadius.circular(Space.s3),
                     child: Container(
-                      width: 42, height: 42,
+                      width: Space.s5, height: Space.s5,
                       decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle),
-                      child: const Icon(Icons.send, color: Color(0xFF06251A), size: 18),
+                      child: Icon(Icons.arrow_upward_outlined, color: PhotonColors.onAccent),
                     ),
                   ),
-                ]),
+                ])),
               ),
             ],
           ),
@@ -1250,9 +1274,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             Positioned(
               left: 16, right: 16, bottom: 84,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
-                child: Text(_toastMsg!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
+                child: Text(_toastMsg!, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: PhotonColors.text)),
               ),
             ),
         ],

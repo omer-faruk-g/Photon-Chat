@@ -60,7 +60,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             width: 240, height: 240,
             decoration: BoxDecoration(
               border: Border.all(color: PhotonColors.accent, width: 3),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
@@ -69,7 +69,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
           child: Container(
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: PhotonColors.panel.withOpacity(0.9), borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
+            decoration: BoxDecoration(color: PhotonColors.panel.withOpacity(0.9), borderRadius: BorderRadius.circular(16), border: Border.all(color: PhotonColors.line)),
             child: Text(
               widget.hintOverride ?? AppLang.instance.t(
                 widget.mode == QrScanMode.group ? 'qrHoldGroupCode' : 'qrHoldCode'),

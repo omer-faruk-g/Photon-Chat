@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'e2e.dart';
 import 'i18n.dart';
 
-const String bridgeUrl = 'https://photon-chat.onrender.com';
+// Testlerde yerel bir sunucuya yönlendirmek için: --dart-define=PHOTON_BRIDGE=http://127.0.0.1:3000
+const String bridgeUrl = String.fromEnvironment('PHOTON_BRIDGE', defaultValue: 'https://photon-chat.onrender.com');
 
 class PhotonApi {
   static Uri _u(String serverUrl, String path) {
@@ -225,6 +226,19 @@ class PhotonApi {
     return [];
   }
 
+  /// Bir sunucudaki birden çok kişinin çevrimiçi durumunu tek istekte sorar.
+  /// Ağ hatasında null döner: "hata" ile "kimse çevrimiçi değil" ayrı tutulur.
+  static Future<Set<String>?> activeAmong(String serverUrl, List<String> fipIds) async {
+    if (fipIds.isEmpty) return <String>{};
+    try {
+      final r = await http.post(_u(serverUrl, '/active'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fipIds': fipIds}));
+      if (r.statusCode == 200) return Set<String>.from(jsonDecode(r.body) as List);
+    } catch (_) {}
+    return null;
+  }
+
   static Future<bool> isActive(String serverUrl, String fipId) async {
     try {
       final r = await http.post(_u(serverUrl, '/active'),
@@ -402,12 +416,17 @@ class PhotonApi {
   static Future<void> sendGroupMessage(List<String> memberServerUrls, String groupId, {
     required String from, required String fromName, required String text, required int ts,
   }) async {
+    // Hatalar artık yutulmuyor: ağ hatası çağırana gider (çevrimdışı kuyruğa
+    // alınır), sunucu reddederse de çağıran kullanıcıyı uyarabilir. Eskiden
+    // mesaj yalnızca gönderenin ekranında kalıp sessizce kayboluyordu.
     for (final url in memberServerUrls) {
-      try {
-        await http.post(_u(url, '/groups/$groupId/messages'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'from': from, 'fromName': fromName, 'text': text, 'ts': ts}));
-      } catch (_) {}
+      final r = await http.post(_u(url, '/groups/$groupId/messages'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'from': from, 'fromName': fromName, 'text': text, 'ts': ts, 'actor': from}))
+          .timeout(const Duration(seconds: 20));
+      if (r.statusCode < 200 || r.statusCode >= 300) {
+        throw GroupSendRejected(r.statusCode);
+      }
     }
   }
 
@@ -689,4 +708,12 @@ class PhotonApi {
     }
   }
 
+}
+
+/// Sunucu grup mesajını reddetti (susturulmuş, üye değil, istek sınırı…).
+class GroupSendRejected implements Exception {
+  final int statusCode;
+  const GroupSendRejected(this.statusCode);
+  @override
+  String toString() => 'GroupSendRejected($statusCode)';
 }

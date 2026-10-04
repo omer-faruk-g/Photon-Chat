@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photon Chat</title>
+<meta name="description" content="Telefon numarası, e-posta ve hesap gerektirmeyen, uçtan uca şifreli mesajlaşma. 5 haneli kodunla arkadaşını ekle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Düzen fikri: telsiz kayıt kâğıdı. Solda dar bir "satır numarası" sütunu,
+   sağda 12 sütunlu ızgara; bölümler kırık oranlarla (7/5, 4/8, 5/7) yerleşir.
+   Rakamlar dekor değil: uygulamanın gerçek 5'li kod grupları. */
+:root {
+  /* Marka: 1 ana (sinyal yeşili) + 1 nötr (yeşile çalan mürekkep/kâğıt) + 1 vurgu (amber) */
+  --green: #0E6B4B;          /* ana renk — açık temada metin kontrastı için koyulaştırılmış sinyal yeşili */
+  --green-ink: #0A5239;      /* hover */
+  --green-wash: #E3EFE8;     /* yeşilden türetilmiş zemin */
+  --amber: #9A5A00;          /* vurgu — metin olarak kullanılabilecek koyu amber */
+  --amber-mark: #E8962B;     /* vurgu — sadece işaret/çizgi */
+  --ink: #13211C;            /* nötr: yazı */
+  --ink-soft: #46574F;       /* nötr: ikincil yazı */
+  --paper: #F4F6F2;          /* nötr: zemin */
+  --sheet: #FBFCFA;          /* nötr: kâğıt yüzeyi */
+  --line: #C9D8CF;           /* kenarlık: yeşilden türetilmiş */
+  --shadow: 14, 107, 75;     /* gölge rengi: yeşil (rgba ile) */
+
+  --font-display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+
+  /* 8px tabanlı boşluk ölçeği */
+  --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 48px; --s6: 64px; --s7: 96px;
+
+  /* Tip ölçeği (1.333 oranlı, mobilde akışkan) */
+  --t-h1: clamp(2.5rem, 1.6rem + 4.2vw, 4.75rem);
+  --t-h2: clamp(1.75rem, 1.35rem + 1.8vw, 2.625rem);
+  --t-h3: 1.25rem;
+  --t-body: 1.0625rem;
+  --t-small: 0.875rem;
+  --t-label: 0.75rem;
+
+  --radius: 6px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --green: #3DDC97; --green-ink: #6BE8B1; --green-wash: #102A20;
+    --amber: #F2A33D; --amber-mark: #F2A33D;
+    --ink: #E7F3EF; --ink-soft: #9DB3AC;
+    --paper: #0B0E0F; --sheet: #11161A; --line: #23352D;
+    --shadow: 61, 220, 151;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --green: #3DDC97; --green-ink: #6BE8B1; --green-wash: #102A20;
+  --amber: #F2A33D; --amber-mark: #F2A33D;
+  --ink: #E7F3EF; --ink-soft: #9DB3AC;
+  --paper: #0B0E0F; --sheet: #11161A; --line: #23352D;
+  --shadow: 61, 220, 151;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--t-body)/1.6 var(--font-body);
+  padding-inline: var(--s2);
+}
+img, svg { max-width: 100%; }
+a { color: var(--green); text-underline-offset: 3px; }
+a:hover { color: var(--green-ink); }
+:focus-visible { outline: 2px solid var(--amber-mark); outline-offset: 3px; border-radius: 2px; }
+
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.08; margin: 0; text-wrap: balance; }
+h1 { font-size: var(--t-h1); letter-spacing: -0.01em; }
+h2 { font-size: var(--t-h2); }
+h3 { font-size: var(--t-h3); line-height: 1.3; }
+p { margin: 0; max-width: 62ch; }
+.num { font-variant-numeric: tabular-nums; }
+
+.icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.wrap { max-width: 1160px; margin-inline: auto; }
+.label {
+  font-size: var(--t-label); font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--amber);
+}
+
+/* --- Üst çubuk --- */
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding-block: var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: var(--s1); font-family: var(--font-display); font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+.brand-mark { width: 28px; height: 28px; border-radius: var(--radius); background: var(--green); display: grid; place-items: center; color: var(--paper); }
+.brand-mark svg { width: 16px; height: 16px; stroke-width: 2; }
+.top nav { display: flex; gap: var(--s3); font-size: var(--t-small); font-weight: 500; }
+.top nav a { color: var(--ink-soft); text-decoration: none; }
+.top nav a:hover { color: var(--green); }
+@media (max-width: 640px) { .top nav a:not(:last-child) { display: none; } }
+
+/* --- Butonlar --- */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  font: 600 1rem/1 var(--font-body); text-decoration: none;
+  background: var(--green); color: var(--paper);
+  border: 1px solid var(--green);
+  box-shadow: 0 1px 0 rgba(var(--shadow), .25), 0 8px 24px -12px rgba(var(--shadow), .55);
+  transition: background-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.btn:hover { background: var(--green-ink); border-color: var(--green-ink); color: var(--paper); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(var(--shadow), .3), 0 14px 28px -12px rgba(var(--shadow), .6); }
+.btn:active { transform: translateY(0); }
+.btn-quiet { background: transparent; color: var(--green); box-shadow: none; }
+.btn-quiet:hover { background: var(--green-wash); color: var(--green-ink); box-shadow: none; }
+
+/* --- Bölüm ritmi: tek ölçekten --- */
+section { padding-block: var(--s6); border-bottom: 1px solid var(--line); }
+@media (min-width: 900px) { section { padding-block: var(--s7); } }
+.grid { display: grid; grid-template-columns: 1fr; gap: var(--s5); }
+.grid > * { min-width: 0; }
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(12, 1fr); gap: var(--s4); }
+}
+
+/* --- Hero: 7/5, kimlik kartı sağda ve aşağı kaydırılmış --- */
+.hero { padding-block: var(--s6) var(--s7); }
+.hero-copy { display: grid; gap: var(--s3); align-content: start; }
+.hero-copy p { font-size: 1.1875rem; color: var(--ink-soft); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding-top: var(--s1); }
+.textlink { display: inline-flex; align-items: center; gap: var(--s1); font-weight: 600; text-decoration: none; }
+.textlink .icon { width: 16px; height: 16px; transition: transform .15s ease; }
+.textlink:hover { text-decoration: underline; }
+.textlink:hover .icon { transform: translateX(4px); }
+@media (min-width: 900px) {
+  .hero-copy { grid-column: 1 / span 7; }
+  .hero-card { grid-column: 8 / span 5; margin-top: var(--s6); }
+}
+
+/* Kimlik kartı: uygulamadaki FIP bloğunun birebir verisi */
+.idcard {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 48px -32px rgba(var(--shadow), .45);
+  overflow: hidden;
+}
+.idcard-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 var(--s2); padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); }
+.idcard-head span { white-space: nowrap; }
+.idcard-head span:last-child { font-size: var(--t-small); color: var(--ink-soft); }
+.fip { list-style: none; margin: 0; padding: var(--s2) var(--s3); display: grid; gap: var(--s1); font-size: 0.8125rem; }
+.fip li { display: grid; grid-template-columns: 24px 1fr; gap: var(--s1); color: var(--ink-soft); }
+.fip li span:first-child { color: var(--amber); font-weight: 600; }
+.fip li span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fip li.more { color: var(--ink-soft); opacity: .8; }
+.code-row { display: flex; justify-content: space-between; align-items: end; gap: var(--s2); padding: var(--s3); background: var(--green-wash); }
+.code-row .code { font: 600 clamp(2.5rem, 2rem + 2vw, 3.25rem)/1 var(--font-body); letter-spacing: 0.18em; color: var(--green); }
+.code-row small { display: block; font-size: var(--t-small); color: var(--ink-soft); max-width: 18ch; }
+
+/* --- Kod ile ekleme: 5/7, metin sağda --- */
+.add-demo { display: flex; gap: var(--s1); }
+.digit {
+  width: clamp(48px, 13vw, 72px); aspect-ratio: 4 / 5; max-width: 100%;
+  display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet);
+  font: 600 clamp(1.75rem, 1.2rem + 2vw, 2.5rem)/1 var(--font-body); color: var(--ink);
+}
+.digit.on { border-color: var(--green); box-shadow: inset 0 -3px 0 var(--green); }
+.add-steps { list-style: none; padding: 0; margin: var(--s3) 0 0; display: grid; gap: var(--s2); font-size: var(--t-small); color: var(--ink-soft); }
+.add-steps li { display: flex; gap: var(--s2); align-items: start; }
+.add-steps svg { color: var(--green); }
+.add-copy { display: grid; gap: var(--s3); align-content: start; }
+@media (min-width: 900px) {
+  .add-visual { grid-column: 1 / span 5; }
+  .add-copy { grid-column: 7 / span 6; grid-row: 1; }
+}
+
+/* --- Sunucu ne görür: 4/8 --- */
+.see-copy { display: grid; gap: var(--s3); align-content: start; }
+.compare { display: grid; gap: var(--s2); }
+.pane { border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); }
+.pane-head { display: flex; align-items: center; gap: var(--s1); padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); font-size: var(--t-small); font-weight: 600; }
+.pane-body { padding: var(--s3); overflow-x: auto; }
+.pane-body code { font: 500 0.875rem/1.7 var(--font-body); word-break: break-all; color: var(--ink-soft); }
+.pane.server .pane-head { color: var(--ink-soft); }
+.pane.you { border-color: var(--green); }
+.pane.you .pane-head { color: var(--green); }
+.bubble { display: inline-block; padding: var(--s1) var(--s2); border-radius: var(--radius) var(--radius) 2px var(--radius); background: var(--green); color: var(--paper); font-weight: 500; }
+@media (min-width: 900px) {
+  .see-copy { grid-column: 1 / span 4; }
+  .compare { grid-column: 6 / span 7; grid-template-columns: 5fr 3fr; align-items: start; }
+  .pane.you { margin-top: var(--s5); }
+}
+
+/* --- Özellikler: 4/8 kırık ızgara, kutucuklar ikinci sütunda yukarı kayar --- */
+.feat-head { display: grid; gap: var(--s3); align-content: start; }
+.feat-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.feat-grid li { display: grid; gap: var(--s1); padding: var(--s3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.feat-grid li:hover { border-color: var(--green); box-shadow: 0 16px 32px -24px rgba(var(--shadow), .6); transform: translateY(-2px); }
+.feat-grid svg { color: var(--green); width: 24px; height: 24px; margin-bottom: var(--s1); }
+.feat-grid b { font-weight: 600; }
+.feat-grid span { color: var(--ink-soft); font-size: var(--t-small); }
+@media (min-width: 640px) { .feat-grid { grid-template-columns: 1fr 1fr; } .feat-grid li:nth-child(even) { transform: translateY(var(--s4)); } .feat-grid li:nth-child(even):hover { transform: translateY(calc(var(--s4) - 2px)); } }
+@media (min-width: 900px) {
+  .feat-head { grid-column: 1 / span 4; }
+  .feat-grid { grid-column: 6 / span 7; }
+}
+
+/* --- Sunucu senin: 7/5 ters, adımlar sıralı --- */
+.own-copy { display: grid; gap: var(--s3); align-content: start; }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; display: grid; gap: var(--s2); }
+.steps li { counter-increment: step; display: grid; grid-template-columns: var(--s5) 1fr; gap: var(--s2); padding: var(--s3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet); transition: border-color .15s ease, transform .15s ease; }
+.steps li:hover { border-color: var(--green); transform: translateX(4px); }
+.steps li::before { content: counter(step); font: 400 1.75rem/1 var(--font-display); color: var(--amber); }
+.steps h3 { margin-bottom: var(--s1); }
+.steps p { font-size: var(--t-small); color: var(--ink-soft); }
+@media (min-width: 900px) {
+  .steps { grid-column: 1 / span 7; }
+  .own-copy { grid-column: 9 / span 4; grid-row: 1; }
+}
+
+/* --- Gruplar: dar sütun + olgu listesi --- */
+.groups-copy { display: grid; gap: var(--s3); align-content: start; }
+.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.facts li { display: grid; grid-template-columns: 24px 1fr; gap: var(--s2); padding-block: var(--s3); border-bottom: 1px solid var(--line); }
+.facts svg { color: var(--green); }
+.facts b { display: block; font-weight: 600; margin-bottom: var(--s1); }
+.facts span { color: var(--ink-soft); font-size: var(--t-small); }
+@media (min-width: 900px) {
+  .groups-copy { grid-column: 1 / span 5; }
+  .facts { grid-column: 7 / span 6; }
+}
+
+/* --- İndir --- */
+.download { border-bottom: 0; }
+.dl-head { display: grid; gap: var(--s3); align-content: start; }
+.dl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.dl-list a, .dl-list .soon {
+  display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: var(--s2);
+  padding: var(--s3); border: 1px solid var(--line); border-radius: var(--radius); background: var(--sheet);
+  color: var(--ink); text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.dl-list a:hover { border-color: var(--green); background: var(--green-wash); color: var(--ink); box-shadow: 0 12px 24px -20px rgba(var(--shadow), .7); }
+.dl-list a:hover .arrow { transform: translateX(4px); }
+.dl-list .arrow { color: var(--green); transition: transform .15s ease; }
+.dl-list small { display: block; color: var(--ink-soft); font-size: var(--t-small); }
+.dl-list b { font-weight: 600; }
+.dl-list .soon { color: var(--ink-soft); border-style: dashed; }
+.dl-list a.off { pointer-events: none; opacity: .45; border-style: dashed; }
+.dl-version { display: grid; gap: var(--s1); max-width: 320px; font-size: var(--t-label); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--amber); }
+.dl-version select { font: 500 var(--t-body)/1.4 var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); background: var(--sheet); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s1) var(--s2); min-height: 48px; cursor: pointer; transition: border-color .15s ease; }
+.dl-version select:hover, .dl-version select:focus-visible { border-color: var(--green); outline: none; }
+.dl-note { font-size: var(--t-small); color: var(--ink-soft); min-height: 1.4em; }
+.dl-list .dl-web a { border-color: var(--green); background: var(--green-wash); }
+.dl-list .dl-web b { color: var(--green); }
+.dl-list .dl-web a:hover { border-color: var(--green-ink); box-shadow: 0 16px 32px -16px rgba(var(--shadow), .8); transform: translateY(-1px); }
+@media (min-width: 900px) { .dl-list .dl-web { grid-column: 1 / -1; } }
+@media (min-width: 900px) {
+  .dl-head { grid-column: 1 / span 4; }
+  .dl-list { grid-column: 6 / span 7; grid-template-columns: 1fr 1fr; }
+}
+
+footer { padding-block: var(--s5); border-top: 1px solid var(--line); font-size: var(--t-small); color: var(--ink-soft); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- Tek ikon ailesi: 24px ızgara, 1.6 çizgi, yuvarlak uç (hepsi outline) -->
+  <symbol id="i-signal" viewBox="0 0 24 24"><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9"/><path d="m17 6 3 3"/><path d="m15 8 2 2"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-user-x" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="m17 9 4 4m0-4-4 4"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="m7 9 3 3-3 3M12 15h5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></symbol>
+  <symbol id="i-story" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-dasharray="4 3"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-poll" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#">
+      <span class="brand-mark"><svg class="icon"><use href="#i-signal"/></svg></span>
+      Photon Chat
+    </a>
+    <nav aria-label="Sayfa içi">
+      <a href="#sifreleme">Şifreleme</a>
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#sunucu">Sunucu</a>
+      <a href="#indir">İndir</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="grid">
+        <div class="hero-copy">
+          <span class="label">Hesapsız mesajlaşma</span>
+          <h1>Numaran yok.<br>Beş rakamın var.</h1>
+          <p>Photon Chat kimliğini cihazında üretir; e-posta, numara ya da hesap istemez. Arkadaşına sadece 5 haneli kodunu söylersin; birebir sohbetlerin uçtan uca şifreli.</p>
+          <div class="hero-actions">
+            <a class="btn" id="hero-dl" href="#indir">
+              <svg class="icon"><use href="#i-download"/></svg> <span id="hero-dl-label">Uygulamayı indir</span>
+            </a>
+            <a class="textlink" href="app/">ya da tarayıcıda aç <svg class="icon"><use href="#i-arrow"/></svg></a>
+          </div>
+        </div>
+
+        <figure class="hero-card" style="margin-inline:0;margin-bottom:0">
+          <div class="idcard" role="img" aria-label="Örnek FIP kimlik bloğu ve eşleşme kodu 08290">
+            <div class="idcard-head">
+              <span class="label">FIP kimlik bloğu</span>
+              <span>örnek · bu cihazda üretildi</span>
+            </div>
+            <ol class="fip num">
+              <li><span>01</span><span>a006c5b82004af24a2b1d0b16ee994afc0753e02f29d05adc3d2ff1456b47db2</span></li>
+              <li><span>02</span><span>20c2502858ba8acf6a0dfdb297372a89606e7e5ddf69478f6e11ac8079977d1d</span></li>
+              <li><span>03</span><span>9729bf4e763e5ab27d4d07397813bceb38073c0dfafbf8a4dbf1844bfc803bc8</span></li>
+              <li><span>04</span><span>1b12bdea0f5410d2ec7b848ba5dd1f69089803a5f2b94f419dde38732a6fa18e</span></li>
+              <li><span>05</span><span>d9d2fb37bffda0416c31a87d8fdd09149a3a8553fe5bb34fe28f663070cbfca8</span></li>
+              <li class="more"><span>⋮</span><span>20 satır SHA-256</span></li>
+            </ol>
+            <div class="code-row">
+              <small>Bu bloktan türetilen eşleşme kodu</small>
+              <span class="code num">08290</span>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <div class="grid">
+        <div class="add-copy">
+          <span class="label">Arkadaş eklemek</span>
+          <h2>Bir rehber numarası değil, bir kod.</h2>
+          <p>Arkadaşın kendi ekranının köşesindeki 5 haneyi söyler, sen yazarsın. Hangi sunucuda olduğunu uygulama arka planda bulur; adres, kullanıcı adı ya da bağlantı paylaşmazsın.</p>
+        </div>
+        <div class="add-visual">
+          <div class="add-demo num" aria-label="Kod girişi: 08290">
+            <span class="digit on">0</span><span class="digit on">8</span><span class="digit on">2</span><span class="digit on">9</span><span class="digit on">0</span>
+          </div>
+          <ul class="add-steps">
+            <li><svg class="icon"><use href="#i-check"/></svg><span>Davet onun cihazına düşer, kabul edene kadar bekler.</span></li>
+            <li><svg class="icon"><use href="#i-check"/></svg><span>Reddederse ya da seni engellerse davet bir daha görünmez.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="sifreleme">
+      <div class="grid">
+        <div class="see-copy">
+          <span class="label">Uçtan uca şifreleme</span>
+          <h2>Sunucu mesajını taşır, okuyamaz.</h2>
+          <p>Birebir sohbetlerde her mesaj gönderilmeden önce cihazında X25519 ve AES-GCM ile şifrelenir. Sunucuya ulaşan şey soldaki satırdır; anahtar yalnızca iki uçta vardır.</p>
+        </div>
+        <div class="compare">
+          <div class="pane server">
+            <div class="pane-head"><svg class="icon"><use href="#i-server"/></svg> Sunucunun kaydında duran</div>
+            <div class="pane-body"><code class="num">Y/u0jmBkMGmG6gBbr89fhmuwjKTTJlGpfSKAvYXUcne+x3ZEO6FJTSnye2Uz61lXwI8Hims=</code></div>
+          </div>
+          <div class="pane you">
+            <div class="pane-head"><svg class="icon"><use href="#i-lock"/></svg> Arkadaşının gördüğü</div>
+            <div class="pane-body"><span class="bubble">Yarın 10:00, kodu getir.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ozellikler">
+      <div class="grid">
+        <div class="feat-head">
+          <span class="label">Özellikler</span>
+          <h2>Hesapsız, ama eksiksiz.</h2>
+          <p>Numara istemiyor diye bir şeyden vazgeçmen gerekmiyor. Her gün kullandığın mesajlaşma araçlarının hepsi uygulamada.</p>
+        </div>
+        <ul class="feat-grid">
+          <li><svg class="icon"><use href="#i-story"/></svg><b>Hikayeler</b><span>Metin ya da görsel paylaş; yalnızca rehberindekiler görür.</span></li>
+          <li><svg class="icon"><use href="#i-poll"/></svg><b>Anketler</b><span>Grupta soru sor, oylar anında sayılsın.</span></li>
+          <li><svg class="icon"><use href="#i-globe"/></svg><b>45 dil</b><span>Arayüz seçtiğin dile çevrilir; gelen mesajı tek dokunuşla çevirirsin.</span></li>
+          <li><svg class="icon"><use href="#i-mic"/></svg><b>Sesli mesaj</b><span>Basılı tut, konuş, bırak. Yazıya dökülmüş haliyle gider.</span></li>
+          <li><svg class="icon"><use href="#i-clock"/></svg><b>Kaybolan mesajlar</b><span>Süreyi sen seç; süre dolunca mesaj iki taraftan da silinir.</span></li>
+          <li><svg class="icon"><use href="#i-lock"/></svg><b>Uygulama kilidi</b><span>Telefonun açık kalsa bile sohbetlerin kilit arkasında durur.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="sunucu">
+      <div class="grid">
+        <div class="own-copy">
+          <span class="label">Kendi sunucun</span>
+          <h2>Mesajların senin sunucunda bekler.</h2>
+          <p>Mesajların için merkezi bir sunucu yok. Ücretsiz bir Render servisi açarsın; mesajlar yalnızca o servisin geçici alanında durur ve servis yeniden kurulduğunda silinir. Kodunun hangi sunucuda olduğunu bilen tek şey küçük bir köprüdür.</p>
+        </div>
+        <ol class="steps">
+          <li><div><h3>Render’da servis aç</h3><p>render.com’da ücretsiz hesapla New → Web Service, bu depoyu seç, kök klasör olarak <b>server</b> yaz.</p></div></li>
+          <li><div><h3>Adresi kopyala</h3><p>Birkaç dakika sonra <span class="num">https://…onrender.com</span> adresin hazır olur.</p></div></li>
+          <li><div><h3>Uygulamaya yapıştır</h3><p>İlk açılışta bu adresi gir, bir ad seç. Kimliğin ve 5 haneli kodun cihazında oluşur.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="grid">
+        <div class="groups-copy">
+          <span class="label">Gruplar</span>
+          <h2>Grubun kapısı kurucuda.</h2>
+          <p>Grup kodunu bilen herkes içeri giremez; kurucu isteği görür, kabul eder ya da reddeder. İçeride düzeni de o kurar.</p>
+        </div>
+        <ul class="facts">
+          <li><svg class="icon"><use href="#i-key"/></svg><div><b>Katılmak onaya bağlı</b><span>7 haneli grup kodu bir istek gönderir; kurucu kabul etmeden mesaj okunamaz, yazılamaz.</span></div></li>
+          <li><svg class="icon"><use href="#i-shield"/></svg><div><b>Moderatörler ve susturma</b><span>Kurucu üyeleri moderatör yapabilir, kuralları çiğneyeni susturabilir ya da gruptan çıkarabilir.</span></div></li>
+          <li><svg class="icon"><use href="#i-flag"/></svg><div><b>Duyurular ve anketler</b><span>Önemli bir haberi duyuru olarak sabitle, kararı ankete bırak.</span></div></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="indir" class="download">
+      <div class="grid">
+        <div class="dl-head">
+          <span class="label">İndir</span>
+          <h2>Kur, kodunu al, yaz.</h2>
+          <p>Düğmeye basınca dosya doğrudan iner; sürüm seçili gelir, istersen eski bir sürümü de seçebilirsin. Android’de “bilinmeyen kaynak” iznini bir kez vermen gerekir.</p>
+          <label class="dl-version">
+            <span>Sürüm</span>
+            <select id="dl-version" aria-label="İndirilecek sürüm">
+              <option value="latest">En son sürüm</option>
+            </select>
+          </label>
+          <p class="dl-note" id="dl-note" aria-live="polite"></p>
+        </div>
+        <ul class="dl-list">
+          <li><a data-asset="PhotonChat-Android.apk" href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest/download/PhotonChat-Android.apk"><svg class="icon"><use href="#i-phone"/></svg><span><b>Android</b><small>PhotonChat-Android.apk</small></span><svg class="icon arrow"><use href="#i-download"/></svg></a></li>
+          <li><a data-asset="PhotonChat-Windows-Setup.exe" href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest/download/PhotonChat-Windows-Setup.exe"><svg class="icon"><use href="#i-monitor"/></svg><span><b>Windows kurulum</b><small>PhotonChat-Windows-Setup.exe</small></span><svg class="icon arrow"><use href="#i-download"/></svg></a></li>
+          <li><a data-asset="PhotonChat-Windows.zip" href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest/download/PhotonChat-Windows.zip"><svg class="icon"><use href="#i-monitor"/></svg><span><b>Windows taşınabilir</b><small>PhotonChat-Windows.zip</small></span><svg class="icon arrow"><use href="#i-download"/></svg></a></li>
+          <li><a data-asset="PhotonChat-Linux.tar.gz" href="https://github.com/omer-faruk-g/Photon-Chat/releases/latest/download/PhotonChat-Linux.tar.gz"><svg class="icon"><use href="#i-terminal"/></svg><span><b>Linux</b><small>PhotonChat-Linux.tar.gz</small></span><svg class="icon arrow"><use href="#i-download"/></svg></a></li>
+          <li class="dl-web"><a href="app/"><svg class="icon"><use href="#i-globe"/></svg><span><b>Tarayıcıda aç</b><small>Kurulum yok · kimliğin bu tarayıcıda saklanır</small></span><svg class="icon arrow"><use href="#i-arrow"/></svg></a></li>
+          <li><span class="soon"><svg class="icon"><use href="#i-clock"/></svg><span><b>iOS</b><small>Apple geliştirici hesabı bekleniyor</small></span><span></span></span></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Photon Chat · MIT lisansı</span>
+    <a href="https://github.com/omer-faruk-g/Photon-Chat">Kaynak kod GitHub’da</a>
+  </footer>
+</div>
+<script>
+// İndirme: düğmeler GitHub sayfasına değil, doğrudan dosyaya gider. Varsayılan
+// "latest/download" bağlantıları betik çalışmasa da indirir; betik yalnızca
+// sürüm listesini doldurur ve seçilen sürümün dosyalarına geçer.
+(function () {
+  var REPO = 'omer-faruk-g/Photon-Chat';
+  var WITHDRAWN = { 'v10.6.0': true }; // eksik özellikli, geri çekilmiş sürüm
+  var select = document.getElementById('dl-version');
+  var note = document.getElementById('dl-note');
+  var links = document.querySelectorAll('.dl-list a[data-asset]');
+  var releases = [];
+
+  function latestUrl(asset) { return 'https://github.com/' + REPO + '/releases/latest/download/' + asset; }
+
+  function apply(tag) {
+    var rel = releases.filter(function (r) { return r.tag_name === tag; })[0] || releases[0];
+    links.forEach(function (a) {
+      var name = a.getAttribute('data-asset');
+      var asset = rel && rel.assets.filter(function (x) { return x.name === name; })[0];
+      if (!rel) { a.href = latestUrl(name); a.classList.remove('off'); a.removeAttribute('aria-disabled'); return; }
+      if (asset) { a.href = asset.browser_download_url; a.classList.remove('off'); a.removeAttribute('aria-disabled'); }
+      else { a.removeAttribute('href'); a.classList.add('off'); a.setAttribute('aria-disabled', 'true'); }
+    });
+    if (rel) note.textContent = rel.tag_name + ' · ' + new Date(rel.published_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    pickHero();
+  }
+
+  // Hero düğmesi: ziyaretçinin platformuna uygun dosyayı doğrudan indirir.
+  function pickHero() {
+    var ua = navigator.userAgent, asset = null, label = null;
+    if (/Android/i.test(ua)) { asset = 'PhotonChat-Android.apk'; label = 'Android için indir'; }
+    else if (/Windows/i.test(ua)) { asset = 'PhotonChat-Windows-Setup.exe'; label = 'Windows için indir'; }
+    else if (/Linux/i.test(ua) && !/Android/i.test(ua)) { asset = 'PhotonChat-Linux.tar.gz'; label = 'Linux için indir'; }
+    if (!asset) return;
+    var a = document.querySelector('.dl-list a[data-asset="' + asset + '"]');
+    var hero = document.getElementById('hero-dl');
+    if (a && a.href) { hero.href = a.href; document.getElementById('hero-dl-label').textContent = label; }
+  }
+
+  select.addEventListener('change', function () { apply(select.value); });
+  pickHero();
+
+  fetch('https://api.github.com/repos/' + REPO + '/releases?per_page=30', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (list) {
+      releases = list.filter(function (r) { return !r.draft && !r.prerelease && !WITHDRAWN[r.tag_name] && r.assets.length; });
+      if (!releases.length) return;
+      select.innerHTML = '';
+      releases.forEach(function (r, i) {
+        var o = document.createElement('option');
+        o.value = r.tag_name;
+        o.textContent = r.tag_name + (i === 0 ? ' · en son' : '');
+        select.appendChild(o);
+      });
+      select.value = releases[0].tag_name;
+      apply(releases[0].tag_name);
+    })
+    .catch(function () { note.textContent = 'Sürüm listesi alınamadı; düğmeler en son sürümü indirir.'; });
+})();
+</script>
+</body>
+</html>

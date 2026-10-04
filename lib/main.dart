@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,7 +45,7 @@ void main() async {
   await ensureE2EKeypair();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
-  if (Platform.isAndroid) {
+  if ((!kIsWeb && Platform.isAndroid)) {
     await NotificationService.init();
     await Workmanager().initialize(_bgDispatcher);
     await Workmanager().registerPeriodicTask(
@@ -71,9 +72,31 @@ class PhotonApp extends StatelessWidget {
         // Apply the user's chosen font size globally to EVERY Text widget.
         builder: (ctx, child) {
           final mq = MediaQuery.of(ctx);
-          return MediaQuery(
+          final scaled = MediaQuery(
             data: mq.copyWith(textScaler: TextScaler.linear(FontSizeNotifier.instance.scale)),
             child: child ?? const SizedBox.shrink(),
+          );
+          // Masaüstünde (Windows/Linux, geniş pencere) satırlar okunamayacak kadar
+          // uzamasın: uygulama ortada sabit genişlikte bir sütunda durur.
+          const column = 840.0;
+          if (mq.size.width <= column + Space.s5) return scaled;
+          return ColoredBox(
+            color: PhotonTheme.instance.isDark ? const Color(0xFF070909) : const Color(0xFFE6ECE8),
+            child: Center(
+              child: Container(
+                width: column,
+                decoration: BoxDecoration(
+                  border: Border.symmetric(vertical: BorderSide(color: PhotonColors.line)),
+                ),
+                child: MediaQuery(
+                  data: mq.copyWith(
+                    size: Size(column, mq.size.height),
+                    textScaler: TextScaler.linear(FontSizeNotifier.instance.scale),
+                  ),
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
           );
         },
         home: const _LockGate(),

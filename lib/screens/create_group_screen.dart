@@ -84,7 +84,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildForm() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(AppLang.instance.t('createGroupHint'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+      Text(AppLang.instance.t('createGroupHint'), style: PText.small),
       const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
@@ -98,7 +98,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           errorStyle: TextStyle(color: PhotonColors.danger),
         ),
       ),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
       TextField(
         controller: _descCtrl,
         maxLength: 120,
@@ -108,8 +108,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
           labelText: AppLang.instance.t('groupDescriptionOptional'),
           labelStyle: TextStyle(color: PhotonColors.textDim),
           hintText: AppLang.instance.t('groupDescriptionHint'),
-          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
-          counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+          hintStyle: PText.small,
+          counterStyle: PText.meta,
           enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
           focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
         ),
@@ -133,29 +133,29 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(AppLang.instance.t('groupCreatedShareBelow'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        Text(AppLang.instance.t('groupCreatedShareBelow'), style: PText.small),
         const SizedBox(height: 24),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(8)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+            Text(AppLang.instance.t('groupAddress'), style: PText.label),
             const SizedBox(height: 8),
-            Text(g.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
+            Text(g.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: PhotonFonts.body, fontFeatures: const [FontFeature.tabularFigures()])),
           ]),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            icon: const Icon(Icons.copy, size: 16),
+            style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            icon: const Icon(Icons.copy_outlined, size: 16),
             label: Text(AppLang.instance.t('copyAddress')),
             onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(

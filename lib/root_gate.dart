@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'fip.dart';
 import 'local_store.dart';
@@ -45,7 +46,7 @@ class RootGateState extends State<RootGate> {
   }
 
   void _startNotifPolling() {
-    if (!Platform.isAndroid) return;
+    if (!(!kIsWeb && Platform.isAndroid)) return;
     _notifTimer?.cancel();
     _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       final serverUrl = _myServerUrl;
@@ -115,7 +116,11 @@ class RootGateState extends State<RootGate> {
     if (_loading) {
       return Scaffold(
         backgroundColor: PhotonColors.bg,
-        body: Center(child: Text('PHOTON CHAT…', style: TextStyle(color: PhotonColors.accent, fontFamily: 'monospace', fontSize: 12, letterSpacing: 1.2))),
+        body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          BrandMark(size: Space.s5),
+          const SizedBox(height: Space.s2),
+          Text('Photon Chat', style: PText.h2),
+        ])),
       );
     }
 

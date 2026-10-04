@@ -41,6 +41,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
   String _myStatusMsg = '';
   final Map<String, int> _groupPendingCounts = {};
   final Map<String, bool> _online = {};
+  final Map<String, int> _profileFetchedAt = {};
+  final Map<String, int> _groupRegisteredAt = {};
   List<StoryItem> _stories = [];
   VipStatus _myVip = VipStatus.none;
 
@@ -114,15 +116,39 @@ class _ContactsScreenState extends State<ContactsScreen> {
       final idx = _contacts.indexWhere((c) => c.fipId == fipId);
       if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
     }
-    for (final c in _contacts.where((c) => c.status == 'on').toList()) {
+    // Çevrimiçi durumu sunucu başına tek istekte: kişi başına istek, kalabalık
+    // bir rehberde sunucunun dakikalık istek sınırını tek başına aşıyordu.
+    final onContacts = _contacts.where((c) => c.status == 'on').toList();
+    final byServer = <String, List<String>>{};
+    for (final c in onContacts) {
+      byServer.putIfAbsent(c.serverUrl, () => []).add(c.fipId);
+    }
+    final activeSet = <String>{};
+    final failedServers = <String>{};
+    for (final e in byServer.entries) {
+      final r = await PhotonApi.activeAmong(e.key, e.value);
+      if (r == null) {
+        failedServers.add(e.key);
+      } else {
+        activeSet.addAll(r);
+      }
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final c in onContacts) {
       // Contact's presence lookup may miss if their server is cold-starting
       // (Render free tier sleeps after 15 min). One miss must NOT delete the
       // contact — mark them offline, retry next sync. Only give up if the
       // contact's user record itself is gone (profile fetch succeeds and
       // returns null status? — we treat this as still-present for safety).
-      final active = await PhotonApi.isActive(c.serverUrl, c.fipId);
+      // Sunucuya ulaşılamadıysa son bilinen durum korunur.
+      if (failedServers.contains(c.serverUrl)) continue;
+      final active = activeSet.contains(c.fipId);
+      final wasOnline = _online[c.fipId] ?? false;
       _online[c.fipId] = active;
-      if (active) {
+      // Profil (ad, avatar, durum) 30 sn'de bir yeterli; yeni çevrimiçi olan hemen yenilenir.
+      final due = now - (_profileFetchedAt[c.fipId] ?? 0) > 30000;
+      if (active && (due || !wasOnline)) {
+        _profileFetchedAt[c.fipId] = now;
         final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
         if (profile != null) {
           // The name is refreshed like any other profile field. It used to be
@@ -143,7 +169,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     await VipCache.instance
         .refresh(bridgeUrl, [..._contacts.map((c) => c.fipId), me.fipId]);
     if (mounted) setState(() {});
-    await Future.delayed(const Duration(seconds: 3));
+    // Ana ekran görünmüyorken (sohbet, ayarlar açık) daha seyrek senkronla.
+    final visible = mounted && (ModalRoute.of(context)?.isCurrent ?? true);
+    await Future.delayed(Duration(seconds: visible ? 3 : 12));
     if (mounted) _sync();
   }
 
@@ -152,7 +180,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
       try {
         // Re-register the group's code on the bridge each cycle so members
         // can join by code alone (bridge is in-memory; survives via snapshot).
-        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
+        // ...ama her 5 saniyede değil: köprü kaydı 5 dakikada bir yeter.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now - (_groupRegisteredAt[g.groupId] ?? 0) > 5 * 60 * 1000) {
+          _groupRegisteredAt[g.groupId] = now;
+          PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
+        }
         final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
         if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
       } catch (_) {}
@@ -286,8 +319,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
             style: TextStyle(color: PhotonColors.text),
             decoration: InputDecoration(hintText: AppLang.instance.t('whatAreYouThinking'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
           ),
-          const SizedBox(height: 12),
-          Text(AppLang.instance.t('backgroundColor'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          const SizedBox(height: 16),
+          Text(AppLang.instance.t('backgroundColor'), style: PText.meta),
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(colors.length, (i) => GestureDetector(
             onTap: () => ss(() => selectedColor = i),
@@ -333,7 +366,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: PhotonColors.panel,
         title: Text(AppLang.instance.t('keepChatsQuestion'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
-        content: Text(AppLang.instance.t('deactivateWarn'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        content: Text(AppLang.instance.t('deactivateWarn'), style: PText.small),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('noDestroy'), style: TextStyle(color: PhotonColors.danger))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('yesKeep'), style: TextStyle(color: PhotonColors.accent))),
@@ -358,17 +391,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
       onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), // brand name — not translated
+          titleSpacing: Space.s2,
+          title: Row(children: [
+            BrandMark(size: 28),
+            const SizedBox(width: Space.s1),
+            Text('Photon Chat', style: PText.h2), // brand name — not translated
+          ]),
           actions: [
             // Pulse AI lost its card on the home screen; this keeps it one tap away.
             IconButton(
-              icon: Icon(Icons.bolt, color: PhotonColors.accent),
+              icon: Icon(Icons.bolt_outlined, color: PhotonColors.accent),
               tooltip: AppLang.instance.t('pulseAiTitle'),
               onPressed: _openPulseAI,
             ),
             // Own avatar doubles as the settings entry point.
             Padding(
-              padding: const EdgeInsets.only(right: 12, left: 4),
+              padding: const EdgeInsets.only(right: 16, left: 4),
               child: GestureDetector(
                 onTap: _openMyProfile,
                 // Our own avatar follows the alias too: switching to one and
@@ -386,7 +424,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         body: Stack(
           children: [
             ListView(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 100 + MediaQuery.of(context).padding.bottom),
+              padding: EdgeInsets.fromLTRB(Space.s2, Space.s2, Space.s2, Space.s7 + MediaQuery.of(context).padding.bottom),
               children: [
                 // Own code, right-aligned under the avatar. Replaces the old
                 // full-height profile card.
@@ -395,40 +433,32 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   children: [
                     // Shop sits beside the chip rather than inside it, so a
                     // subscriber-less account still has a way in.
-                    GestureDetector(
-                      onTap: _openShop,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: PhotonColors.accent.withOpacity(0.08),
-                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(Icons.storefront, size: 14, color: PhotonColors.accent),
+                    Tooltip(
+                      message: AppLang.instance.t('shopTitle'),
+                      child: HoverCard(
+                        onTap: _openShop,
+                        color: PhotonColors.accentWash,
+                        padding: const EdgeInsets.all(Space.s1),
+                        child: Icon(Icons.storefront_outlined, size: 18, color: PhotonColors.accent),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    GestureDetector(
+                    HoverCard(
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: widget.identity.code));
                         _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: PhotonColors.accent.withOpacity(0.08),
-                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
+                      color: PhotonColors.accentWash,
+                      padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
-                          Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
-                          const SizedBox(width: 4),
-                          Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
+                          Text('${AppLang.instance.t('kodum')}  ', style: PText.label),
+                          Text(widget.identity.code, style: PText.title.merge(PText.tabular).copyWith(color: PhotonColors.accent, letterSpacing: 3)),
+                          const SizedBox(width: Space.s1),
+                          Icon(Icons.copy_outlined, size: 14, color: PhotonColors.accent),
                           // Tier rides in the same chip, in the colour the
                           // subscriber picked. Absent entirely when unsubscribed.
                           if (_myVip.effectiveTier != VipTier.none) ...[
-                            Text('  ·  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                            Text('  ·  ', style: PText.meta),
                             Text(
                               _myVip.effectiveTier.label,
                               style: TextStyle(
@@ -439,21 +469,20 @@ class _ContactsScreenState extends State<ContactsScreen> {
                             ),
                           ],
                         ]),
-                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: Space.s2),
 
                 StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
-                const SizedBox(height: 14),
+                const SizedBox(height: Space.s3),
 
                 // Invites still get their own block — they need a decision, so
                 // they must not blend into the list below.
                 if (incoming.isNotEmpty) ...[
                   _SectionTitle(AppLang.instance.t('invites'), count: incoming.length),
                   ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                 ],
 
                 // One unified list: contacts and groups, no section headers.
@@ -474,43 +503,35 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
             // Alt bar: iki düğme — extra margin so Android gesture bar / 3-button nav doesn't overlap
             Positioned(
-              left: 16, right: 16,
-              bottom: 36 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewPadding.bottom,
+              left: Space.s2, right: Space.s2,
+              bottom: Space.s4 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewPadding.bottom,
               child: Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      style: photonPrimaryButtonStyle(),
                       onPressed: _openAddScreen,
-                      icon: const Icon(Icons.person_add, size: 16),
+                      icon: const Icon(Icons.person_add_outlined, size: 18),
                       label: Text(AppLang.instance.t('addContact')),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: Space.s1),
                   Expanded(
                     child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: PhotonColors.accent,
-                        side: BorderSide(color: PhotonColors.accent.withOpacity(0.6)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
+                      style: photonGhostButtonStyle().copyWith(backgroundColor: WidgetStateProperty.resolveWith((s) =>
+                          s.contains(WidgetState.hovered) ? PhotonColors.accentWash : PhotonColors.panel)),
                       onPressed: () => showModalBottomSheet(
                         context: context,
-                        backgroundColor: PhotonColors.panel,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
                         builder: (_) => SafeArea(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ListTile(
-                                leading: Icon(Icons.group_add, color: PhotonColors.accent),
+                                leading: Icon(Icons.group_add_outlined, color: PhotonColors.accent),
                                 title: Text(AppLang.instance.t('createGroup'), style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openCreateGroup(); },
                               ),
                               ListTile(
-                                leading: Icon(Icons.login, color: PhotonColors.accent),
+                                leading: Icon(Icons.login_outlined, color: PhotonColors.accent),
                                 title: Text(AppLang.instance.t('joinGroup'), style: TextStyle(color: PhotonColors.text)),
                                 onTap: () { Navigator.pop(context); _openJoinGroup(); },
                               ),
@@ -518,7 +539,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           ),
                         ),
                       ),
-                      icon: const Icon(Icons.group, size: 16),
+                      icon: const Icon(Icons.group_outlined, size: 18),
                       label: Text(AppLang.instance.t('groups')),
                     ),
                   ),
@@ -528,11 +549,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
             if (_toast != null)
               Positioned(
-                left: 16, right: 16, bottom: 86,
+                left: Space.s2, right: Space.s2, bottom: Space.s4 + Space.s6,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
-                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
+                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: PhotonColors.text)),
                 ),
               ),
           ],
@@ -550,37 +571,35 @@ class _GroupRow extends StatelessWidget {
   final VoidCallback onTap;
   const _GroupRow({required this.group, required this.pendingCount, required this.onTap});
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(10),
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: Space.s1),
+    child: HoverCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1 + 4),
       // Same shape as a contact row — icon trailing — so the merged list reads
       // as one column instead of two visually different kinds of row.
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(group.name, style: PText.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
           Text('${AppLang.instance.t(group.isOwner ? 'roleOwner' : 'roleMember')} · ${AppLang.instance.t('codeLabel')}: ${group.groupCode}',
-              style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              style: PText.meta),
           if (group.description.isNotEmpty) ...[
             const SizedBox(height: 2),
-            Text(group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(group.description, style: PText.meta, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ])),
         if (pendingCount > 0) ...[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(12)),
-            child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(16)),
+            child: Text('$pendingCount', style: TextStyle(color: PhotonTheme.instance.isDark ? const Color(0xFF2A1700) : Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 8),
         ],
-        Container(width: 46, height: 46, alignment: Alignment.center,
-            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.group, color: PhotonColors.accent, size: 22)),
+        Container(width: Space.s5, height: Space.s5, alignment: Alignment.center,
+            decoration: BoxDecoration(color: PhotonColors.accentWash, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(Space.s5 / 4)),
+            child: Icon(Icons.group_outlined, color: PhotonColors.accent, size: 22)),
       ]),
     ),
   );
@@ -592,18 +611,16 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text, {this.count});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10, top: 4),
+    padding: const EdgeInsets.only(bottom: 8, top: 4),
     child: Row(
       children: [
-        Container(width: 3, height: 14, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 8),
-        Text(text.toUpperCase(), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+        Text(trUpper(text), style: PText.label),
         if (count != null) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-            decoration: BoxDecoration(color: PhotonColors.line, borderRadius: BorderRadius.circular(10)),
-            child: Text('$count', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, fontWeight: FontWeight.w600)),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+            decoration: BoxDecoration(color: PhotonColors.line, borderRadius: BorderRadius.circular(8)),
+            child: Text('$count', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
         ],
       ],
@@ -616,16 +633,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
-    decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
-    child: Column(children: [
-      Text('＋', style: TextStyle(color: PhotonColors.accent2, fontSize: 28)),
-      const SizedBox(height: 8),
-      Text(AppLang.instance.t('emptyContacts'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
-      const SizedBox(height: 6),
-      Text(AppLang.instance.t('emptyContactsHint'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
-      const SizedBox(height: 16),
-      ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: Text(AppLang.instance.t('addContact'))),
+    padding: const EdgeInsets.all(Space.s3),
+    decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(Icons.person_add_outlined, color: PhotonColors.accent2, size: 28),
+      const SizedBox(height: Space.s2),
+      Text(AppLang.instance.t('emptyContacts'), style: PText.h2),
+      const SizedBox(height: Space.s1),
+      Text(AppLang.instance.t('emptyContactsHint'), style: PText.small),
+      const SizedBox(height: Space.s3),
+      OutlinedButton(onPressed: onAdd, child: Text(AppLang.instance.t('addContact'))),
     ]),
   );
 }
@@ -636,27 +653,24 @@ class _RequestRow extends StatelessWidget {
   const _RequestRow({required this.contact, required this.onAccept, required this.onDecline});
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
-    child: Row(children: [
-      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
-        const SizedBox(height: 2),
-        Text('${AppLang.instance.t('codeLabel')}: ${contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
-      ])),
-      Column(children: [
-        SizedBox(height: 30, child: ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: PhotonColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onAccept, child: Text(AppLang.instance.t('accept')),
-        )),
-        const SizedBox(height: 4),
-        SizedBox(height: 26, child: OutlinedButton(
-          style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.textDim, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-          onPressed: onDecline, child: Text(AppLang.instance.t('delete')),
-        )),
+    margin: const EdgeInsets.only(bottom: Space.s1),
+    padding: const EdgeInsets.all(Space.s2),
+    decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent2), borderRadius: BorderRadius.circular(PhotonRadius.card)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        _AvatarWidget(name: contact.name, avatar: contact.avatar, size: Space.s5, on: false),
+        const SizedBox(width: Space.s2),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(contact.name, style: PText.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text('${AppLang.instance.t('codeLabel')}: ${contact.code}', style: PText.small.merge(PText.tabular)),
+        ])),
+      ]),
+      const SizedBox(height: Space.s2),
+      Row(children: [
+        Expanded(child: OutlinedButton(onPressed: onDecline, child: Text(AppLang.instance.t('delete')))),
+        const SizedBox(width: Space.s1),
+        Expanded(child: ElevatedButton(onPressed: onAccept, child: Text(AppLang.instance.t('accept')))),
       ]),
     ]),
   );
@@ -690,21 +704,21 @@ class _ContactRow extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: PhotonColors.bg,
                       border: Border.all(color: PhotonColors.line),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(AppLang.instance.t('bioSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      Text(AppLang.instance.t('bioSection'), style: PText.label),
                       const SizedBox(height: 4),
                       Text(contact.bio, style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.5)),
                     ]),
                   ),
                 ),
               ListTile(
-                leading: Icon(Icons.block, color: PhotonColors.danger),
+                leading: Icon(Icons.block_outlined, color: PhotonColors.danger),
                 title: Text('${contact.name} — ${AppLang.instance.t('blockUser')}', style: TextStyle(color: PhotonColors.danger)),
                 onTap: () { Navigator.pop(context); onBlock(); },
               ),
@@ -718,13 +732,11 @@ class _ContactRow extends StatelessWidget {
         ),
       );
     },
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: Space.s1),
+      child: HoverCard(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1 + 4),
         // Avatar sits on the trailing edge so the names line up flush left and
         // the row reads as a single label, per the agreed layout.
         child: Row(children: [
@@ -733,40 +745,36 @@ class _ContactRow extends StatelessWidget {
               Flexible(
                 child: Text(
                   vipDisplayName(vip, contact.name),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: vipNameColor(vip) ?? PhotonColors.text,
-                  ),
+                  style: PText.title.copyWith(color: vipNameColor(vip) ?? PhotonColors.text),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if ((vip ?? VipStatus.none).effectiveTier.premiumTag) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 VipBadge(status: vip),
               ],
             ]),
             const SizedBox(height: 2),
             Text(
               isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
-              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
+              style: PText.small.copyWith(color: isOnline ? PhotonColors.accent : PhotonColors.textDim),
               maxLines: 1, overflow: TextOverflow.ellipsis,
             ),
           ])),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           GestureDetector(
             onTap: onAvatarTap,
             child: Stack(children: [
-            _AvatarWidget(name: vipDisplayName(vip, contact.name), avatar: contact.avatar, size: 46, on: true),
+            _AvatarWidget(name: vipDisplayName(vip, contact.name), avatar: contact.avatar, size: Space.s5, on: true),
             Positioned(
               right: 0, bottom: 0,
               child: Container(
                 width: 12, height: 12,
                 decoration: BoxDecoration(
-                  color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim,
+                  color: isOnline ? PhotonColors.accent : PhotonColors.textDim,
                   shape: BoxShape.circle,
-                  border: Border.all(color: PhotonColors.bg, width: 2),
+                  border: Border.all(color: PhotonColors.panel, width: 2),
                 ),
               ),
             ),
@@ -783,19 +791,19 @@ class _PendingOutRow extends StatelessWidget {
   const _PendingOutRow({required this.contact});
   @override
   Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+    margin: const EdgeInsets.only(bottom: Space.s1),
+    padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1 + 4),
+    decoration: BoxDecoration(color: PhotonColors.bg, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(PhotonRadius.card)),
     child: Row(children: [
-      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
-      const SizedBox(width: 12),
+      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: Space.s5, on: false),
+      const SizedBox(width: 16),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
+        Text(contact.name, style: PText.title.copyWith(color: PhotonColors.textDim)),
         const SizedBox(height: 2),
         Row(children: [
-          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
-          const SizedBox(width: 6),
-          Text(AppLang.instance.t('invitePendingApproval'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          Icon(Icons.schedule_outlined, size: 14, color: PhotonColors.textDim),
+          const SizedBox(width: 4),
+          Text(AppLang.instance.t('invitePendingApproval'), style: PText.meta),
         ]),
       ])),
     ]),
@@ -825,15 +833,15 @@ class _AvatarWidget extends StatelessWidget {
         );
       } catch (_) {}
     }
-    final initials = name.trim().isEmpty ? '?' : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1).toUpperCase();
+    final initials = name.trim().isEmpty ? '?' : trUpper(name.trim().substring(0, name.trim().length >= 2 ? 2 : 1));
     return Container(
       width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: PhotonColors.line,
+        color: on ? PhotonColors.accentWash : PhotonColors.panelAlt,
         borderRadius: BorderRadius.circular(size / 4),
         border: on ? Border.all(color: PhotonColors.accent.withOpacity(0.5)) : null,
       ),
-      child: Text(initials, style: TextStyle(color: on ? PhotonColors.accent : PhotonColors.textDim, fontWeight: FontWeight.w700, fontSize: size * 0.32)),
+      child: Text(initials, style: TextStyle(fontFamily: PhotonFonts.display, color: on ? PhotonColors.accent : PhotonColors.textDim, fontSize: size * 0.36)),
     );
   }
 }
