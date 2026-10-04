@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'e2e.dart';
 import 'fip.dart';
 import 'local_store.dart';
 import 'theme.dart';
@@ -17,7 +17,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   FipBlock? _preview;
   final _nameCtrl = TextEditingController();
-  FipBlock? _created;
+  bool _creating = false;
 
   @override
   void initState() {
@@ -31,10 +31,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty || _preview == null) return;
-    final fip = await LocalStore.createIdentity();
+    final fip = _preview;
+    if (name.isEmpty || fip == null || _creating) return;
+    setState(() => _creating = true);
+    // Kullanıcının ekranda gördüğü (önizlenen) kimlik kaydedilir; kod farklı çıkmaz.
+    await LocalStore.saveIdentity(fip);
     await LocalStore.saveDisplayName(name);
-    setState(() => _created = fip);
+    await ensureE2EKeypair();
+    if (!mounted) return;
     widget.onCreated(fip, name);
   }
 
@@ -90,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               FipCard(
                 title: 'FIP — ÖNİZLEME',
                 fip: preview,
-                onRegen: _regen,
+                onRegen: _creating ? null : _regen,
               ),
               const SizedBox(height: 24),
               const Text('Görünen ad (sadece arkadaşların görür)',
@@ -102,11 +106,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 style: const TextStyle(color: KnkColors.text, fontSize: 15),
                 decoration: knkInputDecoration('örn. Photon'),
                 onChanged: (_) => setState(() {}),
+                onSubmitted: (_) => _create(),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
                 style: knkPrimaryButtonStyle(),
-                onPressed: _nameCtrl.text.trim().isEmpty ? null : _create,
+                onPressed: (_nameCtrl.text.trim().isEmpty || _creating) ? null : _create,
                 child: const Text('Kimliği bu cihazda oluştur'),
               ),
               const SizedBox(height: 12),
@@ -115,41 +120,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 'FIP bloğun ve eşleşme kodun bu cihazda saklanır.',
                 style: TextStyle(color: KnkColors.textDim, fontSize: 11, height: 1.6),
               ),
-              if (_created != null) ...[
-                const SizedBox(height: 24),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: KnkColors.panel,
-                    border: Border.all(color: KnkColors.accent.withOpacity(0.4)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('SENİN ADRESİN', style: TextStyle(color: KnkColors.textDim, fontSize: 10, letterSpacing: 1.5)),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_created!.code}@${widget.myServerUrl}',
-                      style: const TextStyle(color: KnkColors.accent, fontSize: 12, fontFamily: 'monospace'),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: KnkColors.text,
-                          side: const BorderSide(color: KnkColors.line),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.copy, size: 15),
-                        label: const Text('Adresi Kopyala', style: TextStyle(fontSize: 13)),
-                        onPressed: () => Clipboard.setData(ClipboardData(text: '${_created!.code}@${widget.myServerUrl}')),
-                      ),
-                    ),
-                  ]),
-                ),
-              ],
             ],
           ),
         ),
@@ -181,8 +151,11 @@ class FipCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title,
-                  style: const TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+              Flexible(
+                child: Text(title,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+              ),
               if (onRegen != null)
                 GestureDetector(
                   onTap: onRegen,
@@ -238,8 +211,12 @@ class FipCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('EŞLEŞME KODU',
-                  style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+              const Flexible(
+                child: Text('EŞLEŞME KODU',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: KnkColors.textDim, fontSize: 11, letterSpacing: 1.5)),
+              ),
+              const SizedBox(width: 8),
               Text(
                 fip.code,
                 style: const TextStyle(

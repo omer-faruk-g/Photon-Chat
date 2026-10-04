@@ -1,14 +1,17 @@
 {
   "name": "knk-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "KNK FIP eslestirme ve mesaj role sunucusu - telefon numarasi/e-posta gerektirmez",
   "main": "index.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "express": "^4.19.2"
   }
 }

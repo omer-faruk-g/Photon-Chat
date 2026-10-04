@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'e2e.dart';
 import 'fip.dart';
 
 class Contact {
@@ -7,10 +8,20 @@ class Contact {
   final String name;
   final String code;
   final String serverUrl;
+  /// 'pending_in' | 'pending_out' | 'on'
   String status;
-  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status});
-  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status};
-  factory Contact.fromJson(Map<String, dynamic> j) => Contact(fipId: j['fipId'], name: j['name'], code: j['code'], serverUrl: (j['serverUrl'] as String?) ?? '', status: j['status']);
+  /// Karşı tarafın X25519 public key'i (Base64). Bilinmiyorsa null.
+  String? publicKey;
+  Contact({required this.fipId, required this.name, required this.code, required this.serverUrl, required this.status, this.publicKey});
+  Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'code': code, 'serverUrl': serverUrl, 'status': status, if (publicKey != null) 'publicKey': publicKey};
+  factory Contact.fromJson(Map<String, dynamic> j) => Contact(
+    fipId: j['fipId'] as String,
+    name: (j['name'] as String?) ?? 'Bilinmeyen',
+    code: (j['code'] as String?) ?? '?????',
+    serverUrl: (j['serverUrl'] as String?) ?? '',
+    status: (j['status'] as String?) ?? 'pending_out',
+    publicKey: j['publicKey'] as String?,
+  );
 }
 
 class ChatMessage {
@@ -19,7 +30,7 @@ class ChatMessage {
   final int ts;
   ChatMessage({required this.from, required this.text, required this.ts});
   Map<String, dynamic> toJson() => {'from': from, 'text': text, 'ts': ts};
-  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(from: j['from'], text: j['text'], ts: j['ts']);
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(from: j['from'] as String, text: (j['text'] as String?) ?? '', ts: (j['ts'] as num).toInt());
 }
 
 class GroupMember {
@@ -28,7 +39,7 @@ class GroupMember {
   final String serverUrl;
   GroupMember({required this.fipId, required this.name, required this.serverUrl});
   Map<String, dynamic> toJson() => {'fipId': fipId, 'name': name, 'serverUrl': serverUrl};
-  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'], name: j['name'], serverUrl: (j['serverUrl'] as String?) ?? '');
+  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(fipId: j['fipId'] as String, name: (j['name'] as String?) ?? 'Bilinmeyen', serverUrl: (j['serverUrl'] as String?) ?? '');
 }
 
 class Group {
@@ -42,12 +53,29 @@ class Group {
   Group({required this.groupId, required this.groupCode, required this.name, required this.ownerFipId, required this.ownerServerUrl, required this.isOwner, required this.members});
   Map<String, dynamic> toJson() => {'groupId': groupId, 'groupCode': groupCode, 'name': name, 'ownerFipId': ownerFipId, 'ownerServerUrl': ownerServerUrl, 'isOwner': isOwner, 'members': members.map((m) => m.toJson()).toList()};
   factory Group.fromJson(Map<String, dynamic> j) => Group(
-    groupId: j['groupId'], groupCode: j['groupCode'], name: j['name'],
-    ownerFipId: j['ownerFipId'], ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
-    isOwner: j['isOwner'] ?? false,
+    groupId: j['groupId'] as String, groupCode: (j['groupCode'] as String?) ?? '', name: (j['name'] as String?) ?? 'Grup',
+    ownerFipId: (j['ownerFipId'] as String?) ?? '', ownerServerUrl: (j['ownerServerUrl'] as String?) ?? '',
+    isOwner: (j['isOwner'] as bool?) ?? false,
     members: (j['members'] as List? ?? []).map((m) => GroupMember.fromJson(m as Map<String, dynamic>)).toList(),
   );
   String get address => '$groupCode@$ownerServerUrl';
+}
+
+/// Bozuk tek bir kayıt tüm listeyi kaybettirmesin diye öğeleri tek tek çözer.
+List<T> _decodeList<T>(String raw, T Function(Map<String, dynamic>) fromJson) {
+  final List list;
+  try {
+    list = jsonDecode(raw) as List;
+  } catch (_) {
+    return [];
+  }
+  final out = <T>[];
+  for (final e in list) {
+    try {
+      out.add(fromJson(Map<String, dynamic>.from(e as Map)));
+    } catch (_) {}
+  }
+  return out;
 }
 
 class LocalStore {
@@ -68,14 +96,21 @@ class LocalStore {
   static Future<FipBlock?> loadIdentity() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kIdentityKey);
     if (raw == null) return null;
-    return FipBlock.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    try {
+      return FipBlock.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return null; // bozuk kayıt: uygulama çökmesin, yeni kimlik oluşturulsun
+    }
   }
 
   static Future<FipBlock> createIdentity() async {
     final fip = FipBlock.generate();
-    (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
+    await saveIdentity(fip);
     return fip;
   }
+
+  static Future<void> saveIdentity(FipBlock fip) async =>
+      (await SharedPreferences.getInstance()).setString(_kIdentityKey, jsonEncode(fip.toJson()));
 
   static Future<String?> loadDisplayName() async => (await SharedPreferences.getInstance()).getString(_kDisplayNameKey);
   static Future<void> saveDisplayName(String name) async => (await SharedPreferences.getInstance()).setString(_kDisplayNameKey, name);
@@ -83,7 +118,7 @@ class LocalStore {
   static Future<List<Contact>> loadContacts() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kContactsKey);
     if (raw == null) return [];
-    return (jsonDecode(raw) as List).map((e) => Contact.fromJson(e as Map<String, dynamic>)).toList();
+    return _decodeList(raw, Contact.fromJson);
   }
 
   static Future<void> saveContacts(List<Contact> contacts) async =>
@@ -92,7 +127,7 @@ class LocalStore {
   static Future<List<Group>> loadGroups() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kGroupsKey);
     if (raw == null) return [];
-    return (jsonDecode(raw) as List).map((e) => Group.fromJson(e as Map<String, dynamic>)).toList();
+    return _decodeList(raw, Group.fromJson);
   }
 
   static Future<void> saveGroups(List<Group> groups) async =>
@@ -103,7 +138,11 @@ class LocalStore {
   static Future<List<String>> loadBlockList() async {
     final raw = (await SharedPreferences.getInstance()).getString(_kBlockListKey);
     if (raw == null) return [];
-    return List<String>.from(jsonDecode(raw) as List);
+    try {
+      return (jsonDecode(raw) as List).whereType<String>().toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<void> saveBlockList(List<String> list) async =>
@@ -132,5 +171,6 @@ class LocalStore {
     await prefs.remove(_kGroupsKey);
     await prefs.remove(_kGuideSeenKey);
     await prefs.remove(_kBlockListKey);
+    await wipeE2EKeys();
   }
 }

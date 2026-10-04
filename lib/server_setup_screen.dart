@@ -1,9 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'knk_api.dart';
 import 'theme.dart';
 
+/// Kullanıcının girdiği adresi normalize eder: boşlukları ve sondaki '/' işaretlerini
+/// atar, şema yoksa https ekler. Geçersizse null döner.
+String? normalizeServerUrl(String raw) {
+  var url = raw.trim();
+  if (url.isEmpty) return null;
+  if (!url.contains('://')) url = 'https://$url';
+  while (url.endsWith('/')) {
+    url = url.substring(0, url.length - 1);
+  }
+  final uri = Uri.tryParse(url);
+  if (uri == null || !(uri.scheme == 'https' || uri.scheme == 'http') || uri.host.isEmpty) return null;
+  return url;
+}
+
 class ServerSetupScreen extends StatefulWidget {
-  final void Function(String url) onDone;
+  final Future<void> Function(String url) onDone;
   const ServerSetupScreen({super.key, required this.onDone});
   @override
   State<ServerSetupScreen> createState() => _ServerSetupScreenState();
@@ -14,20 +29,39 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
   bool _loading = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _test() async {
-    final raw = _ctrl.text.trim();
-    if (raw.isEmpty) { setState(() => _error = 'URL boş olamaz'); return; }
-    final url = raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+    if (_ctrl.text.trim().isEmpty) { setState(() => _error = 'URL boş olamaz'); return; }
+    final url = normalizeServerUrl(_ctrl.text);
+    if (url == null) { setState(() => _error = 'Geçerli bir adres gir (https://...)'); return; }
     setState(() { _loading = true; _error = null; });
     try {
-      final r = await http.get(Uri.parse('$url/lookup/00000')).timeout(const Duration(seconds: 10));
-      if (r.statusCode == 200 || r.statusCode == 404) {
-        widget.onDone(url);
-      } else {
-        setState(() => _error = 'Sunucu yanıt vermedi (${r.statusCode})');
+      var ok = false;
+      var finalUrl = url;
+      try {
+        ok = await KnkApi.isPhotonServer(url);
+      } on TimeoutException {
+        rethrow;
+      } catch (_) {
+        // Şema yazılmadıysa (ör. "192.168.1.5:3000") HTTPS başarısız olunca HTTP'yi dene.
+        if (_ctrl.text.contains('://')) rethrow;
+        finalUrl = url.replaceFirst('https://', 'http://');
+        ok = await KnkApi.isPhotonServer(finalUrl);
       }
-    } catch (e) {
-      setState(() => _error = 'Bağlantı hatası: $e');
+      if (ok) {
+        await widget.onDone(finalUrl);
+        return;
+      }
+      if (mounted) setState(() => _error = 'Bu adres bir Photon Chat sunucusu değil.');
+    } on TimeoutException {
+      if (mounted) setState(() => _error = 'Sunucu yanıt vermedi. Ücretsiz sunucular uykudan uyanırken 1 dakika sürebilir, tekrar dene.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Sunucuya bağlanılamadı. Adresi ve internet bağlantını kontrol et.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -38,7 +72,7 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
     return Scaffold(
       backgroundColor: KnkColors.bg,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,13 +102,16 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
                   hintText: 'https://photon-chat-xxxx.onrender.com',
                   hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
                   labelStyle: const TextStyle(color: KnkColors.textDim),
-                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
-                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
+                  enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(8)),
+                  focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.accent), borderRadius: BorderRadius.circular(8)),
                   errorText: _error,
                   errorStyle: const TextStyle(color: KnkColors.danger),
+                  errorMaxLines: 3,
                 ),
                 keyboardType: TextInputType.url,
                 autocorrect: false,
+                enableSuggestions: false,
+                onSubmitted: (_) { if (!_loading) _test(); },
               ),
               const SizedBox(height: 20),
               SizedBox(

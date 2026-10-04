@@ -1,0 +1,284 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:photon_chat/e2e.dart';
+import 'package:photon_chat/fip.dart';
+import 'package:photon_chat/knk_api.dart';
+import 'package:photon_chat/local_store.dart';
+import 'package:photon_chat/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const server = 'https://test.onrender.com';
+
+/// Bellekte çalışan küçük sahte sunucu: uygulamanın kullandığı uç noktaları taklit eder.
+class FakeServer {
+  final users = <String, Map<String, dynamic>>{};
+  final chats = <String, List<Map<String, dynamic>>>{};
+  final requests = <String, List<Map<String, dynamic>>>{};
+  final deactivated = <String>{};
+  int calls = 0;
+  bool down = false;
+
+  late final client = MockClient((req) async {
+    calls++;
+    if (down) throw http.ClientException('offline');
+    final path = req.url.path;
+    final body = req.body.isEmpty ? null : jsonDecode(req.body);
+    http.Response json(Object o) => http.Response(jsonEncode(o), 200, headers: {'content-type': 'application/json; charset=utf-8'});
+
+    if (path == '/health') return json({'app': 'photon-chat', 'ok': true});
+    if (path == '/presence') { users[body['fipId']] = Map<String, dynamic>.from(body); return http.Response('OK', 200); }
+    if (path.startsWith('/registry/')) return http.Response('OK', 200);
+    if (path.startsWith('/lookup/')) {
+      final code = path.split('/').last;
+      final u = users.values.where((u) => u['code'] == code).firstOrNull;
+      return u == null ? http.Response('Not Found', 404) : json(u);
+    }
+    if (path.startsWith('/requests/')) return json(requests[path.split('/')[2]] ?? []);
+    if (path.startsWith('/accepted/')) return json([]);
+    if (path == '/status') {
+      final ids = List<String>.from(body['fipIds']);
+      return json({'active': ids.where(users.containsKey).toList(), 'deactivated': ids.where(deactivated.contains).toList()});
+    }
+    if (path.startsWith('/typing/')) return req.method == 'GET' ? json([]) : http.Response('OK', 200);
+    if (path.startsWith('/chat/')) {
+      final key = path.split('/').last;
+      if (req.method == 'GET') return json(chats[key] ?? []);
+      if (req.method == 'POST') { (chats[key] ??= []).add(Map<String, dynamic>.from(body)); return http.Response('OK', 200); }
+      chats.remove(key);
+      return http.Response('OK', 200);
+    }
+    return http.Response('Not Found', 404);
+  });
+}
+
+void _noError(WidgetTester tester) {
+  final e = tester.takeException();
+  if (e is FlutterError) fail(e.toStringDeep());
+  expect(e, isNull);
+}
+
+Future<void> _disposeApp(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(seconds: 1));
+}
+
+void main() {
+  late FakeServer fake;
+
+  setUp(() {
+    fake = FakeServer();
+    KnkApi.client = fake.client;
+  });
+
+  testWidgets('first run: guide -> server setup -> identity -> contacts, and it all persists', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text("Photon Chat'e Hoş Geldin"), findsOneWidget);
+    await tester.tap(find.text('Atla'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunucu Kurulumu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'test.onrender.com/');
+    await tester.tap(find.text('Bağlan ve Devam Et'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PHOTON CHAT'), findsOneWidget);
+    // Önizlemedeki kod, oluşturulan kimliğin kodu olmalı
+    final previewCode = (tester.widget<Text>(find.byWidgetPredicate(
+            (w) => w is Text && w.data != null && RegExp(r'^\d{5}$').hasMatch(w.data!))))
+        .data!;
+    await tester.enterText(find.byType(TextField), 'Ali');
+    await tester.pump();
+    await tester.ensureVisible(find.text('Kimliği bu cihazda oluştur'));
+    await tester.tap(find.text('Kimliği bu cihazda oluştur'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+
+    expect(find.text('Kişiler'), findsOneWidget);
+    expect(find.text(previewCode), findsOneWidget);
+
+    expect(await LocalStore.loadMyServerUrl(), server);
+    expect((await LocalStore.loadIdentity())!.code, previewCode);
+    // Kimlik public key ile sunucuya kaydoldu
+    final me = fake.users.values.single;
+    expect(me['name'], 'Ali');
+    expect(me['publicKey'], isNotNull);
+
+    await _disposeApp(tester);
+  });
+
+  testWidgets('returning user goes straight to contacts (server url is remembered)', (tester) async {
+    final fip = FipBlock.generate();
+    SharedPreferences.setMockInitialValues({
+      'knk_guide_seen_v1': true,
+      'knk_my_server_url_v1': server,
+      'knk_identity_v1': jsonEncode(fip.toJson()),
+      'knk_display_name_v1': 'Ali',
+    });
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Sunucu Kurulumu'), findsNothing);
+    expect(find.text('Kişiler'), findsOneWidget);
+    await _disposeApp(tester);
+  });
+
+  testWidgets('network outage never deletes contacts', (tester) async {
+    final fip = FipBlock.generate();
+    SharedPreferences.setMockInitialValues({
+      'knk_guide_seen_v1': true,
+      'knk_my_server_url_v1': server,
+      'knk_identity_v1': jsonEncode(fip.toJson()),
+      'knk_display_name_v1': 'Ali',
+      'knk_contacts_v1': jsonEncode([
+        {'fipId': 'fip_bora', 'name': 'Bora', 'code': '22222', 'serverUrl': server, 'status': 'on'},
+      ]),
+    });
+    fake.down = true;
+    await tester.pumpWidget(const KnkApp());
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(seconds: 5));
+    }
+    expect(find.text('Bora'), findsOneWidget);
+    expect(await LocalStore.loadContacts(), hasLength(1));
+    // Sunucu "kayıtlı değil" dese bile (ör. yeniden başladı) kişi silinmez
+    fake.down = false;
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 5));
+    }
+    expect(find.text('Bora'), findsOneWidget);
+    // Yalnızca hesabını sildiyse kaldırılır
+    fake.deactivated.add('fip_bora');
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 5));
+    }
+    expect(find.text('Bora'), findsNothing);
+    await _disposeApp(tester);
+  });
+
+  testWidgets('sending a chat message encrypts it end-to-end and shows it', (tester) async {
+    final fip = FipBlock.generate();
+    final bora = FipBlock.generate();
+    SharedPreferences.setMockInitialValues({
+      'knk_guide_seen_v1': true,
+      'knk_my_server_url_v1': server,
+      'knk_identity_v1': jsonEncode(fip.toJson()),
+      'knk_display_name_v1': 'Ali',
+      'knk_contacts_v1': jsonEncode([
+        {'fipId': bora.fipId, 'name': 'Bora', 'code': bora.code, 'serverUrl': server, 'status': 'on'},
+      ]),
+    });
+    final boraPub = await tester.runAsync(() async {
+      await ensureE2EKeypair();
+      return getMyPublicKeyBase64(); // test için kendi anahtarımızı Bora'nınki gibi kullan
+    });
+    fake.users[bora.fipId] = {'fipId': bora.fipId, 'code': bora.code, 'name': 'Bora', 'publicKey': boraPub, 'serverUrl': server};
+
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Bora'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('uçtan uca şifreli'), findsOneWidget);
+    expect(find.text('Bu sohbet temiz. İlk mesajı sen gönder.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Selam Bora, tamam mı?');
+    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Ekranda düz metin (küfür filtresi "tamam"ı bozmamalı), sunucuda şifreli metin
+    expect(find.text('Selam Bora, tamam mı?'), findsOneWidget);
+    final stored = fake.chats[chatKeyFor(fip.fipId, bora.fipId)]!;
+    expect(stored, hasLength(1)); // aynı sunucu: iki kez yazılmaz
+    expect(stored.single['text'], startsWith(e2ePrefix));
+    expect(stored.single['text'], isNot(contains('Selam')));
+
+    // Poll sonrası mesaj kaybolmamalı
+    await tester.pump(const Duration(seconds: 3));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Selam Bora, tamam mı?'), findsOneWidget);
+
+    await _disposeApp(tester);
+  });
+
+  testWidgets('screens render without overflow on a small phone (320x568)', (tester) async {
+    tester.view.physicalSize = const Size(640, 1136);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+
+    final fip = FipBlock.generate();
+    SharedPreferences.setMockInitialValues({
+      'knk_guide_seen_v1': true,
+      'knk_my_server_url_v1': server,
+      'knk_identity_v1': jsonEncode(fip.toJson()),
+      'knk_display_name_v1': 'Ali',
+      'knk_contacts_v1': jsonEncode([
+        {'fipId': 'fip_1', 'name': 'Çok Uzun Bir İsim Soyisim Örneği 😀', 'code': '11111', 'serverUrl': server, 'status': 'on'},
+        {'fipId': 'fip_2', 'name': 'Bekleyen Davet Sahibi Uzun İsim', 'code': '22222', 'serverUrl': server, 'status': 'pending_in'},
+        {'fipId': 'fip_3', 'name': 'Giden Davet Uzun İsim Örneği', 'code': '33333', 'serverUrl': server, 'status': 'pending_out'},
+      ]),
+      'knk_groups_v1': jsonEncode([
+        {'groupId': 'g1', 'groupCode': '1234567', 'name': 'Çok uzun bir grup adı örneği burada', 'ownerFipId': fip.fipId, 'ownerServerUrl': server, 'isOwner': true, 'members': []},
+      ]),
+    });
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    _noError(tester);
+
+    // Ayarlar
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+    expect(find.text('Ayarlar'), findsOneWidget);
+    _noError(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Kişi ekle
+    await tester.tap(find.text('+ Kişi ekle'));
+    await tester.pumpAndSettle();
+    _noError(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Pulse AI
+    await tester.tap(find.text('Pulse AI'));
+    await tester.pumpAndSettle();
+    _noError(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await _disposeApp(tester);
+  });
+
+  testWidgets('guide and server setup fit on a small phone', (tester) async {
+    tester.view.physicalSize = const Size(640, 1136);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 6; i++) {
+      _noError(tester);
+      await tester.tap(find.textContaining(i == 5 ? 'Başlayalım' : 'Devam'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Sunucu Kurulumu'), findsOneWidget);
+    // Sunucuya ulaşılamazsa anlaşılır bir hata gösterilir, uygulama çökmez
+    fake.down = true;
+    await tester.enterText(find.byType(TextField), 'https://yok.onrender.com');
+    await tester.ensureVisible(find.text('Bağlan ve Devam Et'));
+    await tester.tap(find.text('Bağlan ve Devam Et'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('bağlanılamadı'), findsOneWidget);
+    _noError(tester);
+    await _disposeApp(tester);
+  });
+}

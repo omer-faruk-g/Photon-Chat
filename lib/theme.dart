@@ -17,7 +17,7 @@ final knkTheme = ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: KnkColors.bg,
   fontFamily: 'monospace',
-  colorScheme: ColorScheme.dark(
+  colorScheme: const ColorScheme.dark(
     primary: KnkColors.accent,
     secondary: KnkColors.accent2,
     error: KnkColors.danger,

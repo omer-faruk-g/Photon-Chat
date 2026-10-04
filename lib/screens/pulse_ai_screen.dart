@@ -14,10 +14,12 @@ class PulseAiScreen extends StatefulWidget {
 class _PulseAiScreenState extends State<PulseAiScreen> {
   final _ctrl = TextEditingController();
   final _scroll = ScrollController();
-  // {role: 'user'|'assistant', content: String}
+  // {role: 'user'|'assistant', content: String, error?: '1'}
   final List<Map<String, String>> _messages = [];
   bool _loading = false;
   String? _inputError;
+
+  static const _maxHistory = 20;
 
   @override
   void dispose() {
@@ -27,20 +29,35 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
   }
 
   Future<void> _send() async {
+    if (_loading) return;
     final raw = _ctrl.text;
     final error = validateMessage(raw);
     if (error != null) { setState(() => _inputError = error); return; }
     final text = sanitizeMessage(raw);
-    setState(() { _inputError = null; _loading = true; });
+    setState(() {
+      _inputError = null;
+      _loading = true;
+      _messages.add({'role': 'user', 'content': text});
+    });
     _ctrl.clear();
-
-    setState(() => _messages.add({'role': 'user', 'content': text}));
     _scrollToBottom();
 
-    final reply = await KnkApi.chatWithPulseAI(widget.myServerUrl, List.from(_messages));
+    // Hata mesajları sohbet geçmişine (AI'ye gönderilen bağlama) dahil edilmez.
+    final history = _messages
+        .where((m) => m['error'] == null)
+        .map((m) => {'role': m['role']!, 'content': m['content']!})
+        .toList();
+    final trimmed = history.length > _maxHistory ? history.sublist(history.length - _maxHistory) : history;
+
+    final (reply, err) = await KnkApi.chatWithPulseAI(widget.myServerUrl, trimmed);
+    if (!mounted) return;
 
     setState(() {
-      _messages.add({'role': 'assistant', 'content': reply});
+      if (reply != null) {
+        _messages.add({'role': 'assistant', 'content': reply});
+      } else {
+        _messages.add({'role': 'assistant', 'content': err ?? 'Bir hata oluştu.', 'error': '1'});
+      }
       _loading = false;
     });
     _scrollToBottom();
@@ -114,6 +131,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                     itemBuilder: (_, i) {
                       final m = _messages[i];
                       final isUser = m['role'] == 'user';
+                      final isError = m['error'] != null;
                       return Align(
                         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
@@ -122,7 +140,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
                           decoration: BoxDecoration(
                             color: isUser ? KnkColors.accent : KnkColors.panel,
-                            border: isUser ? null : Border.all(color: KnkColors.line),
+                            border: isUser ? null : Border.all(color: isError ? KnkColors.danger.withOpacity(0.5) : KnkColors.line),
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(14),
                               topRight: const Radius.circular(14),
@@ -141,7 +159,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                               SelectableText(
                                 m['content'] ?? '',
                                 style: TextStyle(
-                                  color: isUser ? const Color(0xFF06251A) : KnkColors.text,
+                                  color: isUser ? const Color(0xFF06251A) : (isError ? KnkColors.danger : KnkColors.text),
                                   fontSize: 14,
                                   height: 1.55,
                                 ),
@@ -169,8 +187,10 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               color: KnkColors.danger.withOpacity(0.1),
               child: Text(_inputError!, style: const TextStyle(color: KnkColors.danger, fontSize: 12)),
             ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+          SafeArea(
+            top: false,
+            child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             decoration: const BoxDecoration(
               color: KnkColors.panel,
               border: Border(top: BorderSide(color: KnkColors.line)),
@@ -179,9 +199,9 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
               Expanded(
                 child: TextField(
                   controller: _ctrl,
-                  enabled: !_loading,
                   style: const TextStyle(color: KnkColors.text, fontSize: 14),
                   decoration: InputDecoration(
+                    counterText: '',
                     hintText: 'Pulse AI\'e bir şey sor…',
                     hintStyle: const TextStyle(color: KnkColors.textDim, fontSize: 13),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
@@ -190,6 +210,8 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                     disabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(999)),
                   ),
                   maxLines: 4, minLines: 1,
+                  maxLength: maxMessageLength,
+                  textInputAction: TextInputAction.send,
                   onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
                   onSubmitted: (_) { if (!_loading) _send(); },
                 ),
@@ -207,6 +229,7 @@ class _PulseAiScreenState extends State<PulseAiScreen> {
                 ),
               ),
             ]),
+          ),
           ),
         ],
       ),

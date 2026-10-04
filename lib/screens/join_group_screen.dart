@@ -3,12 +3,15 @@ import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
 import '../theme.dart';
+import '../server_setup_screen.dart' show normalizeServerUrl;
 
 class JoinGroupScreen extends StatefulWidget {
   final FipBlock identity;
   final String displayName;
   final String myServerUrl;
-  const JoinGroupScreen({super.key, required this.identity, required this.displayName, required this.myServerUrl});
+  final Set<String> existingGroupIds;
+  const JoinGroupScreen({super.key, required this.identity, required this.displayName, required this.myServerUrl,
+      this.existingGroupIds = const {}});
   @override
   State<JoinGroupScreen> createState() => _JoinGroupScreenState();
 }
@@ -18,37 +21,50 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
   bool _loading = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _fail(String msg) {
+    if (mounted) setState(() { _error = msg; _loading = false; });
+  }
+
   Future<void> _join() async {
+    if (_loading) return;
     final raw = _ctrl.text.trim();
     final at = raw.indexOf('@');
     if (at < 0) { setState(() => _error = 'Format: GRUPKODU@https://sunucu.onrender.com'); return; }
-    final code = raw.substring(0, at);
-    final ownerServerUrl = raw.substring(at + 1);
-    if (code.length != 7) { setState(() => _error = 'Grup kodu 7 haneli olmalı'); return; }
+    final code = raw.substring(0, at).trim();
+    final ownerServerUrl = normalizeServerUrl(raw.substring(at + 1));
+    if (!RegExp(r'^\d{7}$').hasMatch(code)) { setState(() => _error = 'Grup kodu 7 haneli bir sayı olmalı'); return; }
+    if (ownerServerUrl == null) { setState(() => _error = 'Sunucu adresi geçersiz'); return; }
     setState(() { _loading = true; _error = null; });
-    try {
-      final data = await KnkApi.getGroupByCode(ownerServerUrl, code);
-      if (data == null) { setState(() { _error = 'Grup bulunamadı'; _loading = false; }); return; }
-      final groupId = data['groupId'] as String;
-      final groupName = data['name'] as String? ?? 'Grup';
-      await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
-        fromFipId: widget.identity.fipId,
-        fromName: widget.displayName,
-        fromServerUrl: widget.myServerUrl,
-      );
-      final group = Group(
-        groupId: groupId,
-        groupCode: code,
-        name: groupName,
-        ownerFipId: data['ownerFipId'] as String? ?? '',
-        ownerServerUrl: ownerServerUrl,
-        isOwner: false,
-        members: [],
-      );
-      if (mounted) Navigator.pop(context, group);
-    } catch (e) {
-      setState(() { _error = 'Hata: $e'; _loading = false; });
-    }
+    final data = await KnkApi.getGroupByCode(ownerServerUrl, code);
+    if (!mounted) return;
+    final groupId = data?['groupId'] as String?;
+    if (data == null || groupId == null) return _fail('Grup bulunamadı. Adresi kontrol et.');
+    if (widget.existingGroupIds.contains(groupId)) return _fail('Bu grup zaten listende.');
+    final groupName = data['name'] as String? ?? 'Grup';
+    final sent = await KnkApi.sendGroupJoinRequest(ownerServerUrl, groupId,
+      fromFipId: widget.identity.fipId,
+      fromName: widget.displayName,
+      fromServerUrl: widget.myServerUrl,
+    );
+    if (!mounted) return;
+    if (!sent) return _fail('Katılma isteği gönderilemedi. Tekrar dene.');
+    final ownerFipId = data['ownerFipId'] as String? ?? '';
+    final group = Group(
+      groupId: groupId,
+      groupCode: code,
+      name: groupName,
+      ownerFipId: ownerFipId,
+      ownerServerUrl: ownerServerUrl,
+      isOwner: ownerFipId == widget.identity.fipId,
+      members: [],
+    );
+    Navigator.pop(context, group);
   }
 
   @override
@@ -77,6 +93,9 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 errorStyle: const TextStyle(color: KnkColors.danger),
               ),
               autocorrect: false,
+              enableSuggestions: false,
+              keyboardType: TextInputType.url,
+              onSubmitted: (_) => _join(),
             ),
             const SizedBox(height: 20),
             SizedBox(

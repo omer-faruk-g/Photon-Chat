@@ -74,6 +74,7 @@ jobs:
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
           (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
+          (Get-Content windows\CMakeLists.txt) -replace 'set\(BINARY_NAME "knk_flutter"\)', 'set(BINARY_NAME "photon_chat")' | Set-Content windows\CMakeLists.txt
         shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get

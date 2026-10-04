@@ -26,24 +26,24 @@ class _GuideScreenState extends State<GuideScreen> {
     ),
     _GuidePage(
       icon: '🔢',
-      title: 'Senin Adresin: KOD@SUNUCU',
-      body: 'Kimliğin oluşturulunca sana 5 haneli bir kod verilir.\n\nArkadaşlarına şu formatta adresini ver:\n\n  12345@https://senin-sunucu.onrender.com\n\nBu adres senin tek kimliğindir.',
-      highlight: 'KOD @ SUNUCU URL',
+      title: 'Senin Kodun',
+      body: 'Kimliğin oluşturulunca sana 5 haneli bir eşleşme kodu verilir.\n\nArkadaşların seni eklemek için sadece bu kodu girer; sunucu adresin arka planda otomatik bulunur.\n\nTam adresin ayarlarda görünür:\n\n  12345@https://senin-sunucu.onrender.com',
+      highlight: '5 HANELİ KOD',
     ),
     _GuidePage(
       icon: '🤝',
       title: 'Arkadaş Ekle',
-      body: 'Arkadaşının tam adresini gir:\n\n  67890@https://onun-sunucu.onrender.com\n\nİstek onun sunucusuna gider. Kabul ederse ikiniz bağlanırsınız.\n\nMesajların yalnızca senin sunucuna kaydedilir — arkadaşının sunucusuna yük bindirmezsin.',
+      body: 'Arkadaşının 5 haneli kodunu gir.\n\nİstek onun sunucusuna gider. Kabul ederse ikiniz bağlanırsınız.\n\nBirebir mesajlar uçtan uca şifrelenir; sunucular yalnızca okunamayan şifreli metni taşır.',
     ),
     _GuidePage(
       icon: '👥',
       title: 'Grup Sohbetleri',
-      body: 'Gruplar merkeziyetsizdir — her üyenin sunucusu grubun bir parçasını taşır.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Grubun adresi:  KOD@SUNUCU_URL\n• Bu adresi paylaş → üyeler katılmak için gönderir\n• Sen kabul et → mesajlaşma başlar\n\nHer üyenin sunucusu en fazla 10 kişiden mesaj depolar.',
+      body: 'Bir grup, onu oluşturan kişinin sunucusunda yaşar.\n\n• Grup oluştur → sana 7 haneli bir kod verilir\n• Grubun adresi:  KOD@SUNUCU_URL\n• Bu adresi paylaş → üyeler katılma isteği gönderir\n• Sen kabul et → mesajlaşma başlar\n\nGrup sahibi üyeleri susturabilir veya gruptan atabilir.',
     ),
     _GuidePage(
       icon: '🔒',
       title: 'Gizlilik',
-      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Sunucu sadece şifreli blob'ları iletir",
+      body: "Sunucu hiçbir veriyi kalıcı olarak saklamaz — her şey RAM'dedir.\n\n• Uygulama kapatılırken sohbetleri imha edebilirsin\n• Hesabı sil → tüm veriler anında yok edilir\n• Kişi listesi yalnızca cihazında tutulur\n• Birebir mesajlar uçtan uca şifrelidir (X25519 + AES-GCM)",
     ),
   ];
 
@@ -126,7 +126,7 @@ class _GuidePage {
 
 class _PageContent extends StatelessWidget {
   final _GuidePage page;
-  const _PageContent({super.key, required this.page});
+  const _PageContent({required this.page});
 
   @override
   Widget build(BuildContext context) {

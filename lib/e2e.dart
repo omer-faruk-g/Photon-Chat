@@ -19,15 +19,22 @@ Future<void> ensureE2EKeypair() async {
   final kp = await algo.newKeyPair();
   final privBytes = await kp.extractPrivateKeyBytes();
   final pubKey = await kp.extractPublicKey();
-  prefs.setString(_kPrivKeyPref, base64.encode(privBytes));
-  prefs.setString(_kPubKeyPref, base64.encode(pubKey.bytes));
+  await prefs.setString(_kPrivKeyPref, base64.encode(privBytes));
+  await prefs.setString(_kPubKeyPref, base64.encode(pubKey.bytes));
+}
+
+/// Hesap silinirken anahtar çiftini de yok eder; yeni kimlik yeni anahtar alır.
+Future<void> wipeE2EKeys() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove(_kPrivKeyPref);
+  await prefs.remove(_kPubKeyPref);
 }
 
 /// Kendi public key'imizi Base64 string olarak döndürür.
 Future<String> getMyPublicKeyBase64() async {
   final prefs = await SharedPreferences.getInstance();
   final s = prefs.getString(_kPubKeyPref);
-  if (s == null) {
+  if (s == null || prefs.getString(_kPrivKeyPref) == null) {
     await ensureE2EKeypair();
     return prefs.getString(_kPubKeyPref)!;
   }
@@ -37,6 +44,7 @@ Future<String> getMyPublicKeyBase64() async {
 /// İki tarafın shared secret'ından AES-GCM anahtarı türetir.
 Future<SecretKey> deriveSharedKey(String theirPublicKeyBase64) async {
   final prefs = await SharedPreferences.getInstance();
+  if (prefs.getString(_kPrivKeyPref) == null) await ensureE2EKeypair();
   final privBytes = base64.decode(prefs.getString(_kPrivKeyPref)!);
   final theirPubBytes = base64.decode(theirPublicKeyBase64);
 
@@ -81,6 +89,29 @@ Future<String> e2eDecrypt(String cipherBase64, SecretKey key) async {
   final box = SecretBox(cipherText, nonce: nonce, mac: mac);
   final plain = await algo.decrypt(box, secretKey: key);
   return utf8.decode(plain);
+}
+
+// ---------------------------------------------------------------------------
+// Sohbet mesajı sarmalama — şifreli mesajlar bir önekle işaretlenir; böylece
+// düz metin (eski sürüm) ile çözülemeyen şifreli mesaj birbirinden ayrılır.
+// ---------------------------------------------------------------------------
+
+const e2ePrefix = 'e2e1:';
+
+bool isE2EMessage(String text) => text.startsWith(e2ePrefix);
+
+Future<String> encryptChatMessage(String plaintext, SecretKey key) async =>
+    '$e2ePrefix${await e2eEncrypt(plaintext, key)}';
+
+/// Düz metni olduğu gibi döndürür; şifreli mesaj çözülemezse null döner.
+Future<String?> decryptChatMessage(String text, SecretKey? key) async {
+  if (!isE2EMessage(text)) return text;
+  if (key == null) return null;
+  try {
+    return await e2eDecrypt(text.substring(e2ePrefix.length), key);
+  } catch (_) {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------

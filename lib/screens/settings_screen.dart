@@ -9,7 +9,9 @@ import '../theme.dart';
 class SettingsScreen extends StatefulWidget {
   final FipBlock identity;
   final String myServerUrl;
-  const SettingsScreen({super.key, required this.identity, required this.myServerUrl});
+  /// Hesap silinmeden hemen önce çağrılır (ör. arka plan senkronunu durdurmak için).
+  final VoidCallback? onBeforeDeactivate;
+  const SettingsScreen({super.key, required this.identity, required this.myServerUrl, this.onBeforeDeactivate});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -20,8 +22,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _deleting = false;
 
   Future<void> _deactivate() async {
+    if (_deleting) return;
     setState(() => _deleting = true);
-    await KnkApi.deactivate(widget.myServerUrl, widget.identity.fipId);
+    widget.onBeforeDeactivate?.call();
+    await Future.wait([
+      KnkApi.deactivate(widget.myServerUrl, widget.identity.fipId),
+      KnkApi.unregisterOnBridge(widget.identity.code, widget.myServerUrl),
+    ]);
     await LocalStore.wipeIdentity();
     if (!mounted) return;
     Navigator.pop(context, true);
@@ -59,7 +66,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   icon: const Icon(Icons.copy, size: 15),
                   label: const Text('Adresi Kopyala', style: TextStyle(fontSize: 13)),
-                  onPressed: () => Clipboard.setData(ClipboardData(text: myAddress)),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: myAddress));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adres kopyalandı.'), duration: Duration(seconds: 2)));
+                    }
+                  },
                 ),
               ),
             ]),

@@ -20,7 +20,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   String? _error;
   Group? _created;
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _create() async {
+    if (_loading) return;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
     setState(() { _loading = true; _error = null; });
@@ -32,7 +39,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         name: name,
         ownerServerUrl: widget.myServerUrl,
       );
-      if (data == null) { setState(() { _error = 'Grup oluşturulamadı'; _loading = false; }); return; }
+      if (!mounted) return;
+      if (data == null) { setState(() { _error = 'Grup oluşturulamadı. Sunucu bağlantını kontrol et.'; _loading = false; }); return; }
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
@@ -40,22 +48,29 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ownerFipId: widget.identity.fipId,
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
-        members: [],
+        members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl)],
       );
       setState(() { _created = group; _loading = false; });
-    } catch (e) {
-      setState(() { _error = 'Hata: $e'; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Grup oluşturulamadı.'; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Grup Oluştur')),
-      backgroundColor: KnkColors.bg,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _created == null ? _buildForm() : _buildSuccess(),
+    // Grup oluşturulduktan sonra geri tuşuyla çıkılsa bile grup listeye eklenir.
+    return PopScope(
+      canPop: _created == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _created != null) Navigator.pop(context, _created);
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Grup Oluştur')),
+        backgroundColor: KnkColors.bg,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: _created == null ? _buildForm() : _buildSuccess(),
+        ),
       ),
     );
   }
@@ -63,11 +78,13 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildForm() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text('Grup adı gir. Oluşturulduktan sonra paylaşabilecegin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+      const Text('Grup adı gir. Oluşturulduktan sonra paylaşabileceğin 7 haneli bir kod alacaksın.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
       const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
+        maxLength: 40,
         style: const TextStyle(color: KnkColors.text),
+        onSubmitted: (_) => _create(),
         decoration: InputDecoration(
           labelText: 'Grup Adı',
           labelStyle: const TextStyle(color: KnkColors.textDim),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../knk_api.dart';
 import '../local_store.dart';
@@ -8,8 +9,12 @@ class AddContactScreen extends StatefulWidget {
   final FipBlock identity;
   final String displayName;
   final String myServerUrl;
+  /// Listede zaten bulunan kişiler (tekrar eklemeyi önlemek için).
+  final Set<String> existingFipIds;
+  final String? publicKey;
 
-  const AddContactScreen({super.key, required this.identity, required this.displayName, required this.myServerUrl});
+  const AddContactScreen({super.key, required this.identity, required this.displayName, required this.myServerUrl,
+      this.existingFipIds = const {}, this.publicKey});
 
   @override
   State<AddContactScreen> createState() => _AddContactScreenState();
@@ -26,11 +31,16 @@ class _AddContactScreenState extends State<AddContactScreen> {
     super.dispose();
   }
 
+  void _fail(String msg) {
+    if (mounted) setState(() { _sending = false; _error = msg; });
+  }
+
   Future<void> _send() async {
     final code = _codeCtrl.text.trim();
+    if (_sending) return;
 
-    if (code.length != 5) {
-      setState(() => _error = 'Kod 5 haneli olmalı');
+    if (!RegExp(r'^\d{5}$').hasMatch(code)) {
+      setState(() => _error = 'Kod 5 haneli bir sayı olmalı');
       return;
     }
 
@@ -41,42 +51,49 @@ class _AddContactScreenState extends State<AddContactScreen> {
 
     setState(() { _sending = true; _error = null; });
 
-    // Bridge'den hedefin sunucu URL'sini bul
-    final targetServerUrl = await KnkApi.lookupServerOnBridge(code);
-    if (targetServerUrl == null) {
-      setState(() {
-        _sending = false;
-        _error = 'Bu kod kayıtlı değil. Karşı taraf uygulamayı açmış olmalı.';
-      });
-      return;
-    }
-
-    // Hedefin kendi sunucusundan bilgilerini al
-    final target = await KnkApi.lookupByCode(targetServerUrl, code);
+    // Önce kendi sunucumuza bak (arkadaşlar çoğu zaman aynı sunucuyu kullanır),
+    // bulunamazsa bridge'den hedefin sunucu URL'sini bul.
+    var targetServerUrl = widget.myServerUrl;
+    var target = await KnkApi.lookupByCode(targetServerUrl, code);
     if (target == null) {
-      setState(() {
-        _sending = false;
-        _error = 'Kullanıcı şu an çevrimdışı.';
-      });
-      return;
+      final bridged = await KnkApi.lookupServerOnBridge(code);
+      if (!mounted) return;
+      if (bridged == null) {
+        return _fail('Bu kod kayıtlı değil. Karşı taraf uygulamayı açmış olmalı.');
+      }
+      targetServerUrl = bridged;
+      // Hedefin kendi sunucusundan bilgilerini al
+      target = await KnkApi.lookupByCode(targetServerUrl, code);
+    }
+    if (!mounted) return;
+    if (target == null) {
+      return _fail('Kullanıcı şu an çevrimdışı. Biraz sonra tekrar dene.');
     }
 
-    final targetFipId = target['fipId'] as String;
+    final targetFipId = target['fipId'] as String?;
+    if (targetFipId == null) return _fail('Sunucudan geçersiz yanıt alındı.');
+    if (targetFipId == widget.identity.fipId) return _fail('Bu senin kendi kodun.');
+    if (widget.existingFipIds.contains(targetFipId)) return _fail('Bu kişi zaten listende.');
     final targetName = (target['name'] as String?) ?? 'Bilinmeyen';
+    final targetServer = (target['serverUrl'] as String?);
+    if (targetServer != null && targetServer.isNotEmpty) targetServerUrl = targetServer;
 
-    await KnkApi.sendFriendRequest(
+    final sent = await KnkApi.sendFriendRequest(
       toServerUrl: targetServerUrl,
       toFipId: targetFipId,
       fromFipId: widget.identity.fipId,
       fromCode: widget.identity.code,
       fromName: widget.displayName,
       fromServerUrl: widget.myServerUrl,
+      fromPublicKey: widget.publicKey,
     );
 
     if (!mounted) return;
+    if (!sent) return _fail('Davet gönderilemedi. Bağlantını kontrol edip tekrar dene.');
     Navigator.pop(
       context,
-      Contact(fipId: targetFipId, name: targetName, code: code, serverUrl: targetServerUrl, status: 'pending_out'),
+      Contact(fipId: targetFipId, name: targetName, code: code, serverUrl: targetServerUrl, status: 'pending_out',
+          publicKey: target['publicKey'] as String?),
     );
   }
 
@@ -84,7 +101,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Kişi Ekle')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Container(
           margin: const EdgeInsets.only(top: 24),
@@ -111,7 +128,9 @@ class _AddContactScreenState extends State<AddContactScreen> {
                 controller: _codeCtrl,
                 autofocus: true,
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 maxLength: 5,
+                onSubmitted: (_) => _send(),
                 style: const TextStyle(
                   color: KnkColors.accent,
                   fontSize: 22,
@@ -130,7 +149,7 @@ class _AddContactScreenState extends State<AddContactScreen> {
                   ),
                 ),
                 autocorrect: false,
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() => _error = null),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),

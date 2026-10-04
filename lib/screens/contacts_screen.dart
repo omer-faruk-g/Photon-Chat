@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
 import '../knk_api.dart';
+import '../e2e.dart';
 import '../theme.dart';
 import '../app_keys.dart';
 import 'add_contact_screen.dart';
@@ -29,94 +31,212 @@ class _ContactsScreenState extends State<ContactsScreen> {
   List<String> _blockList = [];
   bool _loading = true;
   String? _toast;
+  Timer? _toastTimer;
   final Map<String, int> _groupPendingCounts = {};
+
+  Timer? _syncTimer;
+  Timer? _groupSyncTimer;
+  bool _syncing = false;
+  bool _groupSyncing = false;
+  bool _disposed = false;
+  DateTime _lastPresence = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _publicKey;
+
+  static const _syncInterval = Duration(seconds: 4);
+  static const _groupSyncInterval = Duration(seconds: 8);
+  // Render ücretsiz sunucuları yeniden başlayınca belleği sıfırlar; kayıt düzenli yenilenir.
+  static const _presenceInterval = Duration(minutes: 1);
 
   @override
   void initState() { super.initState(); _init(); }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _syncTimer?.cancel();
+    _groupSyncTimer?.cancel();
+    _toastTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _init() async {
     final savedContacts = await LocalStore.loadContacts();
     final savedGroups = await LocalStore.loadGroups();
     final blockList = await LocalStore.loadBlockList();
+    if (_disposed) return;
     setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
-    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName);
-    _sync();
-    _groupSync();
+    try { _publicKey = await getMyPublicKeyBase64(); } catch (_) {}
+    await _registerPresence();
+    unawaited(_sync());
+    unawaited(_groupSync());
+  }
+
+  Future<void> _registerPresence() async {
+    _lastPresence = DateTime.now();
+    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, publicKey: _publicKey);
   }
 
   void _showToast(String msg) {
+    if (_disposed) return;
+    _toastTimer?.cancel();
     setState(() => _toast = msg);
-    Future.delayed(const Duration(seconds: 3), () { if (mounted) setState(() => _toast = null); });
+    _toastTimer = Timer(const Duration(seconds: 3), () { if (!_disposed) setState(() => _toast = null); });
+  }
+
+  Future<void> _saveContacts() async {
+    // Hesap silindikten sonra devam eden bir senkron eski kişileri geri yazmasın.
+    if (_disposed) return;
+    await LocalStore.saveContacts(_contacts);
   }
 
   Future<void> _sync() async {
+    if (_disposed || _syncing) return;
+    _syncing = true;
+    try {
+      await _syncOnce();
+    } catch (_) {
+      // Tek bir hatalı yanıt senkron döngüsünü durdurmamalı.
+    } finally {
+      _syncing = false;
+      if (!_disposed) _syncTimer = Timer(_syncInterval, _sync);
+    }
+  }
+
+  Future<void> _syncOnce() async {
     final me = widget.identity;
+    if (DateTime.now().difference(_lastPresence) > _presenceInterval) await _registerPresence();
+    var changed = false;
+
     final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
-    for (final req in incoming) {
-      final fromFipId = req['fromFipId'] as String;
+    if (_disposed) return;
+    for (final req in incoming ?? const <Map<String, dynamic>>[]) {
+      final fromFipId = req['fromFipId'];
+      if (fromFipId is! String || fromFipId == me.fipId) continue;
       // Engellenen kişilerden gelen istekleri filtrele
       if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
-      if (!_contacts.any((c) => c.fipId == fromFipId)) {
+      final idx = _contacts.indexWhere((c) => c.fipId == fromFipId);
+      if (idx == -1) {
         _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? 'Bilinmeyen',
-            code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in'));
+            code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in',
+            publicKey: req['fromPublicKey'] as String?));
+        changed = true;
+      } else if (_contacts[idx].status == 'pending_out') {
+        // İki taraf birbirine istek göndermiş: karşılıklı onay say.
+        final c = _contacts[idx];
+        c.status = 'on';
+        c.publicKey ??= req['fromPublicKey'] as String?;
+        changed = true;
+        await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: me.fipId, otherFipId: c.fipId, otherServerUrl: c.serverUrl);
+        _showToast('${c.name} ile bağlantı kuruldu.');
+      } else if (_contacts[idx].status == 'on') {
+        // Zaten arkadaşız (ör. karşı taraf isteği tekrar gönderdi): isteği temizle.
+        await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: me.fipId, otherFipId: fromFipId);
       }
     }
-    final accepted = await KnkApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
-    for (final fipId in accepted) {
-      final idx = _contacts.indexWhere((c) => c.fipId == fipId);
-      if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
+
+    if (_contacts.any((c) => c.status == 'pending_out')) {
+      final accepted = await KnkApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
+      if (_disposed) return;
+      for (final fipId in accepted) {
+        final idx = _contacts.indexWhere((c) => c.fipId == fipId);
+        if (idx != -1 && _contacts[idx].status == 'pending_out') {
+          _contacts[idx].status = 'on';
+          changed = true;
+          _showToast('${_contacts[idx].name} davetini kabul etti.');
+        }
+      }
     }
-    for (final c in _contacts.where((c) => c.status == 'on').toList()) {
-      final active = await KnkApi.isActive(c.serverUrl, c.fipId);
-      if (!active) { _contacts.removeWhere((x) => x.fipId == c.fipId); _showToast('${c.name} ile bağlantı sonlandı.'); }
+
+    // Bağlı kişilerin durumunu sunucu başına tek istekle kontrol et.
+    // Yalnızca sunucu "hesabını sildi" derse kişi kaldırılır; ağ hatası veya
+    // yeniden başlayan sunucu kişiyi asla silmez.
+    final byServer = <String, List<String>>{};
+    for (final c in _contacts.where((c) => c.status == 'on')) {
+      byServer.putIfAbsent(c.serverUrl, () => []).add(c.fipId);
     }
-    await LocalStore.saveContacts(_contacts);
-    if (mounted) setState(() {});
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) _sync();
+    final results = await Future.wait(byServer.entries.map((e) => KnkApi.getStatuses(e.key, e.value)));
+    if (_disposed) return;
+    final statuses = <String, ContactStatus>{for (final r in results) ...r};
+    final gone = _contacts.where((c) => c.status == 'on' && statuses[c.fipId] == ContactStatus.deactivated).toList();
+    for (final c in gone) {
+      _contacts.removeWhere((x) => x.fipId == c.fipId);
+      changed = true;
+      _showToast('${c.name} hesabını sildi, bağlantı sonlandı.');
+    }
+
+    if (changed) {
+      await _saveContacts();
+      if (!_disposed) setState(() {});
+    }
   }
 
   Future<void> _groupSync() async {
-    for (final g in _groups.where((g) => g.isOwner)) {
-      try {
-        final reqs = await KnkApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
-        if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
-      } catch (_) {}
+    if (_disposed || _groupSyncing) return;
+    _groupSyncing = true;
+    try {
+      final owned = _groups.where((g) => g.isOwner).toList();
+      final counts = await Future.wait(owned.map((g) => KnkApi.getGroupJoinRequests(g.ownerServerUrl, g.groupId)));
+      if (!_disposed) {
+        var changed = false;
+        for (var i = 0; i < owned.length; i++) {
+          final n = counts[i]?.length;
+          if (n != null && _groupPendingCounts[owned[i].groupId] != n) {
+            _groupPendingCounts[owned[i].groupId] = n;
+            changed = true;
+          }
+        }
+        if (changed) setState(() {});
+      }
+    } catch (_) {
+    } finally {
+      _groupSyncing = false;
+      if (!_disposed) _groupSyncTimer = Timer(_groupSyncInterval, _groupSync);
     }
-    await Future.delayed(const Duration(seconds: 5));
-    if (mounted) _groupSync();
   }
 
   Future<void> _accept(Contact c) async {
     setState(() => c.status = 'on');
-    await LocalStore.saveContacts(_contacts);
-    await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
+    await _saveContacts();
+    await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId, otherServerUrl: c.serverUrl);
     _showToast('${c.name} arkadaş listene eklendi.');
   }
 
   Future<void> _decline(Contact c) async {
     setState(() => _contacts.removeWhere((x) => x.fipId == c.fipId));
-    await LocalStore.saveContacts(_contacts);
+    await _saveContacts();
+    // Sunucudan da sil; yoksa bir sonraki senkronda istek geri gelir.
+    await KnkApi.declineFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
   }
 
   Future<void> _blockContact(Contact c) async {
     await LocalStore.blockUser(c.fipId);
+    if (_disposed) return;
     setState(() {
-      _blockList.add(c.fipId);
+      if (!_blockList.contains(c.fipId)) _blockList.add(c.fipId);
       _contacts.removeWhere((x) => x.fipId == c.fipId);
     });
-    await LocalStore.saveContacts(_contacts);
+    await _saveContacts();
+    await KnkApi.declineFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
     _showToast('${c.name} engellendi.');
   }
 
   Future<void> _openAddScreen() async {
     final result = await Navigator.push<Contact>(context, MaterialPageRoute(
-      builder: (_) => AddContactScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
+      builder: (_) => AddContactScreen(
+        identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl,
+        existingFipIds: _contacts.map((c) => c.fipId).toSet(),
+        publicKey: _publicKey,
+      ),
     ));
-    if (result != null) {
-      setState(() => _contacts.add(result));
-      await LocalStore.saveContacts(_contacts);
+    if (result != null && !_disposed) {
+      // Engellenmiş birini bilerek tekrar eklemek engeli kaldırır.
+      if (_blockList.remove(result.fipId)) await LocalStore.unblockUser(result.fipId);
+      setState(() {
+        _contacts.removeWhere((c) => c.fipId == result.fipId);
+        _contacts.add(result);
+      });
+      await _saveContacts();
       _showToast('${result.name} kullanıcısına davet gönderildi.');
     }
   }
@@ -125,7 +245,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final result = await Navigator.push<Group>(context, MaterialPageRoute(
       builder: (_) => CreateGroupScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
-    if (result != null) {
+    if (result != null && !_disposed) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
       _showToast('Grup oluşturuldu: ${result.name}');
@@ -134,41 +254,65 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _openJoinGroup() async {
     final result = await Navigator.push<Group>(context, MaterialPageRoute(
-      builder: (_) => JoinGroupScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
+      builder: (_) => JoinGroupScreen(
+        identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl,
+        existingGroupIds: _groups.map((g) => g.groupId).toSet(),
+      ),
     ));
-    if (result != null) {
+    if (result != null && !_disposed) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
       _showToast('${result.name} grubuna katılma isteği gönderildi.');
     }
   }
 
-  void _openGroupChat(Group g) {
-    Navigator.push(context, MaterialPageRoute(
+  Future<void> _openGroupChat(Group g) async {
+    final left = await Navigator.push<bool>(context, MaterialPageRoute(
       builder: (_) => GroupChatScreen(group: g, identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
+    if (_disposed) return;
+    if (left == true) {
+      setState(() {
+        _groups.removeWhere((x) => x.groupId == g.groupId);
+        _groupPendingCounts.remove(g.groupId);
+      });
+      _showToast('${g.name} grubundan ayrıldın.');
+    }
+    // Üye listesi sohbet ekranında güncellenmiş olabilir.
+    await LocalStore.saveGroups(_groups);
   }
 
-  void _openChat(Contact c) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
+  Future<void> _openChat(Contact c) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
+    // Sohbette kişinin public key'i öğrenilmiş olabilir.
+    await _saveContacts();
   }
 
   void _openPulseAI() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => PulseAiScreen(myServerUrl: widget.myServerUrl)));
   }
 
-  void _openSettings() async {
-    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl)));
+  Future<void> _openSettings() async {
+    // Hesap silinirken arka plandaki senkron durdurulur.
+    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(
+      builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl, onBeforeDeactivate: _stopSync),
+    ));
     if (deactivated == true && mounted) {
-      (rootGateKey.currentState as dynamic)?.reload();
       Navigator.popUntil(context, (route) => route.isFirst);
+      (rootGateKey.currentState as dynamic)?.reload();
     }
   }
 
+  void _stopSync() {
+    _disposed = true;
+    _syncTimer?.cancel();
+    _groupSyncTimer?.cancel();
+  }
+
   Future<void> _handleExit(List<Contact> active) async {
-    if (active.isEmpty) { SystemNavigator.pop(); return; }
+    if (active.isEmpty) { await SystemNavigator.pop(); return; }
     final keep = await showDialog<bool>(
-      context: context, barrierDismissible: false,
+      context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KnkColors.panel,
         title: const Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: KnkColors.text, fontSize: 15)),
@@ -179,10 +323,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
         ],
       ),
     );
+    if (keep == null) return; // diyalog kapatıldı: uygulamada kal
     if (keep == false) {
-      for (final c in active) await KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId));
+      await Future.wait(active.map((c) => KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId))));
     }
-    SystemNavigator.pop();
+    await SystemNavigator.pop();
   }
 
   @override
@@ -194,19 +339,36 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async { if (!didPop) await _handleExit(active); },
+      onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Kişiler'),
+          leadingWidth: 88,
+          // Kendi eşleşme kodun: dokununca kopyalanır.
           leading: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(6)),
-              child: Text(widget.identity.code, style: const TextStyle(color: KnkColors.accent, fontSize: 10, letterSpacing: 1.5)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            child: Tooltip(
+              message: 'Senin kodun (kopyalamak için dokun)',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: widget.identity.code));
+                  _showToast('Kodun kopyalandı: ${widget.identity.code}');
+                },
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(border: Border.all(color: KnkColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(6)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(widget.identity.code, maxLines: 1, softWrap: false,
+                        style: const TextStyle(color: KnkColors.accent, fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
             ),
           ),
-          actions: [IconButton(icon: const Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
+          actions: [IconButton(tooltip: 'Ayarlar', icon: const Icon(Icons.settings, color: KnkColors.text), onPressed: _openSettings)],
         ),
         body: Stack(
           children: [
@@ -377,7 +539,7 @@ class _EmptyState extends StatelessWidget {
       const SizedBox(height: 8),
       const Text('Rehberin boş', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: KnkColors.text)),
       const SizedBox(height: 6),
-      const Text('Arkadaşının adresini gir (KOD@URL).', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
+      const Text('Arkadaşının 5 haneli kodunu girerek ekle.\nKendi kodun sol üstte yazıyor.', textAlign: TextAlign.center, style: TextStyle(color: KnkColors.textDim, fontSize: 12, height: 1.6)),
       const SizedBox(height: 16),
       ElevatedButton(style: knkPrimaryButtonStyle(), onPressed: onAdd, child: const Text('Kişi ekle')),
     ]),
@@ -419,53 +581,64 @@ class _ContactRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onBlock;
   const _ContactRow({required this.contact, required this.onTap, required this.onBlock});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onLongPress: () {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: KnkColors.panel,
-        builder: (_) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.block, color: KnkColors.danger),
-                title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
-                onTap: () {
-                  Navigator.pop(context);
-                  onBlock();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
-                title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
-                onTap: () => Navigator.pop(context),
-              ),
-            ],
-          ),
+
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: KnkColors.panel,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.block, color: KnkColors.danger),
+              title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                onBlock();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined, color: KnkColors.textDim),
+              title: const Text('Vazgeç', style: TextStyle(color: KnkColors.textDim)),
+              onTap: () => Navigator.pop(sheetCtx),
+            ),
+          ],
         ),
-      );
-    },
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: KnkColors.panel, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
-        child: Row(children: [
-          _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
-            Row(children: [
-              Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
-            ]),
-          ])),
-          const Icon(Icons.chevron_right, color: KnkColors.textDim),
-        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Material(
+      color: KnkColors.panel,
+      shape: RoundedRectangleBorder(side: const BorderSide(color: KnkColors.line), borderRadius: BorderRadius.circular(10)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: () => _showMenu(context),
+        onSecondaryTap: () => _showMenu(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+          child: Row(children: [
+            _Avatar(name: contact.name, on: true), const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(contact.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: KnkColors.text)),
+              Row(children: [
+                Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+              ]),
+            ])),
+            IconButton(
+              tooltip: 'Seçenekler',
+              icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 20),
+              onPressed: () => _showMenu(context),
+            ),
+          ]),
+        ),
       ),
     ),
   );
@@ -495,7 +668,9 @@ class _Avatar extends StatelessWidget {
   const _Avatar({required this.name, required this.on});
   @override
   Widget build(BuildContext context) {
-    final initials = name.trim().isEmpty ? '?' : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1).toUpperCase();
+    // characters: emoji / birleşik harfler ortadan bölünmesin.
+    final trimmed = name.trim();
+    final initials = trimmed.isEmpty ? '?' : trimmed.characters.take(2).toString().toUpperCase();
     return Container(
       width: 38, height: 38, alignment: Alignment.center,
       decoration: BoxDecoration(color: KnkColors.line, borderRadius: BorderRadius.circular(8), border: on ? Border.all(color: KnkColors.accent.withOpacity(0.5)) : null),
