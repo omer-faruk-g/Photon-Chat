@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'i18n.dart';
 import 'theme.dart';
 
-/// İlk açılış rehberi. Her sayfa tek bir mesaj taşır; sıra gerçek bir akış
-/// olduğu için sayfalar numaralıdır.
 class GuideScreen extends StatefulWidget {
   final VoidCallback onDone;
   const GuideScreen({super.key, required this.onDone});
@@ -14,43 +13,50 @@ class _GuideScreenState extends State<GuideScreen> {
   final _controller = PageController();
   int _page = 0;
 
-  static const _pages = [
+  List<_GuidePage> get _pages => [
     _GuidePage(
-      icon: Icons.sensors,
-      title: 'Numaran yok.\nBeş rakamın var.',
-      body: 'Photon Chat kimliğini bu cihazda üretir. Telefon numarası, e-posta ya da hesap istemez.',
+      icon: '⚡',
+      title: AppLang.instance.t('guideWelcomeTitle'),
+      body: AppLang.instance.t('guideWelcomeBody'),
     ),
     _GuidePage(
-      icon: Icons.dns_outlined,
-      title: 'Mesajların senin sunucunda bekler.',
-      body: 'Merkezi bir sunucu yok. render.com üzerinde ücretsiz bir servis açarsın; bir sonraki adımda adresini soracağız.',
-      tip: 'render.com → New → Web Service → bu depo, kök klasör: server',
+      icon: '🌐',
+      title: AppLang.instance.t('guideSetupServer'),
+      body: AppLang.instance.t('guideServerBody'),
+      tip: AppLang.instance.t('guideServerTip'),
     ),
     _GuidePage(
-      icon: Icons.pin_outlined,
-      title: 'Arkadaşın seni kodunla ekler.',
-      body: 'Kimliğin oluşunca 5 haneli bir kod alırsın. Arkadaşın sadece bu kodu yazar; sunucunu uygulama arka planda bulur.',
-      digits: '08290',
+      icon: '🔢',
+      title: AppLang.instance.t('guideYourCode'),
+      body: AppLang.instance.t('guideCodeBody'),
+      highlight: '1 2 3 4 5',
     ),
     _GuidePage(
-      icon: Icons.lock_outline,
-      title: 'Sunucu mesajı taşır, okuyamaz.',
-      body: 'Birebir ve grup mesajları gönderilmeden önce cihazında şifrelenir. Anahtar yalnızca konuşan kişilerde durur.',
+      icon: '🤝',
+      title: AppLang.instance.t('guideAddFriend'),
+      body: AppLang.instance.t('guideAddFriendBody'),
     ),
     _GuidePage(
-      icon: Icons.verified_user_outlined,
-      title: 'Altmış rakam, iki ekran, aynı sıra.',
-      body: 'Sohbetteki kalkana dokunup güvenlik numarasını arkadaşınla karşılaştır. Rakamlar aynıysa aranıza kimse girmemiştir.',
+      icon: '👥',
+      title: AppLang.instance.t('guideGroupChats'),
+      body: AppLang.instance.t('guideGroupBody'),
+    ),
+    _GuidePage(
+      icon: '🔒',
+      title: AppLang.instance.t('guidePrivacy'),
+      body: AppLang.instance.t('guidePrivacyBody'),
     ),
   ];
 
   void _next() {
     if (_page < _pages.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _controller.nextPage(duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
     } else {
       widget.onDone();
     }
   }
+
+  void _skip() => widget.onDone();
 
   @override
   void dispose() {
@@ -60,60 +66,58 @@ class _GuideScreenState extends State<GuideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final last = _page == _pages.length - 1;
     return Scaffold(
+      backgroundColor: PhotonColors.bg,
       body: SafeArea(
-        child: ContentWidth(
-          max: 560,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s1, 0),
-                child: Row(children: [
-                  const BrandMark(size: 28),
-                  const SizedBox(width: Space.s1),
-                  const Expanded(child: Text('Photon Chat', maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontFamily: KnkFonts.display, fontSize: 19, color: KnkColors.text))),
-                  Text('${_page + 1} / ${_pages.length}', style: KnkText.small.merge(KnkText.tabular)),
-                  const SizedBox(width: Space.s1),
-                  TextButton(onPressed: widget.onDone, child: const Text('Atla')),
-                ]),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, 0),
-                child: Row(
-                  children: List.generate(_pages.length, (i) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      height: 3,
-                      margin: EdgeInsets.only(right: i == _pages.length - 1 ? 0 : Space.s1),
-                      color: i <= _page ? KnkColors.accent : KnkColors.line,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Row(
+                children: List.generate(_pages.length, (i) => Expanded(
+                  child: Container(
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: i <= _page ? PhotonColors.accent : PhotonColors.line,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  )),
-                ),
+                  ),
+                )),
               ),
-              Expanded(
-                child: PageView.builder(
-                  controller: _controller,
-                  onPageChanged: (i) => setState(() => _page = i),
-                  itemCount: _pages.length,
-                  itemBuilder: (_, i) => _PageContent(page: _pages[i]),
-                ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: _page == _pages.length - 1
+                  ? const SizedBox(height: 48)
+                  : TextButton(
+                      onPressed: _skip,
+                      child: Text(AppLang.instance.t('skip'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+                    ),
+            ),
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemCount: _pages.length,
+                itemBuilder: (_, i) => _PageContent(page: _pages[i]),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.s3, Space.s2, Space.s3, Space.s4),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+              child: SizedBox(
+                width: double.infinity,
                 child: ElevatedButton(
+                  style: photonPrimaryButtonStyle(),
                   onPressed: _next,
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text(last ? 'Başla' : 'Devam'),
-                    const SizedBox(width: Space.s1),
-                    const Icon(Icons.arrow_forward, size: 18),
-                  ]),
+                  child: Text(
+                    _page == _pages.length - 1 ? AppLang.instance.t('letsStart') : AppLang.instance.t('continueArrow'),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -121,87 +125,82 @@ class _GuideScreenState extends State<GuideScreen> {
 }
 
 class _GuidePage {
-  final IconData icon;
+  final String icon;
   final String title;
   final String body;
   final String? tip;
-  final String? digits;
-  const _GuidePage({required this.icon, required this.title, required this.body, this.tip, this.digits});
+  final String? highlight;
+  const _GuidePage({required this.icon, required this.title, required this.body, this.tip, this.highlight});
 }
 
 class _PageContent extends StatelessWidget {
   final _GuidePage page;
-  const _PageContent({required this.page});
+  const _PageContent({super.key, required this.page});
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s3),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 16),
           Container(
-            width: Space.s6, height: Space.s6,
+            width: 72, height: 72,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: KnkColors.accentWash,
-              borderRadius: BorderRadius.circular(KnkRadius.card),
-              border: Border.all(color: KnkColors.line),
+              color: PhotonColors.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: PhotonColors.accent.withOpacity(0.25)),
             ),
-            child: Icon(page.icon, color: KnkColors.accent, size: 28),
+            child: Text(page.icon, style: const TextStyle(fontSize: 34)),
           ),
-          const SizedBox(height: Space.s4),
-          Text(page.title, style: KnkText.h1),
-          const SizedBox(height: Space.s3),
-          Text(page.body, style: KnkText.bodyDim),
-          if (page.digits != null) ...[
-            const SizedBox(height: Space.s4),
-            LayoutBuilder(builder: (context, c) {
-              // 5 kutu + 4 boşluk; dar ekranda kutular küçülür, geniş ekranda 48'de kalır.
-              final box = ((c.maxWidth - Space.s1 * 4) / 5).clamp(0.0, Space.s5);
-              return Row(children: [
-                for (final (i, d) in page.digits!.split('').indexed) ...[
-                  if (i > 0) const SizedBox(width: Space.s1),
-                  // Köşe yarıçapı tek renkli kenarlık ister; yeşil alt çizgi ayrı bir şerit olarak çizilir.
-                  Container(
-                    width: box, height: box * 4 / 3,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: KnkColors.panel,
-                      borderRadius: BorderRadius.circular(KnkRadius.card),
-                      border: Border.all(color: KnkColors.line),
-                    ),
-                    child: Stack(children: [
-                      Center(child: Text(d, style: KnkText.h2.merge(KnkText.tabular).copyWith(fontFamily: KnkFonts.body, fontWeight: FontWeight.w600))),
-                      const Positioned(left: 0, right: 0, bottom: 0, child: SizedBox(height: 3, child: ColoredBox(color: KnkColors.accent))),
-                    ]),
-                  ),
-                ],
-              ]);
-            }),
-            const SizedBox(height: Space.s1),
-            const Text('örnek kod', style: KnkText.meta),
-          ],
-          if (page.tip != null) ...[
-            const SizedBox(height: Space.s4),
+          const SizedBox(height: 24),
+          Text(page.title, style: TextStyle(color: PhotonColors.text, fontSize: 22, fontWeight: FontWeight.w800, height: 1.25)),
+          const SizedBox(height: 18),
+          Text(page.body, style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.8)),
+          if (page.highlight != null) ...[
+            const SizedBox(height: 20),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(Space.s2),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: KnkColors.panel,
-                border: Border.all(color: KnkColors.line),
-                borderRadius: BorderRadius.circular(KnkRadius.card),
+                color: PhotonColors.accent.withOpacity(0.08),
+                border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                page.highlight!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: PhotonColors.accent, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: 'monospace'),
+              ),
+            ),
+          ],
+          if (page.tip != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: PhotonColors.panelAlt,
+                border: Border.all(color: PhotonColors.line),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.lightbulb_outline, color: KnkColors.accent2, size: 18),
-                  const SizedBox(width: Space.s1),
-                  Expanded(child: Text(page.tip!, style: KnkText.small)),
+                  const Text('💡 ', style: TextStyle(fontSize: 14)),
+                  Expanded(
+                    child: Text(
+                      page.tip!,
+                      style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
+          const SizedBox(height: 32),
         ],
       ),
     );

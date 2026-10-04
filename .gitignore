@@ -1,26 +1,6 @@
 knk_flutter/
+.claude/
 
-# Flutter / Dart
-.dart_tool/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-
-# Platform dosyaları (CI'da flutter create ile üretilir)
-android/local.properties
-android/app/src/main/java/
-android/.gradle/
-windows/flutter/ephemeral/
-windows/flutter/generated_plugin_registrant.*
-windows/flutter/generated_plugins.cmake
-linux/
-
-# Node
-server/node_modules/
-
-# IDE
-.idea/
-*.iml
-.vscode/
+# Node deps for the bridge server and the verification tooling. package-lock.json
+# is committed so CI installs the same versions the tests ran against.
+node_modules/

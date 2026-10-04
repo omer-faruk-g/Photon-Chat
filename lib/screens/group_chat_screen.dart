@@ -1,21 +1,28 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
-import '../e2e.dart';
+import '../font_size.dart';
+import '../photon_api.dart';
 import '../theme.dart';
-import '../widgets.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
-import 'verify_key_screen.dart';
+import '../offline_queue.dart';
+import '../chat_wallpaper.dart';
+import '../i18n.dart';
+import '../translate_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import '../vip.dart';
+import '../vip_text.dart';
+import 'profile_screen.dart';
 
-/// Kullanıcının bu gruptaki durumu.
-enum _Membership { loading, member, pending, removed, groupGone, legacy }
-
-/// Grup sohbeti. Grubun tüm verisi grup sahibinin sunucusunda tutulur; tüm üyeler
-/// oradan okur ve oraya yazar. Ekran kapanırken grup bırakıldıysa `true` döner.
 class GroupChatScreen extends StatefulWidget {
   final Group group;
   final FipBlock identity;
@@ -32,405 +39,513 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   List<Map<String, dynamic>> _messages = [];
   List<Map<String, dynamic>> _pendingJoins = [];
   List<String> _mutedMembers = [];
+  List<Map<String, dynamic>> _announcements = [];
   Timer? _msgTimer;
-  Timer? _infoTimer;
-  bool _disposed = false;
-  bool _msgPolling = false;
-  bool _infoPolling = false;
-  bool _loaded = false;
-  bool _sending = false;
-  bool _unreachable = false;
+  Timer? _joinTimer;
+  Timer? _muteTimer;
+  Timer? _annTimer;
   String? _inputError;
-  _Membership _membership = _Membership.loading;
+  bool _annExpanded = false;
+  final Map<String, String> _translations = {};
+  final Map<String, String> _filtered = {};
+  // Messages already sent through the async cross-language profanity check.
+  final Set<String> _profanityChecked = {};
+  final Set<String> _translating = {};
 
-  /// Ham (şifreli) metin -> çözülmüş metin. Her turda tüm geçmişi yeniden çözmemek için.
-  final Map<String, String?> _decryptCache = {};
-  /// Anahtar halkası değişti: mesajlar yeniden çözülmeli.
-  bool _keysChanged = false;
-  /// Bir üyeye anahtar teslimi sürüyor (aynı anda iki kez sarmamak için).
-  final Set<String> _wrapping = {};
-  /// Doğrulanmış anahtarlar (fipId -> public key).
-  Map<String, String> _verifiedKeys = {};
+  final _flutterTts = FlutterTts();
+  final _speech = SpeechToText();
+  bool _isRecordingVoice = false;
+  String _voiceGender = 'male';
+  double get _msgFontSize => FontSizeNotifier.instance.msgFontSize;
+  void _onFontChanged() { if (mounted) setState(() {}); }
 
-  Group get _g => widget.group;
-  String get _owner => _g.ownerServerUrl;
-  String get _me => widget.identity.fipId;
-  String get _token => _g.token ?? '';
+  bool get _isCurrentUserMod {
+    return widget.group.members.any((m) => m.fipId == widget.identity.fipId && m.isMod);
+  }
+
+  bool get _isOwnerOrMod => widget.group.isOwner || _isCurrentUserMod;
 
   @override
   void initState() {
     super.initState();
-    if (_g.token == null) {
-      // Güncellemeden önce oluşturulmuş/katılınmış grup: yetki anahtarı yok.
-      _membership = _Membership.legacy;
-      _loaded = true;
-      return;
-    }
-    if (_g.isOwner) _membership = _Membership.member;
-    _loadVerified();
-    _pollInfo();
+    LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    FontSizeNotifier.instance.addListener(_onFontChanged);
+    _initTts();
     _pollMessages();
+    _pollAnnouncements();
+    if (widget.group.isOwner) {
+      _pollJoinRequests();
+    }
+    if (widget.group.isOwner || _isCurrentUserMod) {
+      _pollMutedMembers();
+    }
   }
 
   @override
   void dispose() {
-    _disposed = true;
     _msgTimer?.cancel();
-    _infoTimer?.cancel();
-    _toastTimer?.cancel();
+    _vipTimer?.cancel();
+    _joinTimer?.cancel();
+    _muteTimer?.cancel();
+    _annTimer?.cancel();
     _msgCtrl.dispose();
     _scroll.dispose();
+    try { _speech.stop(); } catch (_) {}
+    try { _speech.cancel(); } catch (_) {}
+    try { _flutterTts.stop(); } catch (_) {}
+    FontSizeNotifier.instance.removeListener(_onFontChanged);
     super.dispose();
   }
 
-  // --- Polling ---
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage('tr-TR');
+    await _flutterTts.setSpeechRate(0.5);
+  }
 
-  Future<void> _pollMessages() async {
-    if (_disposed || _msgPolling) return;
-    _msgPolling = true;
-    try {
-      final msgs = await KnkApi.getGroupMessages(_owner, _g.groupId, _token);
-      if (_disposed) return;
-      if (msgs == null) {
-        if (!_unreachable) setState(() => _unreachable = true);
-      } else {
-        msgs.removeWhere((m) => m['ts'] is! num || m['from'] is! String || m['text'] is! String);
-        msgs.sort((a, b) => (a['ts'] as num).compareTo(b['ts'] as num));
-        final keysChanged = _keysChanged;
-        _keysChanged = false;
-        for (final m in msgs) {
-          final raw = m['text'] as String;
-          m['_enc'] = isGroupE2EMessage(raw);
-          if (_decryptCache.containsKey(raw)) {
-            m['_plain'] = _decryptCache[raw];
-          } else {
-            final plain = await decryptGroupMessage(raw, _g.keyring);
-            // Anahtarı henüz gelmemiş mesajı önbelleğe alma; anahtar gelince tekrar denenir.
-            if (plain != null || _g.keyring.containsKey(groupMessageKeyId(raw))) _decryptCache[raw] = plain;
-            m['_plain'] = plain;
-          }
-        }
-        if (_disposed) return;
-        final changed = keysChanged || msgs.length != _messages.length ||
-            (msgs.isNotEmpty && (msgs.last['ts'] != _messages.last['ts'] || msgs.first['ts'] != _messages.first['ts']));
-        if (changed || _unreachable || !_loaded) {
-          final nearBottom = !_scroll.hasClients || _scroll.position.maxScrollExtent - _scroll.offset < 120;
-          final first = !_loaded;
-          setState(() { _messages = msgs; _unreachable = false; _loaded = true; });
-          if (changed && (nearBottom || first)) _scrollToBottom(animate: !first);
-        }
+  Future<void> _shareLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationServiceOff'))));
+      return;
+    }
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionDenied'))));
+        return;
       }
-    } catch (_) {
-    } finally {
-      _msgPolling = false;
-      if (!_disposed) _msgTimer = Timer(const Duration(seconds: 2), _pollMessages);
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionPermanent'))));
+      return;
+    }
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final locationText = '[📍KONUM:${pos.latitude},${pos.longitude}]';
+      _msgCtrl.text = locationText;
+      await _send();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('locationFailed')}: $e')));
     }
   }
 
-  Future<void> _pollInfo() async {
-    if (_disposed || _infoPolling) return;
-    _infoPolling = true;
+  Future<void> _startVoiceMessage() async {
+    if (_isRecordingVoice) return;
+    setState(() => _isRecordingVoice = true);
     try {
-      final info = await KnkApi.getGroupMembers(_owner, _g.groupId);
-      if (_disposed) return;
-      if (info != null && info['notFound'] == true) {
-        setState(() => _membership = _Membership.groupGone);
-      } else if (info != null) {
-        final members = (info['members'] as List? ?? const [])
-            .whereType<Map>()
-            .map((m) {
-              try { return GroupMember.fromJson(Map<String, dynamic>.from(m)); } catch (_) { return null; }
-            })
-            .whereType<GroupMember>()
-            .toList();
-        final muted = (info['muted'] as List? ?? const []).whereType<String>().toList();
-        // Güncellemeden önce katılınmış gruplarda sahibin anahtarı ilk kez burada sabitlenir.
-        if (_g.ownerPublicKey == null && info['ownerPublicKey'] is String) {
-          _g.ownerPublicKey = info['ownerPublicKey'] as String;
-          unawaited(LocalStore.updateGroup(_g));
-        }
-        var membership = _membership;
-        if (_g.isOwner || members.any((m) => m.fipId == _me)) {
-          membership = _Membership.member;
-        } else {
-          final reqs = await KnkApi.getGroupJoinRequests(_owner, _g.groupId);
-          if (_disposed) return;
-          if (reqs != null) {
-            membership = reqs.any((r) => r['fromFipId'] == _me) ? _Membership.pending : _Membership.removed;
-          }
-        }
-        List<Map<String, dynamic>>? joins;
-        if (_g.isOwner) joins = await KnkApi.getGroupJoinRequests(_owner, _g.groupId);
-        if (_disposed) return;
-        setState(() {
-          _g.members = members;
-          _mutedMembers = muted;
-          _membership = membership;
-          if (joins != null) _pendingJoins = joins;
-        });
-        if (_g.isOwner) {
-          await _distributeKeys();
-        } else if (membership == _Membership.member) {
-          await _fetchMyKey();
-        }
+      await _speech.initialize();
+      String transcript = '';
+      await _speech.listen(
+        onResult: (result) { transcript = result.recognizedWords; },
+        localeId: 'tr_TR',
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+      );
+      await Future.delayed(const Duration(seconds: 4));
+      await _speech.stop();
+      if (transcript.isNotEmpty) {
+        _msgCtrl.text = '[🎤SES:$transcript]';
+        await _send();
       }
-    } catch (_) {
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('voiceRecordStartFailed')}: $e')));
     } finally {
-      _infoPolling = false;
-      if (!_disposed) _infoTimer = Timer(const Duration(seconds: 5), _pollInfo);
+      if (mounted) setState(() => _isRecordingVoice = false);
     }
   }
 
-  void _scrollToBottom({bool animate = true}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
-      final target = _scroll.position.maxScrollExtent;
-      if (animate) {
-        _scroll.animateTo(target, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-      } else {
-        _scroll.jumpTo(target);
+  Future<void> _playVoiceMessage(String transcript) async {
+    final gender = _voiceGender;
+    if (gender == 'female') {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-A', 'locale': 'tr-TR'});
+    } else {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-B', 'locale': 'tr-TR'});
+    }
+    await _flutterTts.speak(transcript);
+  }
+
+  Widget _buildLocationBubble(String text, bool isMe) {
+    final match = RegExp(r'\[📍KONUM:([-\d.]+),([-\d.]+)\]').firstMatch(text);
+    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 14));
+    final lat = match.group(1)!;
+    final lng = match.group(2)!;
+    final url = 'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng&zoom=15';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
+          const SizedBox(width: 6),
+          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.map, color: PhotonColors.accent, size: 14),
+              const SizedBox(width: 6),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildVoiceBubble(String text, bool isMe) {
+    final match = RegExp(r'\[🎤SES:(.*)\]', dotAll: true).firstMatch(text);
+    final transcript = match?.group(1) ?? '';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isMe ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => _playVoiceMessage(transcript),
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+            child: Icon(Icons.play_arrow, color: PhotonColors.accent, size: 20),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          if (transcript.isNotEmpty)
+            Text(transcript, style: TextStyle(color: PhotonColors.text.withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+        ])),
+        Icon(Icons.mic, color: PhotonColors.accent.withOpacity(0.6), size: 16),
+      ]),
+    );
+  }
+
+  Future<void> _translateMessage(String msgId, String text) async {
+    if (_translations.containsKey(msgId)) {
+      setState(() => _translations.remove(msgId));
+      return;
+    }
+    setState(() => _translating.add(msgId));
+    final translated = await TranslateService.translate(text);
+    if (mounted) {
+      setState(() {
+        _translating.remove(msgId);
+        if (translated != text) _translations[msgId] = translated;
+      });
+    }
+  }
+
+  void _onLongPressGroupMessage(Map<String, dynamic> m) {
+    final msgId = m['msgId'] as String? ?? '';
+    final text = m['text'] as String? ?? '';
+    if (text.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: PhotonColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: Icon(Icons.translate, color: PhotonColors.accent),
+          title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
+          onTap: () {
+            Navigator.pop(context);
+            _translateMessage(msgId, text);
+          },
+        ),
+      ])),
+    );
+  }
+
+  void _pollMessages() {
+    Future<void> fetchOnce() async {
+      try {
+      await OfflineQueue.instance.flush();
+      final msgs = await PhotonApi.getGroupMessages(widget.group.ownerServerUrl, widget.group.groupId);
+      // Merge: keep our locally optimistic messages that server hasn't returned yet.
+      // Two-step match: prefer msgId when the server has assigned one; fall back
+      // to (ts, from) for the optimistic window before the server has replied.
+      String keyOf(Map m) {
+        final mid = m['msgId'] as String?;
+        if (mid != null && mid.isNotEmpty) return 'id:$mid';
+        return 'tf:${m['ts']}_${m['from']}';
       }
+      final serverByKey = {for (final m in msgs) keyOf(m): m};
+      final serverByTf = <String, Map<String, dynamic>>{};
+      for (final m in msgs) {
+        serverByTf['tf:${m['ts']}_${m['from']}'] = m;
+      }
+      // Rescue any local poll whose fields the server dropped (e.g. after a
+      // restart). Poll fields are irreplaceable — text messages can afford to
+      // lose fields, polls cannot.
+      Map<String, dynamic>? findServerMatch(Map local) {
+        final byKey = serverByKey[keyOf(local)];
+        if (byKey != null) return byKey;
+        return serverByTf['tf:${local['ts']}_${local['from']}'];
+      }
+      for (final local in _messages) {
+        final srv = findServerMatch(local);
+        if (srv == null) continue;
+        // If local was a poll, make sure server-side keeps looking like a poll.
+        if (local['type'] == 'poll') {
+          srv['type'] = 'poll';
+          if ((srv['question'] as String?)?.isEmpty ?? true) srv['question'] = local['question'];
+          if ((srv['options'] as List?)?.isEmpty ?? true) srv['options'] = local['options'];
+          // Merge optimistic votes.
+          final localVotes = Map<String, dynamic>.from(local['votes'] as Map? ?? {});
+          final srvVotes = Map<String, dynamic>.from(srv['votes'] as Map? ?? {});
+          for (final e in localVotes.entries) {
+            srvVotes.putIfAbsent(e.key, () => e.value);
+          }
+          srv['votes'] = srvVotes;
+        }
+      }
+      // A local message is superseded once the server returns something with
+      // the same msgId OR (ts, from). Polls always win locally (server fields
+      // may not include type after a cold start).
+      final localOnly = _messages.where((m) {
+        final srv = findServerMatch(m);
+        if (srv == null) return true;
+        // If we optimistically flagged this as a poll, make sure the server
+        // record we're about to render still carries the poll fields —
+        // findServerMatch already patched srv, so it's safe to drop local.
+        return false;
+      }).toList();
+      final keptKeys = <String>{};
+      for (final m in localOnly) {
+        keptKeys.add(keyOf(m));
+        keptKeys.add('tf:${m['ts']}_${m['from']}');
+      }
+      final msgsFiltered = msgs.where((m) => !keptKeys.contains(keyOf(m)) && !keptKeys.contains('tf:${m['ts']}_${m['from']}')).toList();
+      final merged = [...msgsFiltered, ...localOnly];
+      merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
+      if (mounted) setState(() => _messages = merged);
+      } catch (_) {}
+    }
+    fetchOnce();
+    _msgTimer = Timer.periodic(const Duration(seconds: 2), (_) => fetchOnce());
+    // Tier badges for everyone who has spoken here, refreshed in one batched
+    // request rather than one per sender.
+    _vipTimer = Timer.periodic(const Duration(seconds: 20), (_) => _refreshVips());
+    _refreshVips();
+  }
+
+  Timer? _vipTimer;
+
+  Future<void> _refreshVips() async {
+    final ids = <String>{
+      widget.identity.fipId,
+      ...widget.group.members.map((m) => m.fipId),
+      ..._messages.map((m) => (m['from'] as String?) ?? ''),
+    }..removeWhere((e) => e.isEmpty);
+    await VipCache.instance.refresh(bridgeUrl, ids);
+    if (mounted) setState(() {});
+  }
+
+  void _pollJoinRequests() {
+    Future<void> fetchOnce() async {
+      try {
+        final reqs = await PhotonApi.getGroupJoinRequests(widget.group.ownerServerUrl, widget.group.groupId);
+        if (mounted) setState(() => _pendingJoins = reqs);
+      } catch (_) {}
+    }
+    fetchOnce();
+    _joinTimer = Timer.periodic(const Duration(seconds: 5), (_) => fetchOnce());
+  }
+
+  void _pollMutedMembers() {
+    _muteTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      try {
+        final muted = await PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId);
+        if (mounted) setState(() => _mutedMembers = muted);
+      } catch (_) {}
     });
+    PhotonApi.getMutedMembers(widget.group.ownerServerUrl, widget.group.groupId).then((muted) {
+      if (mounted) setState(() => _mutedMembers = muted);
+    }).catchError((_) {});
   }
 
-  // --- Actions ---
+  void _pollAnnouncements() {
+    String keyOf(Map m) => '${m['ts']}_${m['from']}';
+    _annTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      try {
+        final anns = await PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId);
+        final serverKeys = anns.map((m) => keyOf(m)).toSet();
+        final localOnly = _announcements.where((m) => !serverKeys.contains(keyOf(m))).toList();
+        final merged = [...anns, ...localOnly];
+        merged.sort((a, b) => ((a['ts'] as num?)?.toInt() ?? 0).compareTo((b['ts'] as num?)?.toInt() ?? 0));
+        if (mounted) setState(() => _announcements = merged);
+      } catch (_) {}
+    });
+    PhotonApi.getGroupAnnouncements(widget.group.ownerServerUrl, widget.group.groupId).then((a) {
+      if (mounted) setState(() => _announcements = a);
+    }).catchError((_) {});
+  }
 
   Future<void> _send() async {
-    if (_sending || _membership != _Membership.member) return;
     final raw = _msgCtrl.text;
     final error = validateMessage(raw);
     if (error != null) {
       setState(() => _inputError = error);
       return;
     }
-    final keyId = _g.currentKeyId;
-    final key = _g.currentKey;
-    if (keyId == null || key == null) {
-      setState(() => _inputError = 'Grup şifreleme anahtarı henüz gelmedi. Grup sahibinin uygulamayı açması gerekiyor.');
+    final text = sanitizeMessage(raw);
+    setState(() => _inputError = null);
+    _msgCtrl.clear();
+    final ownerUrls = [widget.group.ownerServerUrl];
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    if (mounted) setState(() => _messages = [..._messages, {
+      'from': widget.identity.fipId, 'fromName': widget.displayName, 'text': text, 'ts': ts,
+    }]);
+    try {
+      await PhotonApi.sendGroupMessage(ownerUrls, widget.group.groupId,
+        from: widget.identity.fipId, fromName: widget.displayName,
+        text: text, ts: ts,
+      );
+    } on SocketException {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: widget.group.groupId, receiverServerUrl: widget.group.ownerServerUrl,
+        from: widget.identity.fipId, text: text, ts: ts,
+        isGroup: true, groupMemberUrls: ownerUrls,
+        groupId: widget.group.groupId, fromName: widget.displayName,
+      ));
+      if (mounted) setState(() {});
+    } on TimeoutException {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: widget.group.groupId, receiverServerUrl: widget.group.ownerServerUrl,
+        from: widget.identity.fipId, text: text, ts: ts,
+        isGroup: true, groupMemberUrls: ownerUrls,
+        groupId: widget.group.groupId, fromName: widget.displayName,
+      ));
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _vote(Map<String, dynamic> pollMsg, int optionIndex) async {
+    final msgIdVal = pollMsg['msgId'] as String? ?? '';
+    // Optimistic UI update
+    setState(() {
+      if (pollMsg['votes'] == null) pollMsg['votes'] = {};
+      (pollMsg['votes'] as Map)[widget.identity.fipId] = optionIndex;
+    });
+    if (msgIdVal.isEmpty) {
+      // Server hasn't assigned a msgId yet — defer; next poll will pick up the vote.
+      pollMsg['_pendingVote'] = optionIndex;
+      if (mounted) _showToast(AppLang.instance.t('voteSending'));
       return;
     }
-    final text = sanitizeMessage(raw);
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    setState(() { _inputError = null; _sending = true; });
-    final payload = await encryptGroupMessage(text, keyId, key);
-    _decryptCache[payload] = text;
-    final err = await KnkApi.sendGroupMessage(_owner, _g.groupId, _token,
-      fromName: widget.displayName, text: payload, ts: ts,
-    );
-    if (_disposed) return;
-    setState(() {
-      _sending = false;
-      if (err == null) {
-        _msgCtrl.clear();
-        _messages = [..._messages, {'from': _me, 'fromName': widget.displayName, 'text': payload, '_plain': text, '_enc': true, 'ts': ts}];
-      } else {
-        _inputError = err;
-      }
-    });
-    if (err == null) _scrollToBottom();
+    try {
+      await PhotonApi.voteOnPoll(widget.group.ownerServerUrl, widget.group.groupId, msgIdVal, widget.identity.fipId, optionIndex);
+    } catch (_) {
+      if (mounted) _showToast(AppLang.instance.t('voteFailed'));
+    }
   }
 
   Future<void> _acceptMember(Map<String, dynamic> req) async {
-    final fipId = req['fromFipId'] as String?;
-    if (fipId == null) return;
-    final ok = await KnkApi.acceptGroupMember(_owner, _g.groupId, _token, fipId: fipId);
-    if (_disposed) return;
-    if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
-    setState(() {
-      _pendingJoins.removeWhere((r) => r['fromFipId'] == fipId);
-      if (!_g.members.any((m) => m.fipId == fipId)) {
-        _g.members = [..._g.members, GroupMember(fipId: fipId, name: req['fromName'] as String? ?? 'Bilinmeyen',
-            serverUrl: req['fromServerUrl'] as String? ?? '', publicKey: req['fromPublicKey'] as String?)];
-      }
-    });
-    // Yeni üyeye grup anahtarını hemen teslim et.
-    await _distributeKeys();
+    setState(() => _pendingJoins.remove(req));
+    try {
+      await PhotonApi.acceptGroupMember(widget.group.ownerServerUrl, widget.group.groupId,
+        fipId: req['fromFipId'] as String,
+        name: req['fromName'] as String? ?? AppLang.instance.t('unknown'),
+        serverUrl: req['fromServerUrl'] as String? ?? '',
+      );
+    } catch (_) {
+      if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
+      if (mounted) _showToast(AppLang.instance.t('acceptFailedShort'));
+    }
   }
 
   Future<void> _rejectMember(Map<String, dynamic> req) async {
-    final fipId = req['fromFipId'] as String?;
-    if (fipId == null) return;
-    final ok = await KnkApi.rejectGroupMember(_owner, _g.groupId, _token, fipId);
-    if (_disposed) return;
-    if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
-    setState(() => _pendingJoins.removeWhere((r) => r['fromFipId'] == fipId));
+    setState(() => _pendingJoins.remove(req));
+    try {
+      await PhotonApi.rejectGroupMember(widget.group.ownerServerUrl, widget.group.groupId, (req['fromFipId'] as String?) ?? '', actor: widget.identity.fipId);
+    } catch (_) {
+      if (mounted) setState(() { if (!_pendingJoins.contains(req)) _pendingJoins.add(req); });
+      if (mounted) _showToast(AppLang.instance.t('rejectFailedShort'));
+    }
   }
 
   Future<void> _muteMember(GroupMember member) async {
-    final ok = await KnkApi.muteGroupMember(_owner, _g.groupId, _token, member.fipId);
-    if (_disposed) return;
-    if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
-    setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
-    _showToast('${member.name} susturuldu.');
+    if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
+    try {
+      await PhotonApi.muteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
+      await PhotonApi.sendNotification(member.serverUrl, member.fipId,
+          AppLang.instance.t('mutedTitle'),
+          '"${widget.group.name}" ${AppLang.instance.t('mutedBodySuffix')}',
+          actor: widget.identity.fipId);
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('mutedUserSuffix')}');
+    } catch (_) {
+      if (mounted) setState(() => _mutedMembers.remove(member.fipId));
+      if (mounted) _showToast(AppLang.instance.t('muteFailed'));
+    }
   }
 
   Future<void> _unmuteMember(GroupMember member) async {
-    final ok = await KnkApi.unmuteGroupMember(_owner, _g.groupId, _token, member.fipId);
-    if (_disposed) return;
-    if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
-    setState(() => _mutedMembers.remove(member.fipId));
-    _showToast('${member.name} susturma kaldırıldı.');
+    if (mounted) setState(() => _mutedMembers.remove(member.fipId));
+    try {
+      await PhotonApi.unmuteGroupMember(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('unmutedUserSuffix')}');
+    } catch (_) {
+      if (mounted) setState(() { if (!_mutedMembers.contains(member.fipId)) _mutedMembers.add(member.fipId); });
+      if (mounted) _showToast(AppLang.instance.t('actionFailed'));
+    }
   }
 
   Future<void> _kickMember(GroupMember member) async {
-    final ok = await KnkApi.leaveGroup(_owner, _g.groupId, _token, member.fipId);
-    if (_disposed) return;
-    if (!ok) { _showToast('İşlem başarısız. Tekrar dene.'); return; }
-    setState(() => _g.members = _g.members.where((m) => m.fipId != member.fipId).toList());
-    _showToast('${member.name} gruptan atıldı.');
-    // Atılan üye eski anahtarı biliyor: yeni mesajlar için anahtarı yenile ve kalanlara dağıt.
-    await _rotateKey();
-  }
-
-  // --- Anahtar doğrulama ---
-
-  Future<void> _loadVerified() async {
-    final v = await LocalStore.loadVerifiedKeys();
-    if (!_disposed) setState(() => _verifiedKeys = v);
-  }
-
-  /// Bir üyenin karşılaştırılacak anahtarı. Sahip için, katılırken sabitlenen
-  /// anahtar kullanılır (sunucunun sonradan bildirdiği değil).
-  String? _keyOf(GroupMember m) => (m.fipId == _g.ownerFipId && !_g.isOwner) ? _g.ownerPublicKey : m.publicKey;
-
-  KeyTrust _trustOf(GroupMember m) => keyTrust(_verifiedKeys, m.fipId, _keyOf(m));
-
-  String get _ownerName {
-    for (final m in _g.members) {
-      if (m.fipId == _g.ownerFipId) return m.name;
-    }
-    return 'Grup sahibi';
-  }
-
-  KeyTrust get _ownerTrust => keyTrust(_verifiedKeys, _g.ownerFipId, _g.ownerPublicKey);
-
-  Future<void> _openVerify(String fipId, String name, String? publicKey) async {
-    if (publicKey == null) {
-      _showToast('Bu kişinin şifreleme anahtarı bilinmiyor.');
-      return;
-    }
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyKeyScreen(
-      myFipId: _me, theirFipId: fipId, theirName: name, theirPublicKey: publicKey,
-    )));
-    await _loadVerified();
-    // Doğrulama değiştiyse (ör. yeni anahtar onaylandı) bekleyen teslimleri tamamla.
-    if (_g.isOwner && !_disposed) await _distributeKeys();
-  }
-
-  // --- Uçtan uca grup anahtarı ---
-
-  /// Sahip: güncel anahtarı olmayan her üyeye anahtarı sarıp teslim eder.
-  Future<void> _distributeKeys() async {
-    if (!_g.isOwner) return;
-    if (_g.currentKey == null) {
-      // Şifreleme gelmeden önce oluşturulmuş grup: ilk anahtarı şimdi üret.
-      await _rotateKey(distribute: false);
-    }
-    final keyId = _g.currentKeyId!;
-    final key = _g.currentKey!;
-    for (final m in _g.members.toList()) {
-      final pub = m.publicKey;
-      if (m.fipId == _me || pub == null || pub.isEmpty || m.keyId == keyId || _wrapping.contains(m.fipId)) continue;
-      // Doğruladığımız anahtardan farklı bir anahtara grup anahtarını asla gönderme
-      // (sunucu veya araya giren biri sahte anahtar sunuyor olabilir).
-      if (keyTrust(_verifiedKeys, m.fipId, pub) == KeyTrust.changed) continue;
-      _wrapping.add(m.fipId);
-      try {
-        final wrapped = await wrapGroupKey(groupId: _g.groupId, keyId: keyId, keyBase64: key, memberPublicKeyBase64: pub);
-        await KnkApi.putGroupKey(_owner, _g.groupId, _token, m.fipId, encryptedKey: wrapped, keyId: keyId);
-      } catch (_) {
-        // Bir sonraki turda tekrar denenir (sunucu keyId'yi güncel göstermez).
-      } finally {
-        _wrapping.remove(m.fipId);
+    final backup = List<GroupMember>.of(widget.group.members);
+    if (mounted) setState(() => widget.group.members.removeWhere((m) => m.fipId == member.fipId));
+    try {
+      await PhotonApi.leaveGroup(widget.group.ownerServerUrl, widget.group.groupId, member.fipId, actor: widget.identity.fipId);
+      await PhotonApi.sendNotification(member.serverUrl, member.fipId,
+          AppLang.instance.t('removedFromGroupTitle'),
+          '"${widget.group.name}" ${AppLang.instance.t('removedFromGroupBodySuffix')}',
+          actor: widget.identity.fipId);
+      // Persist member removal to disk.
+      final storedGroups = await LocalStore.loadGroups();
+      final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
+      if (sIdx != -1) {
+        storedGroups[sIdx].members = List.of(widget.group.members);
+        await LocalStore.saveGroups(storedGroups);
       }
-      if (_disposed) return;
+      if (mounted) _showToast('${vipDisplayName(VipCache.instance.peek(member.fipId), member.name)} ${AppLang.instance.t('kickedFromGroupUserSuffix')}');
+    } catch (_) {
+      if (mounted) setState(() { widget.group.members
+        ..clear()
+        ..addAll(backup); });
+      if (mounted) _showToast(AppLang.instance.t('kickFailed'));
     }
-  }
-
-  /// Sahip: yeni bir grup anahtarı üretir; eski anahtarlar geçmiş mesajları okumak için tutulur.
-  Future<void> _rotateKey({bool distribute = true}) async {
-    final (keyId, key) = generateGroupKeyEntry();
-    _g.keyring[keyId] = key;
-    _g.currentKeyId = keyId;
-    await LocalStore.updateGroup(_g);
-    if (distribute && !_disposed) await _distributeKeys();
-  }
-
-  /// Üye: sahibin bize sardığı en güncel anahtarı alır ve anahtar halkasına ekler.
-  Future<void> _fetchMyKey() async {
-    final ownerPub = _g.ownerPublicKey;
-    if (ownerPub == null) return;
-    // Sahibin anahtarı doğrulanandan farklıysa ondan gelen anahtarı kabul etme.
-    if (_ownerTrust == KeyTrust.changed) return;
-    final res = await KnkApi.getMyGroupKey(_owner, _g.groupId, _token, _me);
-    if (res == null || _disposed) return;
-    final (wrapped, keyId) = res;
-    if (_g.keyring.containsKey(keyId)) {
-      if (_g.currentKeyId != keyId) {
-        _g.currentKeyId = keyId;
-        await LocalStore.updateGroup(_g);
-      }
-      return;
-    }
-    final entry = await unwrapGroupKey(groupId: _g.groupId, expectedKeyId: keyId, wrapped: wrapped, ownerPublicKeyBase64: ownerPub);
-    if (entry == null || _disposed) return;
-    _g.keyring[entry.$1] = entry.$2;
-    _g.currentKeyId = entry.$1;
-    await LocalStore.updateGroup(_g);
-    if (_disposed) return;
-    _keysChanged = true;
-    setState(() {});
-  }
-
-  Future<void> _leaveOrDelete() async {
-    final owner = _g.isOwner;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(owner ? 'Grubu sil' : 'Gruptan ayrıl'),
-        content: Text(owner ? 'Grup ve tüm mesajları herkes için silinecek.' : '${_g.name} grubundan ayrılacaksın.'),
-        actions: [
-          OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Vazgeç')),
-          ElevatedButton(style: knkDangerButtonStyle(), onPressed: () => Navigator.pop(ctx, true), child: Text(owner ? 'Grubu sil' : 'Ayrıl')),
-        ],
-      ),
-    );
-    if (confirm != true || _disposed) return;
-    // Grup sunucuda zaten yoksa yalnızca yerelden kaldır.
-    final ok = _membership == _Membership.groupGone || _membership == _Membership.legacy ||
-        (owner ? await KnkApi.deleteGroup(_owner, _g.groupId, _token) : await KnkApi.leaveGroup(_owner, _g.groupId, _token, _me));
-    if (_disposed || !mounted) return;
-    if (!ok) { _showToast('Sunucuya ulaşılamadı. Tekrar dene.'); return; }
-    Navigator.pop(context, true);
   }
 
   String? _toastMsg;
-  Timer? _toastTimer;
   void _showToast(String msg) {
-    if (_disposed) return;
-    _toastTimer?.cancel();
+    if (!mounted) return;
     setState(() => _toastMsg = msg);
-    _toastTimer = Timer(const Duration(seconds: 3), () { if (!_disposed) setState(() => _toastMsg = null); });
+    Future.delayed(const Duration(seconds: 3), () { if (mounted) setState(() => _toastMsg = null); });
   }
-
-  // --- Sheets ---
 
   void _showJoinRequests() {
     showModalBottomSheet(
-      context: context,
+      context: context, backgroundColor: PhotonColors.panel,
       builder: (_) => StatefulBuilder(
-        builder: (ctx, set) => ListView(padding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s3), children: [
-          const Text('Katılma istekleri', style: KnkText.h2),
-          const SizedBox(height: Space.s2),
-          if (_pendingJoins.isEmpty) const Text('Bekleyen istek yok.', style: KnkText.small),
+        builder: (ctx, set) => ListView(padding: const EdgeInsets.all(20), children: [
+          Text(AppLang.instance.t('joinRequests'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 16),
+          if (_pendingJoins.isEmpty) Text(AppLang.instance.t('noPendingRequests'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
           ..._pendingJoins.map((req) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(req['fromName'] as String? ?? 'Bilinmeyen', style: KnkText.strong),
+            title: Text(req['fromName'] as String? ?? AppLang.instance.t('unknown'), style: TextStyle(color: PhotonColors.text, fontSize: 14)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(tooltip: 'Kabul et', icon: const Icon(Icons.check, color: KnkColors.accent),
-                  onPressed: () async { await _acceptMember(req); if (ctx.mounted) set(() {}); }),
-              IconButton(tooltip: 'Reddet', icon: const Icon(Icons.close, color: KnkColors.danger),
-                  onPressed: () async { await _rejectMember(req); if (ctx.mounted) set(() {}); }),
+              IconButton(icon: Icon(Icons.check, color: PhotonColors.accent), onPressed: () async { await _acceptMember(req); set(() {}); }),
+              IconButton(icon: Icon(Icons.close, color: PhotonColors.danger), onPressed: () async { await _rejectMember(req); set(() {}); }),
             ]),
           )),
         ]),
@@ -440,34 +555,65 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showMemberMenu(GroupMember member) {
     final isMuted = _mutedMembers.contains(member.fipId);
+    // Moderation prompts name the person too, so they take the alias as well.
+    final shownName = vipDisplayName(VipCache.instance.peek(member.fipId), member.name);
     showModalBottomSheet(
       context: context,
-      builder: (sheetCtx) => SafeArea(
+      backgroundColor: PhotonColors.panel,
+      builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.group.isOwner)
+              ListTile(
+                leading: Icon(member.isMod ? Icons.remove_moderator : Icons.shield, color: Colors.amber),
+                title: Text(member.isMod ? AppLang.instance.t('modRemove') : AppLang.instance.t('modMake'), style: TextStyle(color: PhotonColors.text)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final idx = widget.group.members.indexWhere((m) => m.fipId == member.fipId);
+                  if (idx != -1) {
+                    final updated = GroupMember(fipId: member.fipId, name: member.name, serverUrl: member.serverUrl, isMod: !member.isMod);
+                    setState(() => widget.group.members[idx] = updated);
+                    // Persist by replacing this group in the stored list — otherwise loading+saving loses the mutation.
+                    final storedGroups = await LocalStore.loadGroups();
+                    final sIdx = storedGroups.indexWhere((g) => g.groupId == widget.group.groupId);
+                    if (sIdx != -1) {
+                      storedGroups[sIdx].members = List.of(widget.group.members);
+                    } else {
+                      storedGroups.add(widget.group);
+                    }
+                    await LocalStore.saveGroups(storedGroups);
+                    _showToast(member.isMod ? '${shownName} moderatorlukten alindi.' : '${shownName} moderator yapildi.');
+                  }
+                },
+              ),
             ListTile(
-              leading: Icon(isMuted ? Icons.volume_up_outlined : Icons.volume_off_outlined, color: KnkColors.accent),
-              title: Text(isMuted ? '${member.name} susturmayı kaldır' : '${member.name} kullanıcısını sustur'),
+              leading: Icon(isMuted ? Icons.volume_up : Icons.volume_off, color: PhotonColors.accent),
+              title: Text(isMuted ? '${shownName} ${AppLang.instance.t('unmuteUserSuffix')}' : '${shownName} ${AppLang.instance.t('muteUserSuffix')}',
+                  style: TextStyle(color: PhotonColors.text)),
               onTap: () {
-                Navigator.pop(sheetCtx);
-                isMuted ? _unmuteMember(member) : _muteMember(member);
+                Navigator.pop(context);
+                if (isMuted) {
+                  _unmuteMember(member);
+                } else {
+                  _muteMember(member);
+                }
               },
             ),
+            if (widget.group.isOwner)
+              ListTile(
+                leading: Icon(Icons.person_remove, color: PhotonColors.danger),
+                title: Text('${shownName} ${AppLang.instance.t('kickUserSuffix')}', style: TextStyle(color: PhotonColors.danger)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _kickMember(member);
+                },
+              ),
             ListTile(
-              leading: const Icon(Icons.person_remove_outlined, color: KnkColors.danger),
-              title: Text('${member.name} kullanıcısını gruptan at', style: const TextStyle(color: KnkColors.danger)),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                _kickMember(member);
-              },
+              leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
+              title: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim)),
+              onTap: () => Navigator.pop(context),
             ),
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Vazgeç'),
-              onTap: () => Navigator.pop(sheetCtx),
-            ),
-            const SizedBox(height: Space.s1),
           ],
         ),
       ),
@@ -476,299 +622,640 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   void _showInfo() {
     showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetCtx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        builder: (_, controller) => ListView(controller: controller, padding: const EdgeInsets.fromLTRB(Space.s3, 0, Space.s3, Space.s3), children: [
-          Text(_g.name, style: KnkText.h2),
-          const SizedBox(height: Space.s3),
-          const SectionLabel('Grup adresi'),
-          Row(children: [
-            Expanded(child: SelectableText(_g.address, style: KnkText.small.copyWith(color: KnkColors.accent))),
-            IconButton(
-              tooltip: 'Kopyala',
-              icon: const Icon(Icons.content_copy_outlined, color: KnkColors.textDim, size: 16),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: _g.address));
-                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                _showToast('Grup adresi kopyalandı.');
-              },
-            ),
-          ]),
-          const SizedBox(height: Space.s3),
-          SectionLabel('Üyeler · ${_g.members.length}'),
-          ..._g.members.map((m) {
-            final isMuted = _mutedMembers.contains(m.fipId);
-            final isOwner = m.fipId == _g.ownerFipId;
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Row(children: [
-                Flexible(child: Text(m.fipId == _me ? '${m.name} (sen)' : m.name, overflow: TextOverflow.ellipsis, style: KnkText.strong)),
-                if (isOwner) const SizedBox(width: Space.s1),
-                if (isOwner) const Text('kurucu', style: TextStyle(color: KnkColors.accent2, fontSize: 13)),
-                if (isMuted) const SizedBox(width: Space.s1),
-                if (isMuted) const Icon(Icons.volume_off_outlined, color: KnkColors.textDim, size: 16),
-              ]),
-              subtitle: switch (_trustOf(m)) {
-                KeyTrust.verified when m.fipId != _me =>
-                  const Text('doğrulandı', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
-                KeyTrust.changed when m.fipId != _me =>
-                  const Text('anahtar değişti, grup anahtarı gönderilmiyor', style: TextStyle(color: KnkColors.danger, fontSize: 13)),
-                _ => null,
-              },
-              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (m.fipId != _me)
-                  IconButton(
-                    tooltip: 'Güvenlik numarası',
-                    icon: Icon(
-                      switch (_trustOf(m)) {
-                        KeyTrust.verified => Icons.verified_user_outlined,
-                        KeyTrust.changed => Icons.gpp_bad_outlined,
-                        _ => Icons.gpp_maybe_outlined,
-                      },
-                      size: 18,
-                      color: switch (_trustOf(m)) {
-                        KeyTrust.verified => KnkColors.accent,
-                        KeyTrust.changed => KnkColors.danger,
-                        _ => KnkColors.textDim,
-                      },
-                    ),
+      context: context, backgroundColor: PhotonColors.panel,
+      builder: (_) => ListView(padding: const EdgeInsets.all(20), children: [
+        Text(widget.group.name, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+        if (widget.group.description.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(widget.group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.5)),
+        ],
+        const SizedBox(height: 6),
+        if (widget.group.isOwner) ...[
+          Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+          const SizedBox(height: 4),
+          GestureDetector(
+            onTap: () => Clipboard.setData(ClipboardData(text: widget.group.address)),
+            child: Text(widget.group.address, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace')),
+          ),
+          const SizedBox(height: 16),
+        ],
+        Text(AppLang.instance.t('members'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+        const SizedBox(height: 8),
+        ...widget.group.members.map((m) {
+          final isMuted = _mutedMembers.contains(m.fipId);
+          final isOwner = m.fipId == widget.group.ownerFipId;
+          final memberVip = VipCache.instance.peek(m.fipId);
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            // Same profile view as the contact list, so a member's animation
+            // plays here too.
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ProfileScreen(
+                  fipId: m.fipId,
+                  name: m.name,
+                  code: '',
+                  isSelf: m.fipId == widget.identity.fipId,
+                ),
+              ));
+            },
+            title: Row(children: [
+              // Same resolution as the bubbles: an alias that shows on messages
+              // but not here would put the real name back on screen.
+              Text(vipDisplayName(memberVip, m.name),
+                  style: TextStyle(
+                      color: vipNameColor(memberVip) ?? PhotonColors.text,
+                      fontSize: 13)),
+              if (memberVip?.effectiveTier.premiumTag ?? false) ...[
+                const SizedBox(width: 5),
+                VipBadge(status: memberVip),
+              ],
+              if (isOwner) const SizedBox(width: 6),
+              if (isOwner) Text(AppLang.instance.t('ownerLabel'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+              if (m.isMod && !isOwner) const SizedBox(width: 6),
+              if (m.isMod && !isOwner) Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+              ),
+              if (isMuted) const SizedBox(width: 6),
+              if (isMuted) Icon(Icons.volume_off, color: PhotonColors.textDim, size: 13),
+            ]),
+            trailing: _isOwnerOrMod && !isOwner
+                ? IconButton(
+                    icon: Icon(Icons.more_vert, color: PhotonColors.textDim, size: 18),
                     onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      _openVerify(m.fipId, m.name, _keyOf(m));
-                    },
-                  ),
-                if (_g.isOwner && !isOwner)
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 18),
-                    onPressed: () {
-                      Navigator.pop(sheetCtx);
+                      Navigator.pop(context);
                       _showMemberMenu(m);
                     },
-                  ),
-              ]),
-            );
-          }),
-          const SizedBox(height: Space.s3),
-          OutlinedButton.icon(
-            style: knkGhostButtonStyle().copyWith(
-              foregroundColor: WidgetStateProperty.all(KnkColors.danger),
-              side: WidgetStateProperty.resolveWith((s) => BorderSide(color: KnkColors.danger.withOpacity(s.contains(WidgetState.hovered) ? 1 : 0.4))),
-              backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.hovered) ? KnkColors.danger.withOpacity(0.08) : Colors.transparent),
-            ),
-            icon: Icon(_g.isOwner ? Icons.delete_outline : Icons.logout, size: 18),
-            label: Text(_g.isOwner ? 'Grubu sil' : 'Gruptan ayrıl'),
-            onPressed: () {
-              Navigator.pop(sheetCtx);
-              _leaveOrDelete();
-            },
+                  )
+                : null,
+          );
+        }),
+      ]),
+    );
+  }
+
+  void _showInviteLink() {
+    final link = 'photon://${widget.group.address}';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: PhotonColors.panel,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            // Extra bottom room so action buttons sit above the gesture nav bar.
+            bottom: MediaQuery.of(ctx).viewPadding.bottom + 32,
           ),
-        ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(AppLang.instance.t('groupInviteQr'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 12),
+              // Action buttons up top so they're always thumb-reachable.
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: photonPrimaryButtonStyle(),
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: Text(AppLang.instance.t('justCopy')),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: link));
+                      Navigator.pop(context);
+                      _showToast(AppLang.instance.t('linkCopied'));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: PhotonColors.accent,
+                      side: BorderSide(color: PhotonColors.accent),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.share, size: 16),
+                    label: Text(AppLang.instance.t('share')),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Share.share('Photon Chat grup davet linki:\n$link');
+                    },
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: PhotonColors.bg,
+                  border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(link, style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontFamily: 'monospace'), textAlign: TextAlign.center),
+              ),
+              const SizedBox(height: 16),
+              Center(child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: QrImageView(data: link, size: 180, backgroundColor: Colors.white),
+              )),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  String _formatTime(num ts) {
-    final d = DateTime.fromMillisecondsSinceEpoch(ts.toInt());
-    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  Widget _buildSenderInitials(String fromName) {
+    final initial = fromName.isNotEmpty ? fromName[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: PhotonColors.accent.withOpacity(0.2),
+      child: Text(initial, style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
   }
 
-  Widget? _statusBanner() {
-    String? text;
-    var tone = KnkColors.accent2;
-    var icon = Icons.info_outline;
-    switch (_membership) {
-      case _Membership.pending:
-        text = 'Katılma isteğin grup kurucusunun onayını bekliyor.';
-        icon = Icons.schedule;
-      case _Membership.removed:
-        text = 'Bu grubun üyesi değilsin. İsteğin reddedilmiş ya da gruptan çıkarılmış olabilirsin.';
-        icon = Icons.person_off_outlined;
-        tone = KnkColors.danger;
-      case _Membership.groupGone:
-        text = 'Bu grup artık yok. Silinmiş ya da sunucusu sıfırlanmış olabilir.';
-        icon = Icons.cloud_off_outlined;
-        tone = KnkColors.danger;
-      case _Membership.legacy:
-        text = 'Bu grup uygulamanın eski bir sürümüyle eklendi. Grubu listeden kaldırıp yeniden oluştur ya da katıl.';
-      case _Membership.member:
-        if (_mutedMembers.contains(_me)) {
-          text = 'Grup kurucusu seni susturdu.';
-          icon = Icons.volume_off_outlined;
-        } else if (!_g.isOwner && _ownerTrust == KeyTrust.changed) {
-          text = 'Grup kurucusunun anahtarı doğruladığın anahtardan farklı. Güvenlik numarasını yeniden karşılaştırana kadar mesaj gönderemezsin.';
-          icon = Icons.gpp_bad_outlined;
-          tone = KnkColors.danger;
-        } else if (_g.currentKey == null) {
-          text = 'Şifreleme anahtarı bekleniyor. Grup kurucusu uygulamayı açınca mesajlaşabilirsin.';
-          icon = Icons.key_outlined;
-        }
-      case _Membership.loading:
-        break;
-    }
-    if (text == null && _unreachable) {
-      text = 'Grup sunucusuna ulaşılamıyor. Yeniden bağlanılıyor…';
-      icon = Icons.cloud_off_outlined;
-    }
-    if (text == null) return null;
-    return NoticeBar(icon: icon, text: text, tone: tone);
+  void _showAnnounceDialog() {
+    final ctrl = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: PhotonColors.panel,
+      title: Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+      content: TextField(
+        controller: ctrl, autofocus: true,
+        style: TextStyle(color: PhotonColors.text),
+        maxLines: 3,
+        decoration: InputDecoration(hintText: AppLang.instance.t('announcementHint'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
+        ElevatedButton(
+          style: photonPrimaryButtonStyle(),
+          onPressed: () async {
+            Navigator.pop(ctx);
+            final text = ctrl.text.trim();
+            if (text.isEmpty) return;
+            final ts = DateTime.now().millisecondsSinceEpoch;
+            if (mounted) setState(() => _announcements = [..._announcements, {'from': widget.identity.fipId, 'fromName': widget.displayName, 'text': text, 'ts': ts}]);
+            await PhotonApi.sendGroupAnnouncement(widget.group.ownerServerUrl, widget.group.groupId,
+              from: widget.identity.fipId, fromName: widget.displayName, text: text);
+            _showToast(AppLang.instance.t('announcementSentDot'));
+          },
+          child: Text(AppLang.instance.t('sendShort')),
+        ),
+      ],
+    )).then((_) => ctrl.dispose());
+  }
+
+  void _showPollDialog() {
+    final questionCtrl = TextEditingController();
+    final optCtrls = [
+      TextEditingController(text: AppLang.instance.t('yes')),
+      TextEditingController(text: AppLang.instance.t('no')),
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) {
+        return AlertDialog(
+          backgroundColor: PhotonColors.panel,
+          title: Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: questionCtrl,
+                autofocus: true,
+                style: TextStyle(color: PhotonColors.text),
+                decoration: InputDecoration(
+                  hintText: AppLang.instance.t('questionHint'),
+                  hintStyle: TextStyle(color: PhotonColors.textDim),
+                  filled: true, fillColor: PhotonColors.bg,
+                  border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...List.generate(optCtrls.length, (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: optCtrls[i],
+                      style: TextStyle(color: PhotonColors.text),
+                      decoration: InputDecoration(
+                        labelText: '${AppLang.instance.t('optionN')} ${i + 1}${i < 2 ? "" : " ${AppLang.instance.t('optionOptional')}"}',
+                        labelStyle: TextStyle(color: PhotonColors.textDim),
+                        filled: true, fillColor: PhotonColors.bg,
+                        border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line)),
+                      ),
+                    ),
+                  ),
+                  if (i >= 2) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => ss(() { optCtrls[i].dispose(); optCtrls.removeAt(i); }),
+                      child: Icon(Icons.remove_circle_outline, color: PhotonColors.danger, size: 22),
+                    ),
+                  ],
+                ]),
+              )),
+              TextButton.icon(
+                onPressed: () => ss(() => optCtrls.add(TextEditingController())),
+                icon: Icon(Icons.add, color: PhotonColors.accent, size: 18),
+                label: Text(AppLang.instance.t('addOption'), style: TextStyle(color: PhotonColors.accent, fontSize: 13)),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
+            ElevatedButton(
+              style: photonPrimaryButtonStyle(),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final opts = optCtrls.map((c) => c.text.trim()).where((o) => o.isNotEmpty).toList();
+                final question = questionCtrl.text.trim();
+                if (question.isEmpty || opts.length < 2) return;
+                final ts = DateTime.now().millisecondsSinceEpoch;
+                if (mounted) setState(() => _messages = [..._messages, {
+                  'from': widget.identity.fipId,
+                  'fromName': widget.displayName,
+                  'type': 'poll',
+                  'question': question,
+                  'options': opts,
+                  'votes': <String, int>{},
+                  'ts': ts,
+                }]);
+                await PhotonApi.sendGroupPoll([widget.group.ownerServerUrl], widget.group.groupId,
+                  from: widget.identity.fipId, fromName: widget.displayName,
+                  question: question, options: opts, ts: ts);
+                _showToast(AppLang.instance.t('pollSentDot'));
+              },
+              child: Text(AppLang.instance.t('create')),
+            ),
+          ],
+        );
+      }),
+    ).then((_) {
+      questionCtrl.dispose();
+      for (final c in optCtrls) { try { c.dispose(); } catch (_) {} }
+    });
+  }
+
+  Widget _buildPollMessage(Map<String, dynamic> m) {
+    final question = m['question'] as String? ?? '';
+    final options = List<String>.from(m['options'] as List? ?? []);
+    final votes = Map<String, dynamic>.from(m['votes'] as Map? ?? {});
+    final totalVotes = votes.length;
+    final myVote = votes[widget.identity.fipId];
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.poll, color: PhotonColors.accent, size: 14),
+          const SizedBox(width: 6),
+          Text(AppLang.instance.t('pollBadge'), style: TextStyle(color: PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+          const SizedBox(width: 6),
+          Text(m['fromName'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+        ]),
+        const SizedBox(height: 8),
+        Text(question, style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 14)),
+        const SizedBox(height: 8),
+        ...options.asMap().entries.map((entry) {
+          final optionVotes = votes.values.where((v) => v == entry.key).length;
+          final pct = totalVotes == 0 ? 0.0 : optionVotes / totalVotes;
+          final isSelected = myVote == entry.key;
+          return GestureDetector(
+            onTap: myVote == null ? () => _vote(m, entry.key) : null,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: Stack(children: [
+                Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isSelected ? PhotonColors.accent.withOpacity(0.15) : PhotonColors.panelAlt,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isSelected ? PhotonColors.accent : PhotonColors.line),
+                  ),
+                ),
+                if (totalVotes > 0)
+                  FractionallySizedBox(
+                    widthFactor: pct,
+                    child: Container(
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: PhotonColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(children: [
+                    Expanded(child: Text(entry.value, style: TextStyle(color: PhotonColors.text, fontSize: 13))),
+                    Text('${(pct * 100).toStringAsFixed(0)}%  $optionVotes', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                  ]),
+                ),
+              ]),
+            ),
+          );
+        }).toList(),
+        const SizedBox(height: 4),
+        Text('$totalVotes ${AppLang.instance.t('votesCastSuffix')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10)),
+      ]),
+    );
+  }
+
+  List<QueuedMessage> get _queuedGroupMessages {
+    final queued = OfflineQueue.instance.getForChat(widget.group.groupId);
+    final existingTs = _messages.map((m) => (m['ts'] as num?)?.toInt() ?? 0).toSet();
+    return queued.where((q) => !existingTs.contains(q.ts)).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me) && _g.currentKey != null &&
-        (_g.isOwner || _ownerTrust != KeyTrust.changed);
-    final banner = _statusBanner();
-    final ownerTone = switch (_ownerTrust) {
-      KeyTrust.verified => KnkColors.accent,
-      KeyTrust.changed => KnkColors.danger,
-      _ => KnkColors.accent2,
-    };
+    final myFipId = widget.identity.fipId;
     return Scaffold(
       appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(_g.name, overflow: TextOverflow.ellipsis),
-          Text('${_g.members.isEmpty ? '' : '${_g.members.length} üye · '}kod ${_g.groupCode}', style: KnkText.meta.merge(KnkText.tabular)),
-        ]),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.group.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            if (widget.group.description.isNotEmpty)
+              Text(widget.group.description, style: TextStyle(fontSize: 11, color: PhotonColors.textDim, fontWeight: FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
         actions: [
-          if (_g.isOwner)
-            Badge(
-              isLabelVisible: _pendingJoins.isNotEmpty,
-              label: Text('${_pendingJoins.length}'),
-              backgroundColor: KnkColors.accent2,
-              textColor: KnkColors.onAccent,
-              offset: const Offset(-4, 4),
-              child: IconButton(
-                tooltip: 'Katılma istekleri',
-                icon: const Icon(Icons.person_add_alt_outlined),
-                onPressed: _showJoinRequests,
-              ),
-            ),
-          IconButton(tooltip: 'Grup bilgisi', icon: const Icon(Icons.info_outline), onPressed: _showInfo),
-          const SizedBox(width: Space.s1),
+          PopupMenuButton<String>(
+            color: PhotonColors.panel,
+            icon: Icon(Icons.more_vert, color: PhotonColors.text),
+            onSelected: (v) {
+              if (v == 'announce') _showAnnounceDialog();
+              if (v == 'poll') _showPollDialog();
+              if (v == 'invite') _showInviteLink();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'invite', child: Row(children: [Icon(Icons.link, color: PhotonColors.accent, size: 16), const SizedBox(width: 8), Text(AppLang.instance.t('inviteLink'), style: TextStyle(color: PhotonColors.text))])),
+              if (widget.group.isOwner) ...[
+                PopupMenuItem(value: 'announce', child: Row(children: [Icon(Icons.campaign, color: PhotonColors.accent2, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('sendAnnouncement'), style: TextStyle(color: PhotonColors.text))])),
+                PopupMenuItem(value: 'poll', child: Row(children: [Icon(Icons.poll, color: PhotonColors.accent, size: 16), SizedBox(width: 8), Text(AppLang.instance.t('createPollTitle'), style: TextStyle(color: PhotonColors.text))])),
+              ],
+            ],
+          ),
+          if (widget.group.isOwner && _pendingJoins.isNotEmpty)
+            Stack(children: [
+              IconButton(icon: Icon(Icons.person_add, color: PhotonColors.text), onPressed: _showJoinRequests),
+              Positioned(top: 8, right: 8, child: Container(width: 8, height: 8, decoration: BoxDecoration(color: PhotonColors.accent2, shape: BoxShape.circle))),
+            ])
+          else if (widget.group.isOwner)
+            IconButton(icon: Icon(Icons.person_add, color: PhotonColors.textDim), onPressed: _showJoinRequests),
+          IconButton(icon: Icon(Icons.info_outline, color: PhotonColors.text), onPressed: _showInfo),
         ],
       ),
+      backgroundColor: PhotonColors.bg,
       body: Stack(
         children: [
+          ChatWallpaper.buildBackground(),
           Column(
             children: [
-              if (_g.currentKey != null && _membership == _Membership.member)
-                Material(
-                  color: KnkColors.accentWash,
-                  child: InkWell(
-                    onTap: _g.isOwner ? null : () => _openVerify(_g.ownerFipId, _ownerName, _g.ownerPublicKey),
-                    child: ContentWidth(child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
-                      child: Row(children: [
-                        const Icon(Icons.lock_outline, color: KnkColors.accent, size: 16),
-                        const SizedBox(width: Space.s1),
-                        const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
-                        const Spacer(),
-                        if (!_g.isOwner)
-                          Text(
-                            switch (_ownerTrust) {
-                              KeyTrust.verified => 'kurucu doğrulandı',
-                              KeyTrust.changed => 'kurucunun anahtarı değişti',
-                              _ => 'kurucuyu doğrula',
-                            },
-                            style: TextStyle(color: ownerTone, fontSize: 13,
-                                decoration: _ownerTrust == KeyTrust.verified ? null : TextDecoration.underline, decorationColor: ownerTone),
-                          ),
-                      ]),
-                    )),
+              // Announcements banner
+              if (_announcements.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _annExpanded = !_annExpanded),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(color: PhotonColors.accent2.withOpacity(0.1), border: Border(bottom: BorderSide(color: PhotonColors.accent2.withOpacity(0.3)))),
+                    child: Row(children: [
+                      Icon(Icons.campaign, color: PhotonColors.accent2, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(
+                        _annExpanded
+                          ? _announcements.map((a) => '${a['fromName']}: ${a['text']}').join('\n')
+                          : (_announcements.last['text'] as String? ?? ''),
+                        style: TextStyle(color: PhotonColors.text, fontSize: 12),
+                        maxLines: _annExpanded ? null : 1, overflow: _annExpanded ? null : TextOverflow.ellipsis,
+                      )),
+                      Icon(_annExpanded ? Icons.expand_less : Icons.expand_more, color: PhotonColors.accent2, size: 16),
+                    ]),
                   ),
                 ),
-              if (banner != null) banner,
               Expanded(
-                child: !_loaded && _messages.isEmpty && !_unreachable && _membership != _Membership.groupGone
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                    : _messages.isEmpty
-                        ? const CenterNote(icon: Icons.forum_outlined, title: 'Henüz mesaj yok.', body: 'Gruptaki ilk mesajı sen yaz.')
-                        : ListView.builder(
-                            controller: _scroll,
-                            padding: const EdgeInsets.symmetric(vertical: Space.s2),
-                            itemCount: _messages.length,
-                            itemBuilder: (_, i) => ContentWidth(child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: Space.s2),
-                              child: _buildBubble(_messages[i]),
-                            )),
+                child: ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: _messages.length + _queuedGroupMessages.length,
+                  itemBuilder: (_, i) {
+                    if (i >= _messages.length) {
+                      final q = _queuedGroupMessages[i - _messages.length];
+                      return Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                          decoration: BoxDecoration(
+                            color: PhotonColors.accent.withOpacity(0.12),
+                            border: Border.all(color: PhotonColors.accent.withOpacity(0.2)),
+                            borderRadius: BorderRadius.circular(10),
                           ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text(q.text, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Icon(Icons.access_time, color: PhotonColors.textDim, size: 11),
+                          ]),
+                        ),
+                      );
+                    }
+                    final m = _messages[i];
+                    // Poll type
+                    if (m['type'] == 'poll') {
+                      return _buildPollMessage(m);
+                    }
+                    final isMe = m['from'] == myFipId;
+                    final msgId = m['msgId'] as String? ?? '';
+                    final rawText = m['text'] as String? ?? '';
+                    // v10.0.2: composite key so messages with empty msgId don't collide
+                    final cacheKey = '${msgId}_${m['ts']}_${m['from']}';
+                    String displayText;
+                    if (_filtered.containsKey(cacheKey)) {
+                      displayText = _filtered[cacheKey]!;
+                    } else {
+                      displayText = filterProfanity(rawText);
+                      // Cache the clean result too — see chat_screen: not doing
+                      // so re-fired a Translate request per message on every
+                      // 2-second poll rebuild.
+                      _filtered[cacheKey] = displayText;
+                      if (displayText == rawText && _profanityChecked.add(cacheKey)) {
+                        filterProfanityAsync(rawText).then((v) {
+                          if (v != rawText && mounted) setState(() => _filtered[cacheKey] = v);
+                        });
+                      }
+                    }
+                    final senderId = (m['from'] as String?) ?? '';
+                    final senderVip = VipCache.instance.peek(senderId);
+                    // The stamped fromName is only a fallback now: an alias
+                    // switch has to reach messages that were already sent, so
+                    // the live profile wins whenever it is known.
+                    final memberName = widget.group.members
+                        .firstWhere((gm) => gm.fipId == senderId,
+                            orElse: () => GroupMember(fipId: '', name: '', serverUrl: ''))
+                        .name;
+                    final fromName = vipDisplayName(
+                      senderVip,
+                      memberName.isNotEmpty ? memberName : (m['fromName'] as String? ?? ''),
+                    );
+                    return GestureDetector(
+                      onLongPress: () => _onLongPressGroupMessage(m),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (!isMe) ...[
+                              _buildSenderInitials(fromName),
+                              const SizedBox(width: 6),
+                            ],
+                            Flexible(child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
+                          decoration: BoxDecoration(
+                            color: isMe ? PhotonColors.accent.withOpacity(0.18) : PhotonColors.panel,
+                            border: Border.all(color: isMe ? PhotonColors.accent.withOpacity(0.3) : PhotonColors.line),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
+                            if (!isMe) Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(fromName, style: TextStyle(color: vipNameColor(senderVip) ?? PhotonColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                              if ((senderVip ?? VipStatus.none).effectiveTier.premiumTag) ...[
+                                const SizedBox(width: 4),
+                                VipBadge(status: senderVip),
+                              ],
+                              if (widget.group.members.any((gm) => gm.fipId == (m['from'] as String?) && gm.isMod)) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(3)),
+                                  child: Text('MOD', style: TextStyle(color: PhotonColors.accent, fontSize: 8, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ]),
+                            if (rawText.startsWith('[📍KONUM:'))
+                              _buildLocationBubble(rawText, isMe)
+                            else if (rawText.startsWith('[🎤SES:'))
+                              _buildVoiceBubble(rawText, isMe)
+                            else
+                            // Profanity filtering and translation already ran
+                            // on displayText; tier styling is applied last so
+                            // /k cannot be used to slip past the filter.
+                            vipMessageText(displayText, senderVip,
+                                style: TextStyle(color: PhotonColors.text, fontSize: _msgFontSize)),
+                            if (_translating.contains(msgId))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
+                              ),
+                            if (_translations.containsKey(msgId))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                                  const SizedBox(height: 2),
+                                  Text(_translations[msgId]!,
+                                    style: TextStyle(color: PhotonColors.text.withOpacity(0.8), fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                                ]),
+                              ),
+                          ]),
+                        )),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
-              if (_inputError != null) NoticeBar(icon: Icons.error_outline, text: _inputError!, tone: KnkColors.danger),
-              MessageComposer(
-                controller: _msgCtrl,
-                enabled: canSend,
-                sending: _sending,
-                hint: canSend ? 'Gruba yaz' : 'Şu an mesaj gönderemezsin',
-                onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
-                onSend: _send,
+              if (_inputError != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: PhotonColors.danger.withOpacity(0.1),
+                  child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12)),
+                ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
+                child: Row(children: [
+                  IconButton(
+                    icon: Icon(Icons.location_on, color: PhotonColors.textDim),
+                    tooltip: AppLang.instance.t('shareLocation'),
+                    onPressed: _shareLocation,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+                  GestureDetector(
+                    onLongPressStart: (_) => _startVoiceMessage(),
+                    onLongPressEnd: (_) {},
+                    child: Container(
+                      width: 36, height: 36,
+                      margin: const EdgeInsets.only(right: 4),
+                      decoration: BoxDecoration(
+                        color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
+                      ),
+                      child: Icon(
+                        _isRecordingVoice ? Icons.stop : Icons.mic_none,
+                        color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _msgCtrl,
+                      style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: AppLang.instance.t('writeMessage'),
+                        hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(20)),
+                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(20)),
+                      ),
+                      minLines: 1, maxLines: 4,
+                      onChanged: (_) { if (_inputError != null) setState(() => _inputError = null); },
+                      onSubmitted: (_) => _send(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 42, height: 42,
+                      decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle),
+                      child: const Icon(Icons.send, color: Color(0xFF06251A), size: 18),
+                    ),
+                  ),
+                ]),
               ),
             ],
           ),
           if (_toastMsg != null)
             Positioned(
-              left: Space.s2, right: Space.s2, bottom: Space.s7,
-              child: ContentWidth(child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
-                decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card), boxShadow: knkShadow()),
-                child: Text(_toastMsg!, textAlign: TextAlign.center, style: KnkText.small.copyWith(color: KnkColors.text)),
-              )),
+              left: 16, right: 16, bottom: 84,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+                child: Text(_toastMsg!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
+              ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildBubble(Map<String, dynamic> m) {
-    final isMe = m['from'] == _me;
-    final plain = m['_plain'] as String?;
-    final undecryptable = plain == null;
-    // Şifreleme öncesinden kalan (veya sunucuya doğrudan yazılmış) düz metin doğrulanamaz.
-    final unverified = !undecryptable && m['_enc'] != true;
-    final fg = isMe ? KnkColors.onAccent : KnkColors.text;
-    final maxW = (MediaQuery.sizeOf(context).width * 0.78).clamp(0.0, 520.0);
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: Space.s1),
-        padding: const EdgeInsets.fromLTRB(Space.s2, Space.s1, Space.s2, Space.s1),
-        constraints: BoxConstraints(maxWidth: maxW),
-        decoration: BoxDecoration(
-          color: isMe ? KnkColors.accent : KnkColors.panel,
-          border: isMe ? null : Border.all(color: KnkColors.line),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(KnkRadius.bubble), topRight: const Radius.circular(KnkRadius.bubble),
-            bottomLeft: Radius.circular(isMe ? KnkRadius.bubble : 2), bottomRight: Radius.circular(isMe ? 2 : KnkRadius.bubble),
-          ),
-        ),
-        child: Column(crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start, children: [
-          if (!isMe) Text(m['fromName'] as String? ?? '', style: const TextStyle(color: KnkColors.accent2, fontSize: 13, fontWeight: FontWeight.w600)),
-          if (undecryptable)
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.lock_outline, size: 16, color: fg.withOpacity(0.7)),
-              const SizedBox(width: Space.s1),
-              Flexible(child: Text('Bu şifreli mesaj çözülemedi.', style: TextStyle(color: fg.withOpacity(0.7), fontSize: 15, fontStyle: FontStyle.italic))),
-            ])
-          else
-            Text(filterProfanity(plain), style: TextStyle(color: fg, fontSize: 15, height: 1.45)),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            if (unverified) ...[
-              const Tooltip(
-                message: 'Bu mesaj şifresiz; kimden geldiği doğrulanamıyor.',
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.warning_amber_outlined, size: 14, color: KnkColors.accent2),
-                  SizedBox(width: Space.s1),
-                  Text('şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 11)),
-                ]),
-              ),
-              const SizedBox(width: Space.s1),
-            ],
-            Text(_formatTime(m['ts'] as num), style: TextStyle(color: fg.withOpacity(0.7), fontSize: 11).merge(KnkText.tabular)),
-          ]),
-        ]),
       ),
     );
   }

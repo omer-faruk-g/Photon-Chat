@@ -12,7 +12,27 @@ on:
         default: 'v1.0.0'
 
 jobs:
+  # Cheap gate in front of the ~10 min Android build: catches missing i18n keys,
+  # duplicate keys, const-wrapping-a-runtime-call, and server regressions before
+  # any toolchain spins up.
+  verify:
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static checks (Dart client)
+        run: node tool/verify.js
+      - name: Server integration tests
+        run: |
+          cd server && npm install --no-audit --no-fund && cd ..
+          node tool/server_test.js
+
   build-android:
+    needs: verify
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,27 +42,88 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
+      - name: Install clean Android SDK 35 platform
+        run: |
+          rm -rf $ANDROID_HOME/platforms/android-35
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35"
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;28.2.13676358"
       - name: Generate Android platform files via flutter create
         run: |
           flutter create --org com.example --project-name knk_flutter --platforms android /tmp/flutter_template
           rm -rf android
           cp -r /tmp/flutter_template/android android
-          sed -i 's/id "org.jetbrains.kotlin.android" version "[^"]*"/id "org.jetbrains.kotlin.android" version "2.0.20"/' android/settings.gradle
+          python3 - << 'PYEOF'
+          import os, re, glob
+
+          # Kotlin DSL (.kts) veya Groovy (.gradle) — hangisi varsa onu bul
+          settings_files = glob.glob('android/settings.gradle*')
+          app_build_files = glob.glob('android/app/build.gradle*')
+          root_build_files = glob.glob('android/build.gradle*')
+
+          print("settings:", settings_files)
+          print("app build:", app_build_files)
+          print("root build:", root_build_files)
+
+          # AGP 8.9.1 + KGP 2.2.20 — stdlib 2.2.20 uyumu için KGP pinle
+          for sf in settings_files:
+              c = open(sf).read()
+              # KGP 2.2.20 — AGP 8.9.1'in çektiği stdlib 2.2.20 ile uyumlu
+              c = re.sub(r'id\("org\.jetbrains\.kotlin\.android"\) version "[^"]*"', 'id("org.jetbrains.kotlin.android") version "2.2.20"', c)
+              c = re.sub(r'id "org\.jetbrains\.kotlin\.android" version "[^"]*"', 'id "org.jetbrains.kotlin.android" version "2.2.20"', c)
+              # AGP 8.9.1 — AGP 9+ Flutter Gradle plugin'i desteklemiyor
+              c = re.sub(r'id\("com\.android\.application"\) version "[^"]*"', 'id("com.android.application") version "8.9.1"', c)
+              c = re.sub(r'id "com\.android\.application" version "[^"]*"', 'id "com.android.application" version "8.9.1"', c)
+              open(sf, 'w').write(c)
+              print("=== settings.gradle ===")
+              print(c)
+
+          for bf in app_build_files:
+              c = open(bf).read()
+              c = re.sub(r'ndkVersion\s*=?\s*flutter\.ndkVersion', 'ndkVersion = "28.2.13676358"', c)
+              c = re.sub(r'compileSdk\s*=?\s*flutter\.compileSdkVersion', 'compileSdk = 36', c)
+              c = re.sub(r'targetSdk\s*=?\s*flutter\.targetSdkVersion', 'targetSdk = 36', c)
+              # coreLibraryDesugaring — Groovy veya KTS syntax
+              if 'coreLibraryDesugaringEnabled' not in c and 'isCoreLibraryDesugaringEnabled' not in c:
+                  if bf.endswith('.kts'):
+                      c = re.sub(r'([ \t]*)(sourceCompatibility\s*[=:])', r'\1isCoreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
+                  else:
+                      c = re.sub(r'([ \t]*)(sourceCompatibility\s*[=:])', r'\1coreLibraryDesugaringEnabled = true\n\1\2', c, count=1)
+              open(bf, 'w').write(c)
+              # desugar dependency ekle
+              with open(bf, 'a') as f:
+                  if bf.endswith('.kts'):
+                      f.write('\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n')
+                  else:
+                      f.write("\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n")
+              print(open(bf).read())
+
+          for rb in root_build_files:
+              with open(rb, 'a') as f:
+                  if rb.endswith('.kts'):
+                      f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        extensions.configure<com.android.build.gradle.LibraryExtension> {\n            compileSdk = 36\n        }\n    }\n}\n')
+                  else:
+                      f.write('\nsubprojects {\n    plugins.withId("com.android.library") {\n        android {\n            compileSdkVersion 36\n        }\n    }\n}\n')
+          PYEOF
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.1-all.zip|' android/gradle/wrapper/gradle-wrapper.properties
           sed -i 's/android:label="[^"]*"/android:label="Photon Chat"/' android/app/src/main/AndroidManifest.xml
-          # Şablonun ana manifest'inde INTERNET izni yok (sadece debug'da var); release APK ağa çıkamaz.
-          sed -i '0,/<manifest[^>]*>/s//&\n    <uses-permission android:name="android.permission.INTERNET"\/>/' android/app/src/main/AndroidManifest.xml
-          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml || { echo "INTERNET izni eklenemedi"; exit 1; }
+          sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <application|' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/example/knk_flutter/
           cat > android/app/src/main/kotlin/com/example/knk_flutter/MainActivity.kt << 'KOTLIN'
           package com.example.knk_flutter
 
+          import android.media.RingtoneManager
+          import android.media.Ringtone
+          import android.net.Uri
           import android.os.Bundle
           import android.view.WindowManager
           import io.flutter.embedding.android.FlutterActivity
+          import io.flutter.embedding.engine.FlutterEngine
+          import io.flutter.plugin.common.MethodChannel
 
           class MainActivity : FlutterActivity() {
+              private var currentRingtone: Ringtone? = null
+
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   window.setFlags(
@@ -50,12 +131,48 @@ jobs:
                       WindowManager.LayoutParams.FLAG_SECURE
                   )
               }
+
+              override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+                  super.configureFlutterEngine(flutterEngine)
+                  MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.photonchat/sound_picker")
+                      .setMethodCallHandler { call, result ->
+                          when (call.method) {
+                              "getNotificationSounds" -> {
+                                  val sounds = mutableListOf<Map<String, String>>()
+                                  val mgr = RingtoneManager(this)
+                                  mgr.setType(RingtoneManager.TYPE_NOTIFICATION)
+                                  val cursor = mgr.cursor
+                                  while (cursor.moveToNext()) {
+                                      val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX)
+                                      val uri = mgr.getRingtoneUri(cursor.position).toString()
+                                      sounds.add(mapOf("title" to title, "uri" to uri))
+                                  }
+                                  result.success(sounds)
+                              }
+                              "playSound" -> {
+                                  currentRingtone?.stop()
+                                  val uri = call.argument<String>("uri")
+                                  if (uri != null) {
+                                      currentRingtone = RingtoneManager.getRingtone(this, Uri.parse(uri))
+                                      currentRingtone?.play()
+                                  }
+                                  result.success(null)
+                              }
+                              "stopSound" -> {
+                                  currentRingtone?.stop()
+                                  currentRingtone = null
+                                  result.success(null)
+                              }
+                              else -> result.notImplemented()
+                          }
+                      }
+              }
           }
           KOTLIN
       - run: flutter pub get
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
-      - run: flutter build apk --release
+      - run: flutter build apk --release --android-skip-build-dependency-validation
       - run: cp build/app/outputs/flutter-apk/app-release.apk PhotonChat-Android.apk
       - uses: actions/upload-artifact@v4
         with:
@@ -63,13 +180,14 @@ jobs:
           path: PhotonChat-Android.apk
 
   build-windows:
+    needs: verify
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v2
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
       - name: Generate Windows platform files via flutter create
         run: |
@@ -77,26 +195,66 @@ jobs:
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
           (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
-          (Get-Content windows\CMakeLists.txt) -replace 'set\(BINARY_NAME "knk_flutter"\)', 'set(BINARY_NAME "photon_chat")' | Set-Content windows\CMakeLists.txt
         shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
       - run: flutter build windows --release
+      - name: Create Inno Setup installer
+        run: |
+          $iss = @"
+          [Setup]
+          AppName=Photon Chat
+          AppVersion=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+          AppPublisher=Photon Chat
+          DefaultDirName={autopf}\Photon Chat
+          DefaultGroupName=Photon Chat
+          OutputDir=.
+          OutputBaseFilename=PhotonChat-Windows-Setup
+          Compression=lzma
+          SolidCompression=yes
+          SetupIconFile=windows\runner\resources\app_icon.ico
+          UninstallDisplayIcon={app}\photon_chat.exe
+          PrivilegesRequired=lowest
+          DisableProgramGroupPage=yes
+
+          [Languages]
+          Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Masaüstüne kısayol oluştur"; GroupDescription: "Ek simgeler:"
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+
+          [Icons]
+          Name: "{autoprograms}\Photon Chat"; Filename: "{app}\photon_chat.exe"
+          Name: "{autodesktop}\Photon Chat"; Filename: "{app}\photon_chat.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\photon_chat.exe"; Description: "Photon Chat'i başlat"; Flags: nowait postinstall skipifsilent
+          "@
+          $iss | Out-File -FilePath installer.iss -Encoding utf8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        shell: pwsh
       - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PhotonChat-Windows.zip
+        shell: pwsh
       - uses: actions/upload-artifact@v4
         with:
           name: PhotonChat-Windows
-          path: PhotonChat-Windows.zip
+          path: |
+            PhotonChat-Windows.zip
+            PhotonChat-Windows-Setup.exe
 
   build-linux:
+    needs: verify
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
       - name: Install Linux build dependencies
         run: |
@@ -122,12 +280,62 @@ jobs:
           name: PhotonChat-Linux
           path: PhotonChat-Linux.tar.gz
 
+  update-notes:
+    if: github.event.inputs.tag == 'UPDATE_NOTES'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update all release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: python3 .github/scripts/release_notes.py update-all
+
+  reorder-releases:
+    if: github.event.inputs.tag == 'REORDER'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Re-publish releases in desired order
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          # Desired display order (top to bottom): v2.0.1, v2.0.0, v1.0.5, v1.0.4+
+          # GitHub lists newest published_at first, so re-publish oldest->newest in this order:
+          ORDER="v1.0.4+ v1.0.5 v2.0.0 v2.0.1"
+          get_id() {
+            curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                 -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases?per_page=100" \
+              | python3 -c "import sys,json; t='$1'; print(next((r['id'] for r in json.load(sys.stdin) if r['tag_name']==t), ''))"
+          }
+          for tag in $ORDER; do
+            id=$(get_id "$tag")
+            if [ -z "$id" ]; then echo "Release $tag not found, skipping"; continue; fi
+            echo "Re-publishing $tag (id=$id)..."
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases/$id" -d '{"draft":true}' > /dev/null
+            sleep 2
+            curl -s -X PATCH -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+                 "https://api.github.com/repos/$REPO/releases/$id" -d '{"draft":false,"make_latest":"true"}' > /dev/null
+            echo "Done $tag"
+            sleep 3
+          done
+          echo "Reorder complete."
+
   release:
+    if: github.event.inputs.tag != 'REORDER' && github.event.inputs.tag != 'UPDATE_NOTES'
     needs: [build-android, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: PhotonChat-Android
@@ -140,37 +348,19 @@ jobs:
         with:
           name: PhotonChat-Linux
           path: ./dist
+      - name: Generate release notes
+        id: notes
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+        run: python3 .github/scripts/release_notes.py output
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           name: "Photon Chat ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}"
-          body: |
-            ## 🔒 Photon Chat
-
-            Güvenli, sunucusuz P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.
-
-            ---
-
-            ### 📥 İndir
-
-            | Platform | Dosya | Durum |
-            |----------|-------|-------|
-            | 🤖 Android | `PhotonChat-Android.apk` | ✅ Hazır |
-            | 🪟 Windows | `PhotonChat-Windows.zip` | ✅ Hazır |
-            | 🐧 Linux | `PhotonChat-Linux.tar.gz` | ✅ Hazır |
-            | 🍎 iOS | — | 🔜 Yakında |
-            | 🌐 Web | [Tarayıcıda aç](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/app/) | ✅ Kurulum gerekmez |
-
-            ---
-
-            ### 🚀 Kurulum
-
-            **Android:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)
-
-            **Windows:** ZIP dosyasını aç → `photon_chat.exe` çalıştır
-
-            **Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır
+          body: ${{ steps.notes.outputs.body }}
           files: |
             ./dist/PhotonChat-Android.apk
+            ./dist/PhotonChat-Windows-Setup.exe
             ./dist/PhotonChat-Windows.zip
             ./dist/PhotonChat-Linux.tar.gz

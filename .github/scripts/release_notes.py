@@ -1,0 +1,766 @@
+#!/usr/bin/env python3
+"""Generate release notes for a given tag and optionally update all releases via GitHub API."""
+
+import os, sys, json, urllib.request, textwrap
+
+CHANGELOGS = {
+    'v1.0.0': (
+        "### ✨ v1.0.0 Yenilikleri\n"
+        "- 🔒 FIP tabanlı kimlik sistemi (telefon numarası veya hesap gerekmez)\n"
+        "- 💬 Uçtan uca şifreli 1-1 mesajlaşma (X25519 + AES-GCM)\n"
+        "- 👥 Kişi ekleme (5 haneli eşleşme kodu ile)\n"
+        "- 🌗 Karanlık / Aydınlık tema\n"
+        "- 🖥️ Android desteği"
+    ),
+    'v1.0.1': (
+        "### ✨ v1.0.1 Yenilikleri\n"
+        "- 🛠️ iOS ikon üretimi devre dışı bırakıldı (iOS klasörü henüz yok)\n"
+        "- 🪲 Build sistemi hata düzeltmeleri"
+    ),
+    'v1.0.2': (
+        "### ✨ v1.0.2 Yenilikleri\n"
+        "- 🐧 Linux desteği eklendi\n"
+        "- 🔁 Linux apt-get güvenilir yeniden deneme mekanizması\n"
+        "- 🏗️ Build kararlılığı iyileştirmeleri"
+    ),
+    'v1.0.3': (
+        "### ✨ v1.0.3 Yenilikleri\n"
+        "- 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup\n"
+        "- 🔗 Merkezi kayıt sistemi entegrasyonu"
+    ),
+    'v1.0.4+': (
+        "### ✨ v1.0.4+ Yenilikleri\n"
+        "- 🌐 Federe mimari: bridge sunucusu üzerinden kod→sunucu lookup\n"
+        "- ⚡ Performans iyileştirmeleri ve hata düzeltmeleri\n"
+        "- 🔧 Bağlantı kararlılığı artırıldı"
+    ),
+    'v1.0.5': (
+        "### ✨ v1.0.5 Yenilikleri\n"
+        "- 🐧 Linux desteği eklendi\n"
+        "- 🏗️ Build sistemi iyileştirmeleri\n"
+        "- 🪲 Küçük hata düzeltmeleri"
+    ),
+    'v2.0.0': (
+        "### ✨ v2.0.0 Yenilikleri\n"
+        "- 😀 Emoji reaksiyonlar (👍❤️😂😮😢😡)\n"
+        "- 💬 Mesaj yanıtlama / alıntı\n"
+        "- 📳 Yeni mesajda titreşim bildirimi\n"
+        "- 🌓 Karanlık / Aydınlık tema değiştirici\n"
+        "- 👥 Grup sohbetleri\n"
+        "- 📢 Grup duyuruları (sadece yönetici)\n"
+        "- 📊 Grup anketleri (yönetici oluşturur, üyeler oy kullanır)\n"
+        "- 🔄 Otomatik güncelleme (kullanıcı izniyle, veriler korunur)"
+    ),
+    'v2.0.1': (
+        "### ✨ v2.0.1 Yenilikleri\n"
+        "- 📱 Huawei desteği (GMS gerektirmez, tüm Huawei cihazlarda çalışır)\n"
+        "- 📄 Kapsamlı döküman güncellemeleri"
+    ),
+    'v2.0.2': (
+        "### ✨ v2.0.2 Yenilikleri\n"
+        "- 🌍 45 dil desteği (Google Translate ile gerçek zamanlı çeviri)\n"
+        "- 🔤 Mesaj çevirisi (uzun bas → Çevir)\n"
+        "- 🖼️ Sohbet duvar kağıdı seçimi\n"
+        "- 📥 Çevrimdışı mesaj kuyruğu (internet gelince otomatik gönderir)\n"
+        "- 🚫 Geliştirilmiş küfür filtresi (tüm 45 dili destekler)"
+    ),
+    'v2.0.3': (
+        "### ✨ v2.0.3 Yenilikleri\n"
+        "- ⏳ Kaybolan mesajlar (10s / 30s / 1dk / 5dk / 1 saat seçenekleri)\n"
+        "- 📌 Mesaj sabitleme (uzun bas → Sabitle)\n"
+        "- 🟢 Çevrimiçi / son görülme durumu\n"
+        "- 🔗 Grup davet linki (kopyala & paylaş)\n"
+        "- 🖼️ Profil fotoğrafı gösterimi (kişi listesi ve mesaj balonları)"
+    ),
+    'v2.0.4': (
+        "### ✨ v2.0.4 Yenilikleri\n"
+        "- 🪟 Windows yükleyici (.exe) — masaüstü kısayolu otomatik oluşturulur\n"
+        "- 📷 QR kod ile kişi eşleştirme — kendi QR'ını göster, arkadaşının QR'ını tara\n"
+        "- 🔗 Gruba 7 haneli kod veya davet linki ile katılma (photon:// formatı)\n"
+        "- ✅ Kendi gönderdiğin mesajlar artık anında görünüyor\n"
+        "- 🐛 Hata düzeltmeleri ve kararlılık iyileştirmeleri"
+    ),
+    'v2.0.5': (
+        "### ✨ v2.0.5 Yenilikleri\n"
+        "- 🎨 Ana ekran yeniden tasarlandı — profil şeridi, belirgin bölüm başlıkları\n"
+        "- 👤 Profil şeridi: avatar, isim, durum mesajı ve kodun tek bakışta görünür\n"
+        "- 📋 5 haneli koduna tıklayarak kopyala\n"
+        "- 🖼️ Avatar portre fotoğraflarda artık yüz/üst bölge düzgün görünüyor\n"
+        "- ➕ Alt bar: 'Kişi Ekle' ve 'Grup' yan yana iki düğme\n"
+        "- 📝 Grup açıklaması — grup oluştururken kısa tanım yaz"
+    ),
+    'v3.0.0': (
+        "### ✨ v3.0.0 Yenilikleri\n"
+        "- 📸 Fotoğraf paylaşımı — galeriden görsel seç, sohbette gönder\n"
+        "- 🔒 Gelen görseller varsayılan olarak bulanık — dokunarak aç\n"
+        "- ⛔ Hassas/+18 içerik işaretleme — gönderen işaretlerse karşı tarafta siyah blok + uyarı mesajı\n"
+        "- 🎙️ Sesli yazım (STT) — konuşarak mesaj yaz, 'Gönder' diyince otomatik gönderir\n"
+        "- 🔇 STT varsayılan kapalı — Ayarlar → Sesli Mesaj'dan aktif edilir, mikrofon izni ister\n"
+        "- ✏️ Mesaj düzenleme — uzun bas → Düzenle\n"
+        "- 🗑️ Herkesten sil — uzun bas → Sil"
+    ),
+    'v3.0.1': (
+        "### ✨ v3.0.1 Yenilikleri\n"
+        "- 🔧 Başlangıç rehberi güncellendi — 5 haneli kod sistemi doğru anlatılıyor\n"
+        "- 💾 Sunucu adresi artık kaydediliyor — uygulama her açılışında tekrar sorulmaz\n"
+        "- 🎯 Kimlik oluşturulunca kod büyük ve belirgin gösteriliyor"
+    ),
+    'v3.0.2': (
+        "### ✨ v3.0.2 Yenilikleri\n"
+        "- 🔄 Arka plan keep-alive — uygulama kapalıyken de sunucu uyanık kalır (Android)\n"
+        "- ⏰ Her 15 dakikada bir otomatik ping — Render ücretsiz sunucu uyumaz\n"
+        "- 🌐 Uygulama açıkken her 10 dakikada ping (tüm platformlar)"
+    ),
+    'v3.0.3': (
+        "### ✨ v3.0.3 Yenilikleri\n"
+        "- 🎬 GIF oluşturucu — galeriden kare seç, animasyonlu GIF oluştur ve gönder\n"
+        "- 🔍 Otomatik içerik taraması — GIF kareleri ve fotoğraflar gönderilmeden taranır\n"
+        "- 🛡️ Avatar NSFW filtresi — uygunsuz profil fotoğrafı ayarlanamaz\n"
+        "- ⛔ Küfür + görsel filtresi aynı anda çalışır — uygunsuz içerik hiç oluşturulmaz"
+    ),
+    'v3.0.4': (
+        "### ✨ v3.0.4 Yenilikleri\n"
+        "- 📊 Anket sistemi — istediğin kadar seçenek ekle/kaldır\n"
+        "- ➕ Dinamik seçenek ekleme — anket oluştururken sınırsız seçenek"
+    ),
+    'v3.0.5': (
+        "### ✨ v3.0.5 Yenilikleri\n"
+        "- 🏷️ Uygulama adı Photon Chat olarak güncellendi — tüm KNK referansları kaldırıldı\n"
+        "- 🎨 Tüm sınıf ve tema isimleri Photon adıyla yeniden düzenlendi"
+    ),
+    'v4.0.0': (
+        "### 🚀 v4.0.0 Yenilikleri\n"
+        "- 🎤 Sesli mesaj — bas-konuş, erkek/kadın TTS sesiyle gönderilir (gerçek ses korunmaz)\n"
+        "- 📍 Konum paylaşımı — anlık konumunu sohbete gönder, OpenStreetMap'te aç\n"
+        "- 📝 Bio — profile max 100 karakterlik kısa tanıtım ekle\n"
+        "- 🎙 Ses cinsiyeti ayarı — Erkek veya Kadın sesi seç (Ayarlar'dan)"
+    ),
+    'v5.0.0': (
+        "### 🚀 v5.0.0 Yenilikleri\n"
+        "- 📱 Cihazlar arası hesap eşleştirme — aynı servera ikinci cihazdan bağlan\n"
+        "- 🔑 9/12/15 haneli doğrulama kodu sistemi (3 deneme hakkı)\n"
+        "- 👁️ Yan cihaz izleme — ana cihazdan tüm aktiviteleri gör\n"
+        "- 🚫 Cihaz atma — atılan cihaz bir daha servera bağlanamaz (kalıcı ban)\n"
+        "- 🕵️ FAKE tespit — yanlış kod girenleri otomatik FAKE olarak işaretle\n"
+        "- 🛡️ FAKE yönetimi — fake hesapları izle, banla veya MOD yetkisi ver\n"
+        "- 🔒 Protokol seviyesinde koruma — banlanan cihaz aynı servera asla erişemez"
+    ),
+    'v6.0.0': (
+        "### 🚀 v6.0.0 Yenilikleri\n"
+        "- 📎 Dosya paylaşımı — PDF, ZIP, DOC ve daha fazlası (maks 50 MB)\n"
+        "- 🛡️ Grup moderatör rolü — MOD yetki ver/al, moderatörler mesaj silebilir\n"
+        "- 📖 Hikayeler / Durum — 24 saat sonra kaybolan metin ve görsel hikayeler\n"
+        "- ⭐ Mesaj yıldızlama — önemli mesajları kaydet ve sonra kolayca bul\n"
+        "- 🔔 Bildirim sesi özelleştirme — cihaz kütüphanesinden ses seç ve önizle\n"
+        "- 🔠 Yazı tipi boyutu ayarı — küçük / orta / büyük\n"
+        "- 📤 Sohbet dışa aktarma — konuşmayı .txt olarak paylaş\n"
+        "- ⚡ Hızlı yanıtlar — önceden kayıtlı mesaj şablonları\n"
+        "- 🔐 Uygulama kilidi — PIN veya desen ile koruma (opsiyonel)"
+    ),
+    'v6.2.0': (
+        "### 🔧 v6.2.0 — Büyük Kararlılık ve Hata Düzeltme Sürümü\n\n"
+        "**Grup sohbetleri tamamen yeniden yazıldı:**\n"
+        "- 🐛 Anket oluşturulunca gönderene görünmüyordu — düzeltildi\n"
+        "- 🐛 Duyuru gönderilince gönderene görünmüyordu — düzeltildi\n"
+        "- 🐛 Grup mesajları bazı üyelere ulaşmıyordu — hepsi sahibin sunucusuna gidiyor\n"
+        "- 🐛 MOD atama/geri alma yeniden başlatınca kayboluyordu — kalıcı hale getirildi\n"
+        "- 🐛 Üye atma yeniden başlatınca geri geliyordu — kalıcı hale getirildi\n\n"
+        "**Sohbet ekranı düzeltmeleri:**\n"
+        "- 🐛 \"…yazıyor\" göstergesi hiç görünmüyordu — düzeltildi\n"
+        "- 🐛 Dosya baloncuğuna tıklayınca hiçbir şey olmuyordu — artık dosya açılıyor/paylaşılıyor\n"
+        "- 🐛 Hızlı yanıt chip'i mesajı sessizce gönderiyordu — artık input'a ekliyor\n"
+        "- 🐛 NSFW uyarısı gönderende görünmüyordu — düzeltildi\n"
+        "- 🐛 Sohbet menüsünde çift \"Yıldızla\" öğesi vardı — temizlendi\n"
+        "- 🐛 Yanıt/duyuru banner'ları null mesajlarda crash oluyordu — güvenli hale getirildi\n"
+        "- 🐛 Chat girişinde çift dosya butonu vardı — kaldırıldı\n\n"
+        "**Kurulum & tema:**\n"
+        "- 🐛 Onboarding'de 5 haneli kod hiç gösterilmiyordu — artık \"Devam →\" butonuyla gösteriliyor\n"
+        "- 🐛 Onboarding FIP satırları light modda görünmüyordu — düzeltildi\n"
+        "- 🐛 Ayarlar tehlike kartı light modda karanlık leke oluyordu — tema-uyumlu hale getirildi\n"
+        "- 🐛 Uygulama kilidi 5-6 haneli PIN kabul etmiyordu — düzeltildi\n"
+        "- 🐛 Sesli mesaj bırakınca durmuyordu — düzeltildi\n\n"
+        "**Diğer:**\n"
+        "- 📖 Render.com sunucu kurulum adımları README ve rehber ekranında ayrıntılandırıldı\n"
+        "- 🎨 Kişilerde çift hikaye çubuğu kaldırıldı\n"
+        "- 👤 Kişi bio'su artık profilden çekiliyor"
+    ),
+    'v8.1.0': (
+        "### 🌐 v8.1.0 — i18n Genişletmesi Tamamlandı\n\n"
+        "Ayarlardan dil seçtiğinde neredeyse tüm ekranlar hedef dile çevriliyor:\n\n"
+        "- ✅ Onboarding, Rehber, Sunucu Kurulumu\n"
+        "- ✅ Kişiler, Kişi Ekle, Grup Oluştur, Gruba Katıl\n"
+        "- ✅ Ayarlar (tümü), Yıldızlı Mesajlar\n"
+        "- ✅ Grup Chat, Hikayeler, Cihazlar, Cihaz Eşleştirme\n"
+        "- ✅ Uygulama Kilidi, Duvar Kağıdı\n\n"
+        "**Toplam:** ~455 çeviri anahtarı, 45 dil.\n\n"
+        "Bazı derin dialog metinleri (nadir kullanılanlar) hala Türkçe kalabilir — bir sonraki sürümde tamamlanacak."
+    ),
+    'v10.5.0': (
+        "### 🎭 v10.5.0 — Profil Ekranı ve Giriş Animasyonları\n\n"
+        "Artık bir profil ekranı var. Rehberde bir kişinin **avatarına** dokun, "
+        "sohbet başlığındaki avatara dokun ya da grup üye listesinden bir isme "
+        "dokun — o kişinin profili açılır. Kendi avatarına dokununca da kendi "
+        "profilin açılır, Ayarlar oradan bir dokunuş uzakta.\n\n"
+        "**Beş giriş animasyonu** eklendi. Animasyon profilin sahibine ait: "
+        "senin animasyonun varsa, profiline giren herkes onu görür.\n\n"
+        "| Animasyon | Ne yapar |\n|---|---|\n"
+        "| Piksel Yüz | Şişer ve patlayıp bilgileri saçar |\n"
+        "| Dalga | Dalgalar süpürür, geçtiği yerde bilgiler belirir |\n"
+        "| Balon | Dokununca patlar, bilgiler saçılıp yerine oturur |\n"
+        "| Kırık Ekran | Taş çarpar, çatlaklar profilin üstünde kalır |\n"
+        "| Spiral | Bilgiler döne döne merkeze gelir |\n\n"
+        "**Fiyatlar:** Tanesi 50₺, beşi birden 225₺. VIP katmanların tek alımda "
+        "indirim getiriyor (VIP %10 → PVip+ %25). Photon ve üstü katmanlara "
+        "**bir animasyon bedava** geliyor ve o animasyon kalıcı — aboneliğin "
+        "bitse bile sende kalır.\n\n"
+        "Animasyonlar tek tek satın alındığı için abonelikten bağımsız: "
+        "aldığın animasyon her zaman senin.\n\n"
+        "Uzun geldiyse ekrana dokunman yeterli, animasyon atlanır.\n\n"
+        "Seçim: **Ayarlar → Profil Animasyonu**\n\n"
+        "> Satın alma hâlâ Google Play'e bağlı değil; \"Satın Al\" şimdilik "
+        "\"Hizmet Dışıdır.\" diyor.\n"
+    ),
+    'v10.4.0': (
+        "### 💎 v10.4.0 — Dükkan ve VIP Katmanları\n\n"
+        "8 kademeli aylık abonelik sistemi eklendi. Her katman kendinden öncekinin "
+        "tüm özelliklerini kapsıyor:\n\n"
+        "| Katman | ₺/ay | Eklediği |\n|---|---|---|\n"
+        "| VIP | 25 | Renkli ad |\n"
+        "| VIP+ | 50 | + Renkli mesaj yazısı |\n"
+        "| PVip | 100 | + Kalın mesaj |\n"
+        "| PVip+ | 175 | + PREMIUM rozeti |\n"
+        "| Photon | 250 | + 30MB daha büyük dosya |\n"
+        "| Photon+ | 300 | + 1440p görsel kalitesi |\n"
+        "| PhotonPulse | 400 | + Ekstra güvenlik |\n"
+        "| PhotonPulseVİP | 500 | + Fake isim |\n\n"
+        "**Renk:** Kendi rengini seçiyorsun; hem adına hem mesaj yazına uygulanıyor.\n\n"
+        "**Kalın mesaj:** Mesaj içinde `/k` yazdığın yerden sonrası kalın olur, "
+        "`/t` ile normale döner. Tek mesajda birden fazla kalın blok kullanabilirsin.\n\n"
+        "**Fake isim:** Ayarlar → Fake İsim'den takma ad belirleyip açtığında "
+        "**her yerde geriye dönük** o adla görünürsün — rehberde, özel mesajlarda ve "
+        "daha önce gönderdiğin grup mesajlarında dahil. Bunun için isim artık mesaja "
+        "damgalanmıyor, her görüntülemede canlı çözümleniyor.\n\n"
+        "**Dükkan:** Ana ekranda kod çipinin yanındaki mağaza simgesinden açılıyor. "
+        "Katmanın varsa çipte adı da görünüyor.\n\n"
+        "⚠️ **Ödeme henüz bağlı değil** — \"Satın Al\" şimdilik *Hizmet Dışıdır* diyor. "
+        "Google Play aboneliği kurulduğunda devreye girecek.\n\n"
+        "**🐛 Yan düzeltme:** Dosya paylaşımında sunucu gövde limiti 60MB'dı ama istemci "
+        "50MB'a izin veriyordu; base64 şişmesiyle ~45MB üstü her dosya sessizce 413 "
+        "hatası alıyordu. Limit yükseltildi, artık gerçekten çalışıyor."
+    ),
+    'v10.3.0': (
+        "### 🧹 v10.3.0 — Sadeleştirilmiş Ana Ekran\n\n"
+        "Ana ekran çizdiğin taslağa göre yeniden düzenlendi:\n\n"
+        "- **Kişiler ve gruplar tek listede.** \"KİŞİLER\" / \"GRUPLAR\" başlıkları kaldırıldı; "
+        "her şey tek bir akışta.\n"
+        "- **Avatarlar sağa alındı.** İsimler sola hizalı, satırlar tek bir etiket gibi okunuyor.\n"
+        "- **Büyük profil kartı kaldırıldı.** Avatarın kendisi sağ üstte, dokununca ayarlar açılıyor. "
+        "Kodun onun altında ince bir çip olarak duruyor, dokununca kopyalanıyor.\n"
+        "- **Pulse AI kartı kaldırıldı** — üst bardaki ⚡ simgesine taşındı.\n"
+        "- Hikaye şeridi ve alttaki \"Kişi Ekle / Gruplar\" butonları yerinde kaldı.\n\n"
+        "Ana ekranda 5 ayrı blok yerine artık 3 var: kod çipi, hikayeler, liste. "
+        "Gelen davetler kendi başlığında kalmaya devam ediyor — onlar karar gerektiriyor."
+    ),
+    'v10.2.0': (
+        "### 🚨 v10.2.0 — Özel Mesajlaşma Tamamen Kırıktı, Düzeltildi\n\n"
+        "Bu sürümde ilk kez sunucu gerçekten çalıştırılıp 99 otomatik testle sınandı. "
+        "İlk çalıştırmada 18 test patladı ve yıllardır gözden kaçan bir hata ortaya çıktı:\n\n"
+        "**🔴 KRİTİK — Özel mesaj gönderilemiyordu**\n"
+        "- Sohbet anahtarı `fip_aaa__fip_bbb` biçiminde (çift alt çizgi), ama sunucu tek alt "
+        "çizgiyle ayırıyordu. `fipId`'nin kendisi de `fip_...` olduğu için parçalanıyor ve "
+        "gönderen kişi kendi sohbetinin katılımcısı olarak **tanınmıyordu**.\n"
+        "- Sonuç: mesaj gönderme, resim, dosya, emoji tepkisi, okundu bilgisi, \"yazıyor…\" "
+        "ve sohbet silme — **hepsi 403 hatası** veriyordu.\n"
+        "- ✅ Artık doğru ayraçla kontrol ediliyor; 7 ayrı yerde düzeltildi.\n\n"
+        "**🔴 Çevrimdışı mesajlar karşı tarafa hiç ulaşmıyordu**\n"
+        "- Kuyruğa alınan kopya, karşı tarafın sunucusu yerine kendi sunucuna gönderiliyordu.\n"
+        "- ✅ Karşı tarafın sunucu adresi artık kuyrukta saklanıyor.\n\n"
+        "**🔴 Emoji tepkileri sunucu yeniden başlayınca kayboluyordu**\n"
+        "- Tepki indeksi, kayıt anahtarı yanlış yerden bölünerek kuruluyordu.\n"
+        "- ✅ İndeks artık doğrudan kaydediliyor; yeniden başlatma testiyle doğrulandı.\n\n"
+        "**🛡️ Güvenlik**\n"
+        "- Bridge kod kaydı artık sahiplenilmiş: başkası senin kodunu kendi sunucusuna "
+        "yönlendirip arkadaş isteklerini kapamaz.\n"
+        "- Bildirim gönderme kilitlendi: sadece kabul ettiğin kişiler sana bildirim yollayabilir "
+        "(daha önce fipId'ni bilen herkes spam atabiliyordu).\n"
+        "- Cihaz eşleştirme kodunda uzunluk sınırı.\n\n"
+        "**🔴 Her mesaj sürekli Google'a gönderiliyordu**\n"
+        "- Küfür kontrolünde sadece sansürlenen mesajlar hafızaya alınıyordu. Temiz mesajlar "
+        "her ekran yenilemesinde (2 saniyede bir) tekrar tekrar çeviri servisine yollanıyordu.\n"
+        "- ✅ Artık her mesaj en fazla bir kez kontrol ediliyor. Pil ve veri tasarrufu.\n\n"
+        "**🐛 Diğer düzeltmeler**\n"
+        "- Sunucu uykudayken \"kişi cihazı kaldırdı\" yalan uyarısı çıkmıyor artık; "
+        "bağlantı iki kez denenip öyle karar veriliyor.\n"
+        "- **Grup açıklaması kayboluyordu:** sunucu hiç saklamıyordu, gruba katılan herkes "
+        "açıklamayı boş görüyordu.\n"
+        "- Mesaj gönderirken / profil kaydederken / GIF oluştururken ekrandan çıkılırsa "
+        "uygulama hata veriyordu (setState-after-dispose). Korumalar eklendi.\n"
+        "- Süresi dolan hikayeler telefonda yer kaplamaya devam ediyordu, artık siliniyor.\n\n"
+        "**🌐 Çeviri**\n"
+        "- **Dil seçicideki dil adları gerçekten çevriliyor artık** (v10.0.3'te eklenmiş ama "
+        "hiçbir yere bağlanmamıştı).\n"
+        "- Yeni mesaj bildirimi kullanıcının kendi dilinde geliyor (sunucu sabit Türkçe yolluyordu).\n"
+        "- Kalan 40+ sabit Türkçe metin çeviriye alındı: silinen mesaj etiketi, \"düzenlendi\", "
+        "yıldızlama, \"Kime ilet?\", grup uyarıları, rehber bildirimleri, kilit ekranı, GIF ekranı, "
+        "mesaj kutusu uyarıları (\"Boş mesaj gönderilemez\" vb.), Pulse AI hata mesajları, "
+        "grup satırındaki Sahip/Üye etiketi.\n"
+        "- Kullanılmayan 125 çeviri anahtarı temizlendi → **dil değiştirme %24 daha hızlı**.\n\n"
+        "**🔧 Altyapı**\n"
+        "- Yayın öncesi otomatik kontrol eklendi: eksik/çift çeviri anahtarı, derlemeyi kıran "
+        "`const` kullanımı, bozuk parantez ve 99 sunucu testi artık her yayında çalışıyor. "
+        "Hatalı kod artık derlemeye bile giremiyor."
+    ),
+    'v10.1.2': (
+        "### 🚑 v10.1.2 — Sohbet Kaybı Önlendi + Presence Yenileme + i18n\n\n"
+        "**Kritik bug'lar:**\n"
+        "- 🐛 **Sunucu geçici olarak yavaşladığında kişilerin siliniyordu.** Render free tier'ın 15 dk uyku sonrası yavaş cevap vermesi, `isActive` çağrısını false döndürüyor ve rehber senkronu kişiyi kalıcı olarak siliyordu. Artık silmek yerine sadece offline işaretleniyor; bir sonraki senkda geri gelir.\n"
+        "- 🐛 **Kendi presence'ın yenilenmiyordu.** Sunucu cold-start sonrası users map boşalınca kişilerin seni offline görüyordu. Artık her 45 sn'de bir presence otomatik yenileniyor.\n"
+        "- 🐛 **Anket birleştirme mantığı** daha da sağlamlaştırıldı: msgId + (ts,from) çift eşleşme, poll type/question/options her durumda korunuyor.\n\n"
+        "**Çevrilmemiş metinler:**\n"
+        "- ✅ Ayarlar: 'YAZI BOYUTU' başlığı, 'Orta' font seçeneği, 'Yan cihazlar…' alt yazı, 'Dil / Language' dialog başlığı, 'Çeviri hazırlanıyor…', 'Çeviri başarısız…' snackbar, cihaz yönetimi alt yazı.\n"
+        "- ✅ Rehber: 'Sohbetler kaydedilsin mi?', 'Evet, sakla', 'Davetler', 'Henüz bir grubun yok', 'Grup' tuşu.\n"
+    ),
+    'v10.1.1': (
+        "### 🩹 v10.1.1 — Anket + Kendi Grubuna Katılma + Buton Konumu\n\n"
+        "- 🐛 **Anket boş mesaja dönüşüyordu:** Sunucudan gelen mesaj birleştirme mantığı dayanıksızdı. Artık local'de anket olarak işaretlenen mesajın `type/question/options` alanları asla düşmüyor — sunucu restart olsa bile.\n"
+        "- 🐛 **Kendi grup kodunla katılmayı deniyorsan:** Artık \"Bu grup zaten senin. Kendi grubuna katılamazsın.\" uyarısı çıkıyor. Zaten üye olduğun bir grup için de ayrı uyarı var.\n"
+        "- 🐛 **Grup davet menüsündeki 'Kopyala/Paylaş' tuşları çok aşağıdaydı** — parmakla ulaşılamıyordu. Tuşlar en yukarı taşındı, sheet altı gesture-nav çubuğu için ekstra boşluk alıyor, QR kod aşağıda."
+    ),
+    'v10.1.0': (
+        "### 🔧 v10.1.0 — Baştan Sona Sunucu & İstemci Denetimi\n\n"
+        "Client ve server arasında sessizce 403 döndüren birçok endpoint bulundu ve düzeltildi:\n\n"
+        "**Server ↔ Client uyumsuzlukları (kritik):**\n"
+        "- 🐛 DM gönderirken server `fromFipId` bekliyordu, client `from` gönderiyordu → 400 hatası. Middleware ikisini de aliasliyor.\n"
+        "- 🐛 DM mesajları server-side `imageData/nsfw/fileName/fileData/fileSize` alanlarını depolamıyordu → resim/dosya kaybı.\n"
+        "- 🐛 Hikaye postu server tarafında `type/content/authorFipId/authorName/bgColor` alanlarını atıyordu → contact hikayeleri gelmiyordu.\n\n"
+        "**Auth `actor` eksikleri (hepsi 403 dönüyordu):**\n"
+        "- 🐛 `deleteChat` — sohbet silme\n"
+        "- 🐛 `rejectGroupMember` — katılım isteği reddi\n"
+        "- 🐛 `respondDeviceLink` — cihaz eşleştirme yanıtı\n"
+        "- 🐛 `logDeviceActivity` — cihaz aktivite kaydı\n"
+        "- 🐛 `kickDevice` — cihaz atma\n"
+        "- 🐛 `banDeviceOnServer` — cihaz banı\n"
+        "- 🐛 `sendGroupKey` — grup anahtarı yayını\n"
+        "- 🐛 `postStory` / `deleteStory` — hikaye ekleme/silme\n\n"
+        "**Kalan çevrilmemiş metinler:**\n"
+        "- ✅ Kilit: 'PIN Girin'\n"
+        "- ✅ Ayarlar: 'Varsayılan', 'Sessiz', 'Kodunu Kopyala', 'Geri', 'Yıldızlanan mesajlar' alt yazısı\n"
+        "- ✅ Grup: 'Kopyala', 'Davet Linki'\n"
+        "- ✅ Rehber: 'Hikaye Oluştur', 'Arka plan rengi', 'İptal', 'Paylaş'\n"
+        "- ✅ Hikaye: 'Hikaye bulunamadı', 'Görsel yüklenemedi'"
+    ),
+    'v10.0.3': (
+        "### 🌐 v10.0.3 — Kalan Çevrilmeyen Metinler (Hikaye + Güncelleme + Ayarlar)\n\n"
+        "**Hikaye ekranı:**\n"
+        "- ✅ \"Hikayem\", \"Hikayeni Ekle\", \"Metin Hikaye\" ve hint yazısı\n"
+        "- ✅ Iptal / Paylaş butonları\n"
+        "- ✅ Uygunsuz içerik snackbar mesajı\n\n"
+        "**Rehber / Ayarlar:**\n"
+        "- ✅ Rehberdeki KODUM etiketi\n"
+        "- ✅ Sesli asistan cinsiyet dropdown'undaki \"Erkek\" seçeneği\n"
+        "- ✅ Dil seçicideki dil adları (Türkçe / İngilizce / Almanca ...)\n\n"
+        "**Güncelleme diyaloğu:**\n"
+        "- ✅ \"Güncelleme Mevcut\", \"Güncelle\", \"İndir\", \"Sonra\"\n"
+        "- ✅ İndirme yüzdesi + \"Hazırlanıyor\" + hata metinleri\n\n"
+        "Artık dil değiştirdiğinde bu ekranların hepsi hedef dile geçiyor."
+    ),
+    'v10.0.2': (
+        "### 🛠️ v10.0.2 — Küfür Filtresi + Konuşma Karışması Fix\n\n"
+        "**Konuşma karışması:**\n"
+        "- 🐛 Bir mesaja küfür filtresi uygulanınca msgId'si boş olan tüm diğer mesajlar aynı slotta çakışıp içeriği değiştiriyordu\n"
+        "- ✅ Cache key artık `msgId_ts_from` — her mesaj benzersiz\n\n"
+        "**Küfür filtresi artık dile duyarlı:**\n"
+        "- 🇬🇧 İngilizce'de \"I am\" gibi normal cümleler artık sansürlenmiyor\n"
+        "- 🌐 Hangi dil aktifse o dilin küfür listesi kullanılır (TR her zaman aktif, çünkü içerik ağırlıklı Türkçe)\n"
+        "- 🗣️ Diller: TR + EN + DE + FR + ES + IT + PT + RU + AR\n"
+        "- 🎯 Kısa Türkçe kelime 'am' listeden çıkarıldı (çok false positive üretiyordu)\n"
+        "- 🔄 Dil değiştir → filtre otomatik güncellenir"
+    ),
+    'v10.0.1': (
+        "### 🌐 v10.0.1 — Kalan Çevrilmeyen Metinler\n\n"
+        "Ayarlardaki 4 sabit metin ve profilinin altındaki Pulse AI etiketleri i18n'e alındı:\n"
+        "- ✅ \"Sesli Mesaj (STT)\" + açıklaması\n"
+        "- ✅ \"Sohbet Duvar Kâğıdı\" + tip (Varsayılan/Renk/Resim)\n"
+        "- ✅ \"Bildirim Sesi\" + \"Bildirim Sesi Seç\" başlığı\n"
+        "- ✅ \"Pulse AI\" başlığı ve \"Yapay zeka asistanın · Sor, sohbet et\" alt yazısı\n"
+        "- ✅ Voice message bubble \"Sesli Mesaj\" etiketi\n\n"
+        "Artık dil değiştirdiğinde ayarların her bölümü hedef dile geçiyor.\n\n"
+        "v10.0.0'daki global font size scaling özellikleri korunuyor."
+    ),
+    'v10.0.0': (
+        "### 🎉 v10.0.0 — Yazı Boyutu Tüm Uygulamaya Uygulanıyor\n\n"
+        "**Kritik düzeltme:**\n"
+        "- 🐛 Yazı boyutu ayarı sadece chat mesajlarını değiştiriyordu — şimdi **TÜM uygulamayı** etkiliyor\n"
+        "- ✨ MaterialApp seviyesinde `MediaQuery.textScaler` — her Text widget'ı ölçekleniyor\n"
+        "- 📏 Ölçek: Küçük = ×0.85, Orta = ×1.0, Büyük = ×1.20\n"
+        "- ⚡ Ayarı değiştirir değiştirmez tüm ekranlar anında güncellenir (rebuild)\n\n"
+        "**Ayrıca v9.2.0 tüm iyileştirmeleri dahil:**\n"
+        "- Grup oluşturma hata mesajı gerçek nedeni gösteriyor\n"
+        "- Avatar HD (512×512 @ %88)\n"
+        "- Çeviri ~8× hızlı (8 paralel istek)\n"
+        "- v9.1.0'daki 5-ajan denetim düzeltmeleri (STT/TTS dispose, mounted guards, translate cache, e2e crash, notif channel)\n"
+        "- Server v9.1.0: auth, memory management, indexed reactions, per-endpoint body limits\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy et."
+    ),
+    'v9.2.0': (
+        "### ✨ v9.2.0 — Grup Adı + HD Avatar + 8× Hızlı Çeviri\n\n"
+        "**Grup oluşturma sorunu çözüldü:**\n"
+        "- 🐛 \"Grup oluşturulamadı\" hatası artık gerçek sebebi gösteriyor (HTTP kod + server error)\n"
+        "- 🔗 Client legacy compat: `actor`+`fipId`+`from` alanları hep gönderiyor (eski/yeni server ayırt etmiyor)\n\n"
+        "**Avatar HD kalitesi:**\n"
+        "- 📷 128×128 @ %40 → **512×512 @ %88**\n"
+        "- 💾 İstemci: 200KB → 300KB, sunucu: 300KB → 500KB\n\n"
+        "**Çeviri ~8× daha hızlı:**\n"
+        "- ⚡ Batch fail'inde artık 8 paralel istek (önce sequential)\n"
+        "- 🎯 500 anahtar için 4-5 sn (önceden 30-40 sn)\n"
+        "- 📊 Full-screen modal: canlı ilerleme (\"Çeviriliyor: X / Y\")\n"
+        "- 🔄 Fail'de transactional rollback + snackbar"
+    ),
+    'v9.1.0': (
+        "### 🙏 Özür\n\n"
+        "> Geliştirici ekibin rehavete kapılıp doğru kod yazamamalarından özür diler, "
+        "bir daha böyle bir sorun olmaması için sıkı cezalar vermiş olup sizi "
+        "önemsediğimizi tekrardan söylemekte olup tekrardan özür dileriz.\n"
+        "> \n"
+        "> — Proje sahibi: **omer-faruk-g**\n\n"
+        "---\n\n"
+        "### 🛡️ v9.1.0 — 5-Ajan Kapsamlı Denetim + Fix\n\n"
+        "5 paralel ajan tüm kod tabanını okuyup düzeltti.\n\n"
+        "**İstemci:**\n"
+        "- STT & TTS ekrandan çıkınca duruyor (chat + grup chat memory leak)\n"
+        "- TextEditingController leak'leri düzeltildi (poll, announcement, stories)\n"
+        "- setState-after-dispose crash'leri: 10+ ekranda `mounted` guard eklendi\n"
+        "- createIdentity: setString artık await ediliyor\n"
+        "- JSON map cast crash düzeltildi (starred / stories)\n"
+        "- translate cache: hashCode collision'ı kaldırıldı, LRU 512 cap eklendi\n"
+        "- e2e force-unwrap crash düzeltildi (private key eksikse graceful hata)\n"
+        "- notification channel: hashCode collision → stable SHA1 prefix\n"
+        "- Server setup: klavye açık iken input taşıyordu → SingleChildScrollView\n\n"
+        "**Sunucu:**\n"
+        "- Auth: 18+ endpoint'te `actor` doğrulaması (spoofing engellendi)\n"
+        "- Middleware: legacy client uyumluluğu için `actor` fallback (from/fipId/vs.)\n"
+        "- Poll güvenliği: client-supplied `votes` reddediliyor, optionIndex sınırları\n"
+        "- Grup üyelik kontrolü: mesaj/oy için `isMember` doğrulaması\n"
+        "- Memory leak'ler: TTL/janitor + LRU cap'ler (typing, stories, notifs, dedupe)\n"
+        "- O(n) → indexed: reactions artık chatKey ile indekslenmiş\n"
+        "- Per-endpoint body limit'leri: `smallBody`/`medBody`/`bigBody`\n"
+        "- Input hardening: field whitelist, uzunluk cap'leri\n"
+        "- `msgId` group message response'unda döndürülüyor\n"
+        "- Notification spam dedupe iyileştirildi\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy et."
+    ),
+    'v9.0.2': (
+        "### 🚑 v9.0.2 — Kritik Hotfix (Grup Kodu + Dil Değiştirme)\n\n"
+        "**Grup Kodu Sorunu Çözüldü:**\n"
+        "- Grubun kodunu girdiğinde artık 4 farklı server dener:\n"
+        "  1. Elle girdiğin server URL (varsa)\n"
+        "  2. Bridge lookup (photon-chat.onrender.com)\n"
+        "  3. Kendi sunucun (fallback)\n"
+        "  4. Photon bridge sunucu (last-resort)\n"
+        "- Böylece bridge cache boşsa veya grup eski sürümde oluşturulmuşsa da bulunur\n\n"
+        "**Dil Değiştirme Gerçekten Çeviriyor:**\n"
+        "- 🐛 v9.0.1 ve öncesi: Google Translate fail olunca ORİJİNAL Türkçe metni cache'e yazıyordu — bu yüzden İngilizce seçince hala Türkçe görüyordun\n"
+        "- ✨ Şimdi: fail olursa cache'e YAZMIYOR, önceki dile geri dönüyor, snackbar gösteriyor\n"
+        "- ✨ Full-screen loading dialog: canlı çeviri ilerlemesi (\"X / Y çeviriliyor\") gösterir\n"
+        "- ✨ Kişi başka bir ekrana atılmıyor ama modal dialog ekranı kaplar ve durum yazısı sürekli güncellenir"
+    ),
+    'v9.0.1': (
+        "### 🔥 v9.0.1 — Kritik Hotfix\n\n"
+        "- 🐛 **Küfür filtresi \"selam\" gibi normal kelimeleri küfür sayıyordu** — word boundary eklendi\n"
+        "- 🐛 **Grup anketi 2sn sonra boş simgeye dönüyordu** — 10 saniye boyunca local versiyonu tut, question/options merge korumalı\n"
+        "- 🎨 **Ana ekran alt bar Android sistem tuşlarıyla çakışıyordu** — extra safe area (36 + inset)\n"
+        "- 🎨 **Ana ekran solundaki \"KODUM\" chip'i kaldırıldı** — Kod artık profil şeridinde"
+    ),
+    'v9.0.0': (
+        "### 🎉 v9.0.0 — Grup QR Kodu + Bridge Auto-Lookup\n\n"
+        "**Küçük bir özür:** v8.2.0 ve v8.3.0 build hataları nedeniyle yayınlanamadı. "
+        "İçerikleri bu sürümde toplu olarak sunuluyor. Kusura bakma 🙏\n\n"
+        "---\n\n"
+        "**📱 Grup davet QR kodu:**\n"
+        "- Grup sahibi menüden \"Davet Linki\" seçince artık büyük QR kod görünüyor\n"
+        "- Karşı taraf kamerayla tarayınca her şey otomatik doldurulur\n\n"
+        "**🎯 Gruba QR ile katılma:**\n"
+        "- Gruba Katıl ekranında sağ üstte QR butonu\n"
+        "- Tara → server URL otomatik dolar → istek gönderilir\n\n"
+        "**🔗 Sadece 7 haneli kod yeter:**\n"
+        "- Grup oluşturulunca kod otomatik bridge'e kayıt olur (photon-chat.onrender.com)\n"
+        "- Gruba katılırken sunucu URL'i girmene gerek yok — bridge'den otomatik çekilir\n"
+        "- Contacts açıkken grup kodları her 5 saniyede bir bridge'e yenilenir (server snapshot restart'ından sonra da erişilebilir kalır)\n\n"
+        "**🎛️ QR scan iyileştirmeleri:**\n"
+        "- Dual-mode: kişi (5 hane) vs grup (photon:// URI) — geçersiz QR reddedilir\n"
+        "- Kamera ekranı ortasında hedefleme kutusu\n\n"
+        "**🐛 Build fixler:**\n"
+        "- v8.2/v8.3'te const wrapper etrafında runtime metod çağrısı hataları düzeltildi"
+    ),
+    'v8.3.0': (
+        "### 🎯 v8.3.0 — Sadece Grup Kodu Yeter (Bridge Lookup)\n\n"
+        "Artık gruba katılmak için sunucu URL'i girmene gerek yok.\n\n"
+        "- ✨ Grup oluşturulunca kod otomatik bridge'e kayıt olur\n"
+        "- ✨ Gruba katılırken 7 haneli kod yeter — server URL bridge'den otomatik çekilir\n"
+        "- ✨ Contacts açıkken grup kodları her 5 saniyede bir bridge'e yenilenir (server snapshot geri yüklemesi için)\n"
+        "- 🔧 Server URL alanı artık opsiyonel (ileri seviye)"
+    ),
+    'v8.2.0': (
+        "### 📱 v8.2.0 — Grup Davet QR'ı + QR Scan İyileştirmeleri\n\n"
+        "- ✨ **Grup davet QR'ı** — Grup sahibi menüden \"Davet Linki\" seçince artık büyük QR kod görünüyor\n"
+        "- ✨ **Gruba QR ile katılma** — Gruba Katıl ekranında sağ üst QR butonu. Tara → server URL otomatik dolar → istek gönderilir\n"
+        "- 🔧 QR tarama artık iki modda: kişi (5 hane) veya grup (photon://... URI)\n"
+        "- 🔧 QR ekranı ortasında hedefleme kutusu\n"
+        "- 🌐 QR ekranı ve grup davet bölümü tamamen çevirili"
+    ),
+    'v8.0.0': (
+        "### 🌐 v8.0.0 — Çoklu Dil Desteği Genişletildi\n\n"
+        "Ayarlardan dil seçiminde artık çok daha fazla ekran hedef dile çevriliyor:\n\n"
+        "**Bu sürümde çevrilen ekranlar:**\n"
+        "- ✅ Kişiler ana ekranı\n"
+        "- ✅ Ayarlar (tümü)\n"
+        "- ✅ Kişi Ekle\n"
+        "- ✅ Grup Oluştur\n"
+        "- ✅ Gruba Katıl\n"
+        "- ✅ Yıldızlı Mesajlar\n"
+        "- ✅ Sunucu Kurulumu\n\n"
+        "**Sonraki sürüme kalan (v8.1.0):**\n"
+        "- Chat ekranı, Grup Chat, Onboarding, Rehber, Hikayeler, Cihazlar, Kilit\n\n"
+        "**Toplam:** 360+ çeviri anahtarı, 45 dil destekleniyor (Google Translate ile otomatik).\n\n"
+        "Not: Mesaj çeviri özelliği (uzun bas → Çevir) her zaman tüm dilleri destekliyordu — bu güncelleme UI dili."
+    ),
+    'v7.2.1': (
+        "### 🚨 v7.2.1 — Hotfix: Client actor field'ı eksikti\n\n"
+        "**KRİTİK:** v7.2.0'da server auth için `actor` field'ı eklendi ama client hiçbir yerde göndermiyor du → kick/mute/edit/delete tümü 403 alıyordu.\n\n"
+        "- 🔧 editMessage/deleteMessage → `actor: identity.fipId`\n"
+        "- 🔧 muteGroupMember/unmuteGroupMember → `actor`\n"
+        "- 🔧 leaveGroup → `actor`\n"
+        "- 🔧 3 hard cast crash düzeltildi (offline_queue ts, group reject fromFipId, starred msgId)"
+    ),
+    'v7.2.0': (
+        "### 🏛️ v7.2.0 — Server Refactor: Auth + Persistence + Performance\n\n"
+        "**Persistence eklendi (BÜYÜK):**\n"
+        "- 💾 Server 30 saniyede bir tüm state'i diske yazıyor\n"
+        "- 🔁 Restart/redeploy sonrası tüm mesaj/grup/hikaye/kimlik geri yükleniyor\n\n"
+        "**Güvenlik:**\n"
+        "- 🛡️ Helmet + CORS + compression + rate limit (300 req/dk global)\n"
+        "- 🛡️ AI endpoint stricter limit: 20/saat\n"
+        "- 🛡️ Owner-auth: kick/mute/unmute/mesaj-düzenle/mesaj-sil için `actor` fipId doğrulaması\n"
+        "- 🛡️ Global body limit 60MB → 256KB (büyük payload sadece medya endpoint'lerinde)\n"
+        "- 🛡️ Per-field caps: avatar 300KB, chat text 8KB\n"
+        "- 🛡️ /deactivate substring bug → düzeltildi (parçalara ayırıp eşleştiriyor)\n\n"
+        "**Performans:**\n"
+        "- ⚡ /lookup/:code artık O(1) reverse index ile\n"
+        "- ⚡ /groups/by-code/:code artık O(1) index ile\n"
+        "- ⚡ Compression middleware\n\n"
+        "**Client-server alignment:**\n"
+        "- 🔗 registerPresence artık E2E public key gönderiyor\n"
+        "- 🔗 /profile response'unda public key var\n"
+        "- 🔗 Friend request bio artık saklanıyor\n"
+        "- 🔗 sendTyping receiverServerUrl'e gidiyor (myServerUrl değil)\n"
+        "- 🔗 Notification dedupe (aynı ts reddediliyor)\n"
+        "- 🔗 DELETE /notifs/:fipId/:ts endpoint eklendi\n\n"
+        "⚠️ Server'ı Render'da mutlaka yeniden deploy et — npm install yapacak (helmet, cors, compression, express-rate-limit)."
+    ),
+    'v7.1.0': (
+        "### 🎯 v7.1.0 — 7 Ajan Denetim Sonucu 100+ Bug Fix\n\n"
+        "**Kritik güvenlik & gizlilik:**\n"
+        "- 🔐 E2E keypair'i main.dart'ta hiç başlatılmıyordu — eklendi\n"
+        "- 🔐 E2E keypair'i knk_ prefix'siz saklanıyordu, hesabı sil sonrası kalıyordu — knk_ prefix + migrasyon\n"
+        "- 🛡️ Server /notifs GET destructive'ti — 2. cihaz bildirimleri kaybediyordu, artık non-destructive\n"
+        "- 🛡️ Server /deactivate iteration-mutation bug — düzeltildi\n"
+        "- 🛡️ Server device-link attempts field splice sonrası yanlış — düzeltildi\n\n"
+        "**Grup sohbeti:**\n"
+        "- Anket/duyuru/mute polling try/catch\n"
+        "- Anket oyu optimistic + pendingVote (msgId boşken 404 önleme)\n"
+        "- accept/reject/mute/kick optimistic + revert\n"
+        "- Announcement ts safe cast\n"
+        "- Input wallpaper okunabilirliği (Container color)\n\n"
+        "**1-1 sohbet:**\n"
+        "- Görsel/GIF/dosya/forward E2E encryption\n"
+        "- edit/delete/reaction try/catch + optimistic\n"
+        "- Encryption failure abort + toast (plaintext leak önleme)\n"
+        "- Timer sızıntıları düzeltildi\n"
+        "- Disappearing msg mounted check\n"
+        "- Contact 60-char isim overflow fix\n"
+        "- AppBar title ellipsis\n\n"
+        "**Ayarlar/Onboarding:**\n"
+        "- FipCard preview code artık gerçek kimliğe kaydediliyor (createIdentity accepts existing)\n"
+        "- add_contact & create_group SingleChildScrollView\n"
+        "- Onboarding FIP ListView physics fix\n"
+        "- SetLock PIN dot count dinamik\n\n"
+        "**UI/UX:**\n"
+        "- QR scan SafeArea\n"
+        "- Contacts alt bar 100+safeBottom padding\n"
+        "- Device approve dialog FittedBox\n"
+        "- Pulse AI input keyboard-aware\n"
+        "- Story image NSFW scan + boyut kontrolü\n"
+        "- GIF creator ilk kare fix + spinner color\n"
+        "- Device link hint görünürlük\n\n"
+        "⚠️ Server'ı Render'da tekrar deploy et — güvenlik fixleri için."
+    ),
+    'v7.0.0': (
+        "### 🚨 v7.0.0 — Server Endpoint'leri + Kritik Fixler\n\n"
+        "**Denetim büyük eksikleri ortaya çıkardı — server tarafında:**\n"
+        "- 🔴 Hikayeler cross-user görünmüyordu (`/stories/*` endpoint'i eksikti) — eklendi\n"
+        "- 🔴 Cihaz eşleştirme (v5.0.0) hiç çalışmıyordu (`/device-link/*` yok) — eklendi\n"
+        "- 🔴 FAKE tespit (v5.0.0) tetiklenemiyordu — 3 yanlış kod otomatik FAKE + ban\n"
+        "- 🔴 50MB dosya paylaşımı imkansızdı (server 2MB body limit) — 60MB'a çıkarıldı\n"
+        "- 🔴 Bio (v4.0.0) sunucuda saklanmıyordu — presence + profile'a eklendi\n\n"
+        "**Uygulama:**\n"
+        "- 🔐 Görsel/GIF caption E2E şifrelenmiyordu — düzeltildi\n"
+        "- 🛡️ Story yükleme hard cast crash — güvenli\n\n"
+        "⚠️ Server'ı Render'da yeniden deploy etmen lazım — yeni endpoint'ler için."
+    ),
+    'v6.6.0': (
+        "### 🔐 v6.6.0 — E2E Şifreleme + Kararlılık\n\n"
+        "- 🔐 **KRİTİK GÜVENLİK:** Görsel/GIF gönderirken caption metni E2E şifrelenmiyordu — plaintext olarak sunucuya gidiyordu. Düzeltildi.\n"
+        "- 🛡️ Hikaye yükleme hard cast crash — güvenli tip dönüşümü\n"
+        "- 🛡️ Grup davet linki hard cast crash — güvenli tip dönüşümü"
+    ),
+    'v6.5.0': (
+        "### 🛠️ v6.5.0 — Kararlılık + UI\n\n"
+        "- 🔴 Chat/group poll loop crash → tüm mesaj güncellemesi duruyordu; try/catch + safe int cast\n"
+        "- 🔴 Cihaz istekleri kartında \"Reddet (FAKE)\" butonu dar telefonda taşıyordu — Expanded\n"
+        "- 🟠 Uygulama kilidi PIN göstergesi hep 6 nokta gösteriyordu — gerçek PIN uzunluğuna göre\n"
+        "- 🟠 Kontaklar ana ekranda 5 haneli kodun sağ tarafı kesiliyordu — leadingWidth 88\n"
+        "- 🟠 Ana ekranda alt bar (Kişi Ekle / Grup) telefon jest çubuğu altına giriyordu — SafeArea inset\n"
+        "- 🟠 Hikaye görüntüleyicide başlık progress bar üzerine biniyordu — düzeltildi\n"
+        "- 🎨 Türkçe diakritik düzeltmeleri: \"Yıldızlı Mesajlar\", \"Görsel Hikaye\", \"Sohbet Duvar Kâğıdı\", \"CİHAZ SESLERİ\", \"ARKADAŞININ 5 HANELİ KODU\""
+    ),
+    'v6.4.0': (
+        "### 🛡️ v6.4.0 — 5 Ajan Paralel Denetim (25+ Bug Fix)\n\n"
+        "**Grup sohbeti:**\n"
+        "- 🐛 Anket oyu 2sn sonra kayboluyordu — merge logic düzeltildi\n"
+        "- 🐛 Grup açılırken mesajlar 2sn boş geliyordu — anlık yükleme\n"
+        "- 🐛 Üye katılma isteği kabul/red anlık yansımıyordu — düzeltildi\n"
+        "- 🐛 Ekrandan çıkılınca toast crash olabiliyordu — güvenli\n\n"
+        "**1-1 sohbet:**\n"
+        "- 🐛 Mesaj düzenleme E2E şifrelemeyi bozuyordu — düzeltildi\n"
+        "- 🐛 Otomatik scroll kullanıcının okumasını engelliyor — yeni mesajda scroll\n"
+        "- 🐛 STT ve sesli mesaj birbirini bozuyordu — mutual exclusion\n"
+        "- 🐛 Okundu göstergesi timer sızıntısı — düzeltildi\n\n"
+        "**Ayarlar/Onboarding:**\n"
+        "- 🐛 Bildirim sesi önizlemesi kapatınca durmuyordu — güvenli durdurma\n"
+        "- 🐛 Sunucu URL doğrulama yoktu — http/https + host kontrolü\n"
+        "- 🐛 Kimlik oluştururken hata handling yoktu — try/catch + spinner\n"
+        "- 🐛 Rehberde son sayfada çift buton vardı — kaldırıldı\n"
+        "- 🐛 TextEditingController sızıntıları — dispose eklendi\n\n"
+        "**Uygulama kilidi:**\n"
+        "- 🐛 3 yanlış PIN sonrası lockout yoktu — 30sn kilit (2x katlanan)\n\n"
+        "**Duvar kağıdı:**\n"
+        "- 🐛 Önizleme metni gerçek duvar kağıdının üstüne biniyordu — düzeltildi\n\n"
+        "**Kişiler & hikayeler:**\n"
+        "- 🐛 Yıldızlı mesajlar açılırken boş mesaj gösteriyordu — spinner\n"
+        "- 🐛 Kişi ekle ağ hatası sessizce takılıyordu — hata bildirimi\n"
+        "- 🐛 Hikaye viewer başlangıç indeksini yok sayıyordu — düzeltildi\n\n"
+        "**Bildirimler:**\n"
+        "- 🐛 Aynı bildirim 10sn'de bir tekrarlanıyordu — 30sn dedupe\n\n"
+        "**Gizlilik:**\n"
+        "- 🔐 Hesabı sil artık TÜM veriyi (PIN, wallpaper, bio, avatar, vs.) siliyor\n"
+        "- 🔐 Yeni kullanıcı öncekinin ayarlarını miras almıyor artık"
+    ),
+    'v6.3.0': (
+        "### 🎯 v6.3.0 — Anket, Yazı Boyutu ve Kararlılık\n\n"
+        "**Kritik düzeltmeler:**\n"
+        "- 🐛 Anket oluşturunca 1-2 saniye sonra kayboluyordu — merge logic ile düzeltildi (artık kalıcı)\n"
+        "- 🐛 Duyuru gönderince 5 saniye sonra kayboluyordu — aynı fix uygulandı\n"
+        "- 🐛 Yazı boyutu değişmiyordu — canlı güncelleme + önizleme eklendi\n\n"
+        "**Yazı boyutu artık:**\n"
+        "- 🔠 Ayarlarda seçince anında tüm açık sohbetlerde uygulanıyor\n"
+        "- 👁️ Ayarlar ekranında \"ÖRNEK MESAJ\" önizleme kartı gösteriliyor\n\n"
+        "**Dil desteği genişletildi:**\n"
+        "- 🌐 Kişiler ve Ayarlar ekranında 45+ dil desteği eklendi (kısmi)"
+    ),
+    'v10.6.0': (
+        "### ⚠️ v10.6.0 — Geri çekildi\n\n"
+        "Bu sürüm yanlışlıkla eski bir kod hattından derlendi; hikayeler, anketler, dil desteği, "
+        "Dükkan/VIP katmanları ve profil animasyonları gibi v10.5.0 özelliklerinin hepsi eksik.\n\n"
+        "**Bu sürümü kurmayın — v10.7.0'ı kurun.** v10.7.0 tüm v10.5.0 özelliklerini geri getiriyor."
+    ),
+    'v10.7.0': (
+        "### 🔁 v10.7.0 — v10.5.0'ın tüm özellikleri geri geldi\n\n"
+        "v10.6.0 yanlışlıkla eski bir kod hattından derlenmişti ve v10.5.0'daki özelliklerin çoğu kaybolmuştu. "
+        "Bu sürüm v10.5.0'ı eksiksiz geri getiriyor:\n\n"
+        "- ✅ Hikayeler, anketler, tepkiler, yıldızlı mesajlar, duvar kağıdı\n"
+        "- ✅ 45 dil desteği ve otomatik çeviri\n"
+        "- ✅ Dükkan ve 8 VIP katmanı, Fake isim\n"
+        "- ✅ Profil ekranı ve beş giriş animasyonu\n"
+        "- ✅ Cihaz eşleştirme, uygulama kilidi, GIF oluşturucu, sesli mesaj\n\n"
+        "**Ek düzeltmeler:**\n"
+        "- Balon animasyonu patlarken tüm profili beyaza boyuyordu — düzeltildi.\n"
+        "- Katman bilgisi henüz yüklenmemişken profil animasyonu sessizce atlanıyordu — düzeltildi.\n\n"
+        "> v10.6.0'ı kurduysan bu sürümü üzerine kurman yeterli."
+    ),
+}
+
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0'}
+
+
+def make_body(tag):
+    notes = CHANGELOGS.get(tag, f"### ✨ {tag} Yenilikleri\n- Genel iyileştirmeler ve hata düzeltmeleri")
+    base = f"https://github.com/omer-faruk-g/photon-chat/releases/download/{tag}"
+    huawei_row = f"| 📱 Huawei | [PhotonChat-Android.apk]({base}/PhotonChat-Android.apk) | ✅ İndir (GMS gerekmez) |\n" if tag in HUAWEI_VERSIONS else ""
+    installer_row = f"| 🪟 Windows Kurulum | [PhotonChat-Windows-Setup.exe]({base}/PhotonChat-Windows-Setup.exe) | ✅ İndir |\n" if tag in INSTALLER_VERSIONS else ""
+    return (
+        "## 🔒 Photon Chat\n\n"
+        "Güvenli, federe P2P mesajlaşma uygulaması. Telefon numarası gerekmez, hesap açılmaz.\n\n"
+        + notes + "\n\n"
+        "---\n\n"
+        "### 📥 İndir\n\n"
+        "| Platform | İndir | |\n"
+        "|----------|-------|---|\n"
+        f"| 🤖 Android | [PhotonChat-Android.apk]({base}/PhotonChat-Android.apk) | ✅ İndir |\n"
+        + huawei_row +
+        installer_row +
+        f"| 🪟 Windows | [PhotonChat-Windows.zip]({base}/PhotonChat-Windows.zip) | ✅ İndir |\n"
+        f"| 🐧 Linux | [PhotonChat-Linux.tar.gz]({base}/PhotonChat-Linux.tar.gz) | ✅ İndir |\n"
+        "| 🍎 iOS | — | 🔜 Yakında |\n\n"
+        "---\n\n"
+        "### 🚀 Kurulum\n\n"
+        "**Android / Huawei:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)\n\n"
+        "**Windows:** Kurulum için `PhotonChat-Windows-Setup.exe` çalıştır, ya da ZIP'i aç → `photon_chat.exe` çalıştır\n\n"
+        "**Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır"
+    )
+
+
+def write_github_output(tag):
+    body = make_body(tag)
+    out = os.environ.get('GITHUB_OUTPUT', '')
+    if out:
+        with open(out, 'a') as f:
+            f.write('body<<BODYEOF\n')
+            f.write(body)
+            f.write('\nBODYEOF\n')
+    else:
+        print(body)
+
+
+def update_all(token, repo):
+    req = urllib.request.Request(
+        f'https://api.github.com/repos/{repo}/releases?per_page=100',
+        headers={'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json'}
+    )
+    releases = json.loads(urllib.request.urlopen(req).read())
+    for r in releases:
+        tag = r['tag_name']
+        if tag not in CHANGELOGS:
+            print(f'Skipping {tag}')
+            continue
+        body = make_body(tag)
+        payload = json.dumps({'body': body}).encode()
+        patch = urllib.request.Request(
+            f'https://api.github.com/repos/{repo}/releases/{r["id"]}',
+            data=payload, method='PATCH',
+            headers={
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/vnd.github+json',
+                'Content-Type': 'application/json',
+            }
+        )
+        urllib.request.urlopen(patch)
+        print(f'Updated {tag}')
+
+
+if __name__ == '__main__':
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'output'
+    if mode == 'output':
+        write_github_output(os.environ['TAG'])
+    elif mode == 'update-all':
+        update_all(os.environ['GH_TOKEN'], os.environ['REPO'])

@@ -1,20 +1,25 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
-import '../e2e.dart';
+import '../photon_api.dart';
 import '../theme.dart';
 import '../app_keys.dart';
+import '../i18n.dart';
 import 'add_contact_screen.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 import 'group_chat_screen.dart';
+import 'stories_screen.dart';
 import 'pulse_ai_screen.dart';
+import '../story_manager.dart';
+import '../vip.dart';
+import '../vip_text.dart';
+import 'profile_screen.dart';
+import 'shop_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
   final FipBlock identity;
@@ -32,218 +37,162 @@ class _ContactsScreenState extends State<ContactsScreen> {
   List<String> _blockList = [];
   bool _loading = true;
   String? _toast;
-  Timer? _toastTimer;
+  String _myAvatar = '';
+  String _myStatusMsg = '';
   final Map<String, int> _groupPendingCounts = {};
-
-  Timer? _syncTimer;
-  Timer? _groupSyncTimer;
-  bool _syncing = false;
-  bool _groupSyncing = false;
-  bool _disposed = false;
-  DateTime _lastPresence = DateTime.fromMillisecondsSinceEpoch(0);
-  String? _publicKey;
-  String _authToken = '';
-  Map<String, String> _verifiedKeys = {};
-
-  static const _syncInterval = Duration(seconds: 4);
-  static const _groupSyncInterval = Duration(seconds: 8);
-  // Render ücretsiz sunucuları yeniden başlayınca belleği sıfırlar; kayıt düzenli yenilenir.
-  static const _presenceInterval = Duration(minutes: 1);
+  final Map<String, bool> _online = {};
+  List<StoryItem> _stories = [];
+  VipStatus _myVip = VipStatus.none;
 
   @override
   void initState() { super.initState(); _init(); }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _syncTimer?.cancel();
-    _groupSyncTimer?.cancel();
-    _toastTimer?.cancel();
-    super.dispose();
-  }
 
   Future<void> _init() async {
     final savedContacts = await LocalStore.loadContacts();
     final savedGroups = await LocalStore.loadGroups();
     final blockList = await LocalStore.loadBlockList();
-    final verified = await LocalStore.loadVerifiedKeys();
-    if (_disposed) return;
-    setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _verifiedKeys = verified; _loading = false; });
-    try { _publicKey = await getMyPublicKeyBase64(); } catch (_) {}
-    _authToken = await LocalStore.loadOrCreateAuthToken();
-    await _registerPresence();
-    unawaited(_sync());
-    unawaited(_groupSync());
+    final statusMsg = await LocalStore.loadStatusMsg();
+    final avatar = await LocalStore.loadAvatar();
+    if (!mounted) return;
+    setState(() {
+      _contacts = savedContacts;
+      _groups = savedGroups;
+      _blockList = blockList;
+      _loading = false;
+      _myAvatar = avatar ?? '';
+      _myStatusMsg = statusMsg ?? '';
+    });
+    StoryManager.loadStories().then((s) { if (mounted) setState(() => _stories = s); });
+    _loadMyVip();
+    await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, statusMsg: statusMsg ?? '', avatar: avatar ?? '');
+    _sync();
+    _groupSync();
+    _presenceLoop();
   }
 
-  Future<void> _registerPresence() async {
-    _lastPresence = DateTime.now();
-    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName,
-        publicKey: _publicKey, authToken: _authToken);
+  Future<void> _loadMyVip() async {
+    final raw = await PhotonApi.getTier(widget.identity.fipId);
+    if (mounted && raw != null) setState(() => _myVip = VipStatus.fromJson(raw));
+  }
+
+  Future<void> _presenceLoop() async {
+    // Re-register presence periodically so a server cold-start (Render free
+    // tier sleeps after 15 min idle) doesn't leave you looking offline to your
+    // contacts once the server wakes up with an empty users map.
+    while (mounted) {
+      await Future.delayed(const Duration(seconds: 45));
+      if (!mounted) return;
+      try {
+        final avatar = await LocalStore.loadAvatar();
+        final statusMsg = await LocalStore.loadStatusMsg();
+        await PhotonApi.registerPresence(widget.myServerUrl, widget.identity.fipId,
+            widget.identity.code, widget.displayName,
+            statusMsg: statusMsg, avatar: avatar);
+      } catch (_) {}
+    }
   }
 
   void _showToast(String msg) {
-    if (_disposed) return;
-    _toastTimer?.cancel();
     setState(() => _toast = msg);
-    _toastTimer = Timer(const Duration(seconds: 3), () { if (!_disposed) setState(() => _toast = null); });
-  }
-
-  Future<void> _saveContacts() async {
-    // Hesap silindikten sonra devam eden bir senkron eski kişileri geri yazmasın.
-    if (_disposed) return;
-    await LocalStore.saveContacts(_contacts);
+    Future.delayed(const Duration(seconds: 3), () { if (mounted) setState(() => _toast = null); });
   }
 
   Future<void> _sync() async {
-    if (_disposed || _syncing) return;
-    _syncing = true;
-    try {
-      await _syncOnce();
-    } catch (_) {
-      // Tek bir hatalı yanıt senkron döngüsünü durdurmamalı.
-    } finally {
-      _syncing = false;
-      if (!_disposed) _syncTimer = Timer(_syncInterval, _sync);
-    }
-  }
-
-  Future<void> _syncOnce() async {
     final me = widget.identity;
-    if (DateTime.now().difference(_lastPresence) > _presenceInterval) await _registerPresence();
-    var changed = false;
-
-    final incoming = await KnkApi.getIncomingRequests(widget.myServerUrl, me.fipId);
-    if (_disposed) return;
-    for (final req in incoming ?? const <Map<String, dynamic>>[]) {
-      final fromFipId = req['fromFipId'];
-      if (fromFipId is! String || fromFipId == me.fipId) continue;
-      // Engellenen kişilerden gelen istekleri filtrele
+    final incoming = await PhotonApi.getIncomingRequests(widget.myServerUrl, me.fipId);
+    for (final req in incoming) {
+      final fromFipId = req['fromFipId'] as String;
       if (_blockList.contains(fromFipId)) continue;
       final fromServerUrl = (req['fromServerUrl'] as String?) ?? '';
-      final idx = _contacts.indexWhere((c) => c.fipId == fromFipId);
-      if (idx == -1) {
-        _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? 'Bilinmeyen',
-            code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in',
-            publicKey: req['fromPublicKey'] as String?));
-        changed = true;
-      } else if (_contacts[idx].status == 'pending_out') {
-        // İki taraf birbirine istek göndermiş: karşılıklı onay say.
-        final c = _contacts[idx];
-        c.status = 'on';
-        c.publicKey ??= req['fromPublicKey'] as String?;
-        changed = true;
-        await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: me.fipId, otherFipId: c.fipId, otherServerUrl: c.serverUrl);
-        _showToast('${c.name} ile bağlantı kuruldu.');
-      } else if (_contacts[idx].status == 'on') {
-        // Zaten arkadaşız (ör. karşı taraf isteği tekrar gönderdi): isteği temizle.
-        await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: me.fipId, otherFipId: fromFipId);
+      if (!_contacts.any((c) => c.fipId == fromFipId)) {
+        _contacts.add(Contact(fipId: fromFipId, name: (req['fromName'] as String?) ?? AppLang.instance.t('unknown'),
+            code: (req['fromCode'] as String?) ?? '?????', serverUrl: fromServerUrl, status: 'pending_in'));
       }
     }
-
-    if (_contacts.any((c) => c.status == 'pending_out')) {
-      final accepted = await KnkApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
-      if (_disposed) return;
-      for (final fipId in accepted) {
-        final idx = _contacts.indexWhere((c) => c.fipId == fipId);
-        if (idx != -1 && _contacts[idx].status == 'pending_out') {
-          _contacts[idx].status = 'on';
-          changed = true;
-          _showToast('${_contacts[idx].name} davetini kabul etti.');
+    final accepted = await PhotonApi.getAcceptedRequests(widget.myServerUrl, me.fipId);
+    for (final fipId in accepted) {
+      final idx = _contacts.indexWhere((c) => c.fipId == fipId);
+      if (idx != -1 && _contacts[idx].status == 'pending_out') _contacts[idx].status = 'on';
+    }
+    for (final c in _contacts.where((c) => c.status == 'on').toList()) {
+      // Contact's presence lookup may miss if their server is cold-starting
+      // (Render free tier sleeps after 15 min). One miss must NOT delete the
+      // contact — mark them offline, retry next sync. Only give up if the
+      // contact's user record itself is gone (profile fetch succeeds and
+      // returns null status? — we treat this as still-present for safety).
+      final active = await PhotonApi.isActive(c.serverUrl, c.fipId);
+      _online[c.fipId] = active;
+      if (active) {
+        final profile = await PhotonApi.getProfile(c.serverUrl, c.fipId);
+        if (profile != null) {
+          // The name is refreshed like any other profile field. It used to be
+          // frozen at the moment the contact was added, which is why an alias
+          // switch could never reach people who already had you.
+          final freshName = (profile['name'] as String?) ?? '';
+          if (freshName.isNotEmpty) c.name = freshName;
+          c.avatar = (profile['avatar'] as String?) ?? '';
+          c.statusMsg = (profile['statusMsg'] as String?) ?? '';
+          c.lastSeen = (profile['lastSeen'] as int?) ?? 0;
+          c.bio = (profile['bio'] as String?) ?? '';
         }
       }
     }
-
-    // Bağlı kişilerin durumunu sunucu başına tek istekle kontrol et.
-    // Yalnızca sunucu "hesabını sildi" derse kişi kaldırılır; ağ hatası veya
-    // yeniden başlayan sunucu kişiyi asla silmez.
-    final byServer = <String, List<String>>{};
-    for (final c in _contacts.where((c) => c.status == 'on')) {
-      byServer.putIfAbsent(c.serverUrl, () => []).add(c.fipId);
-    }
-    final results = await Future.wait(byServer.entries.map((e) => KnkApi.getStatuses(e.key, e.value)));
-    if (_disposed) return;
-    final statuses = <String, ContactStatus>{for (final r in results) ...r};
-    final gone = _contacts.where((c) => c.status == 'on' && statuses[c.fipId] == ContactStatus.deactivated).toList();
-    for (final c in gone) {
-      _contacts.removeWhere((x) => x.fipId == c.fipId);
-      changed = true;
-      _showToast('${c.name} hesabını sildi, bağlantı sonlandı.');
-    }
-
-    if (changed) {
-      await _saveContacts();
-      if (!_disposed) setState(() {});
-    }
+    await LocalStore.saveContacts(_contacts);
+    // Our own id is included so screens further down (stories, groups) can read
+    // the tier straight from the cache instead of each making its own request.
+    await VipCache.instance
+        .refresh(bridgeUrl, [..._contacts.map((c) => c.fipId), me.fipId]);
+    if (mounted) setState(() {});
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) _sync();
   }
 
   Future<void> _groupSync() async {
-    if (_disposed || _groupSyncing) return;
-    _groupSyncing = true;
-    try {
-      final owned = _groups.where((g) => g.isOwner).toList();
-      final counts = await Future.wait(owned.map((g) => KnkApi.getGroupJoinRequests(g.ownerServerUrl, g.groupId)));
-      if (!_disposed) {
-        var changed = false;
-        for (var i = 0; i < owned.length; i++) {
-          final n = counts[i]?.length;
-          if (n != null && _groupPendingCounts[owned[i].groupId] != n) {
-            _groupPendingCounts[owned[i].groupId] = n;
-            changed = true;
-          }
-        }
-        if (changed) setState(() {});
-      }
-    } catch (_) {
-    } finally {
-      _groupSyncing = false;
-      if (!_disposed) _groupSyncTimer = Timer(_groupSyncInterval, _groupSync);
+    for (final g in _groups.where((g) => g.isOwner)) {
+      try {
+        // Re-register the group's code on the bridge each cycle so members
+        // can join by code alone (bridge is in-memory; survives via snapshot).
+        PhotonApi.registerOnBridge(g.groupCode, widget.myServerUrl, actor: widget.identity.fipId);
+        final reqs = await PhotonApi.getGroupJoinRequests(widget.myServerUrl, g.groupId);
+        if (mounted) setState(() => _groupPendingCounts[g.groupId] = reqs.length);
+      } catch (_) {}
     }
+    await Future.delayed(const Duration(seconds: 5));
+    if (mounted) _groupSync();
   }
 
   Future<void> _accept(Contact c) async {
+    if (!mounted) return;
     setState(() => c.status = 'on');
-    await _saveContacts();
-    await KnkApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId, otherServerUrl: c.serverUrl);
-    _showToast('${c.name} arkadaş listene eklendi.');
+    await LocalStore.saveContacts(_contacts);
+    await PhotonApi.acceptFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
+    _showToast('${c.name} ${AppLang.instance.t('friendAddedSuffix')}');
   }
 
   Future<void> _decline(Contact c) async {
     setState(() => _contacts.removeWhere((x) => x.fipId == c.fipId));
-    await _saveContacts();
-    // Sunucudan da sil; yoksa bir sonraki senkronda istek geri gelir.
-    await KnkApi.declineFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
+    await LocalStore.saveContacts(_contacts);
   }
 
   Future<void> _blockContact(Contact c) async {
     await LocalStore.blockUser(c.fipId);
-    if (_disposed) return;
+    if (!mounted) return;
     setState(() {
-      if (!_blockList.contains(c.fipId)) _blockList.add(c.fipId);
+      _blockList.add(c.fipId);
       _contacts.removeWhere((x) => x.fipId == c.fipId);
     });
-    await _saveContacts();
-    await KnkApi.declineFriendRequest(myServerUrl: widget.myServerUrl, myFipId: widget.identity.fipId, otherFipId: c.fipId);
-    _showToast('${c.name} engellendi.');
+    await LocalStore.saveContacts(_contacts);
+    _showToast('${c.name} ${AppLang.instance.t('blockedSuffix')}');
   }
 
   Future<void> _openAddScreen() async {
     final result = await Navigator.push<Contact>(context, MaterialPageRoute(
-      builder: (_) => AddContactScreen(
-        identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl,
-        existingFipIds: _contacts.map((c) => c.fipId).toSet(),
-        publicKey: _publicKey,
-      ),
+      builder: (_) => AddContactScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
-    if (result != null && !_disposed) {
-      // Engellenmiş birini bilerek tekrar eklemek engeli kaldırır.
-      if (_blockList.remove(result.fipId)) await LocalStore.unblockUser(result.fipId);
-      setState(() {
-        _contacts.removeWhere((c) => c.fipId == result.fipId);
-        _contacts.add(result);
-      });
-      await _saveContacts();
-      _showToast('${result.name} kullanıcısına davet gönderildi.');
+    if (result != null) {
+      setState(() => _contacts.add(result));
+      await LocalStore.saveContacts(_contacts);
+      _showToast('${result.name} ${AppLang.instance.t('inviteSentSuffix')}');
     }
   }
 
@@ -251,260 +200,349 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final result = await Navigator.push<Group>(context, MaterialPageRoute(
       builder: (_) => CreateGroupScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
-    if (result != null && !_disposed) {
+    if (result != null) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
-      _showToast('Grup oluşturuldu: ${result.name}');
+      _showToast('${AppLang.instance.t('groupCreatedPrefix')}: ${result.name}');
     }
   }
 
   Future<void> _openJoinGroup() async {
     final result = await Navigator.push<Group>(context, MaterialPageRoute(
-      builder: (_) => JoinGroupScreen(
-        identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl,
-        existingGroupIds: _groups.map((g) => g.groupId).toSet(),
-      ),
+      builder: (_) => JoinGroupScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
-    if (result != null && !_disposed) {
+    if (result != null) {
       setState(() => _groups.add(result));
       await LocalStore.saveGroups(_groups);
-      _showToast('${result.name} grubuna katılma isteği gönderildi.');
+      _showToast('${result.name} ${AppLang.instance.t('joinRequestSentSuffix')}');
     }
   }
 
-  Future<void> _openGroupChat(Group g) async {
-    final left = await Navigator.push<bool>(context, MaterialPageRoute(
+  void _openGroupChat(Group g) {
+    Navigator.push(context, MaterialPageRoute(
       builder: (_) => GroupChatScreen(group: g, identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl),
     ));
-    if (_disposed) return;
-    if (left == true) {
-      setState(() {
-        _groups.removeWhere((x) => x.groupId == g.groupId);
-        _groupPendingCounts.remove(g.groupId);
-      });
-      _showToast('${g.name} grubundan ayrıldın.');
-    }
-    // Üye listesi sohbet ekranında güncellenmiş olabilir.
-    await LocalStore.saveGroups(_groups);
   }
 
-  Future<void> _openChat(Contact c) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
-    // Sohbette kişinin public key'i öğrenilmiş veya doğrulanmış olabilir.
-    await _saveContacts();
-    final verified = await LocalStore.loadVerifiedKeys();
-    if (!_disposed) setState(() => _verifiedKeys = verified);
+  void _openChat(Contact c) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
+  }
+
+  /// Your own profile. Opened from your avatar rather than jumping straight to
+  /// Settings, because your intro animation has to play for you as well.
+  Future<void> _openMyProfile() async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: widget.identity.fipId,
+        name: widget.displayName,
+        code: widget.identity.code,
+        avatar: _myAvatar,
+        isOnline: true,
+        isSelf: true,
+        onSettings: () { Navigator.pop(context); _openSettings(); },
+      ),
+    ));
+    if (mounted) _loadMyVip();
+  }
+
+  void _openContactProfile(Contact c) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: c.fipId,
+        name: c.name,
+        code: c.code,
+        avatar: c.avatar,
+        bio: c.bio,
+        statusMsg: c.statusMsg,
+        isOnline: _online[c.fipId] ?? false,
+        onMessage: () { Navigator.pop(context); _openChat(c); },
+      ),
+    ));
+  }
+
+  Future<void> _openShop() async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ShopScreen(fipId: widget.identity.fipId),
+    ));
+    if (mounted) _loadMyVip();
   }
 
   void _openPulseAI() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => PulseAiScreen(myServerUrl: widget.myServerUrl)));
   }
 
-  Future<void> _openSettings() async {
-    // Hesap silinirken arka plandaki senkron durdurulur.
-    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(
-      builder: (_) => SettingsScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, onBeforeDeactivate: _stopSync),
-    ));
-    if (deactivated == true && mounted) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-      (rootGateKey.currentState as dynamic)?.reload();
-    }
+  void _createStory() {
+    final ctrl = TextEditingController();
+    final colors = [0xFF1A1A2E, 0xFF16213E, 0xFF0F3460, 0xFF533483, 0xFFE94560, 0xFF2B2D42];
+    int selectedColor = 0;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
+        backgroundColor: PhotonColors.panel,
+        title: Text(AppLang.instance.t('createStory'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(
+            controller: ctrl, autofocus: true, maxLines: 3, maxLength: 200,
+            style: TextStyle(color: PhotonColors.text),
+            decoration: InputDecoration(hintText: AppLang.instance.t('whatAreYouThinking'), hintStyle: TextStyle(color: PhotonColors.textDim), filled: true, fillColor: PhotonColors.bg, border: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line))),
+          ),
+          const SizedBox(height: 12),
+          Text(AppLang.instance.t('backgroundColor'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(colors.length, (i) => GestureDetector(
+            onTap: () => ss(() => selectedColor = i),
+            child: Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(color: Color(colors[i]).withAlpha(255), shape: BoxShape.circle, border: Border.all(color: selectedColor == i ? PhotonColors.accent : Colors.transparent, width: 2)),
+            ),
+          ))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLang.instance.t('cancel'), style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              if (ctrl.text.trim().isEmpty) return;
+              await StoryManager.postStory(serverUrl: widget.myServerUrl, fipId: widget.identity.fipId, authorName: widget.displayName, type: 'text', content: ctrl.text.trim());
+              final stories = await StoryManager.loadStories();
+              if (mounted) setState(() => _stories = stories);
+            },
+            child: Text(AppLang.instance.t('share'), style: TextStyle(color: PhotonColors.accent)),
+          ),
+        ],
+      )),
+    ).then((_) => ctrl.dispose());
   }
 
-  void _stopSync() {
-    _disposed = true;
-    _syncTimer?.cancel();
-    _groupSyncTimer?.cancel();
+  void _openSettings() async {
+    final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl, displayName: widget.displayName)));
+    if (deactivated == true && mounted) {
+      (rootGateKey.currentState as dynamic)?.reload();
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
+    // Ayarlardan dönerken avatar/statusMsg güncellenmiş olabilir
+    final avatar = await LocalStore.loadAvatar();
+    final statusMsg = await LocalStore.loadStatusMsg();
+    if (mounted) setState(() { _myAvatar = avatar ?? ''; _myStatusMsg = statusMsg ?? ''; });
   }
 
   Future<void> _handleExit(List<Contact> active) async {
-    if (active.isEmpty) { await SystemNavigator.pop(); return; }
+    if (active.isEmpty) { SystemNavigator.pop(); return; }
     final keep = await showDialog<bool>(
-      context: context,
+      context: context, barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: const Text('Sohbetler kaydedilsin mi?', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: const Text('Hayır derseniz kendi sunucunuzdaki sohbet geçmişleri silinir.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
+        backgroundColor: PhotonColors.panel,
+        title: Text(AppLang.instance.t('keepChatsQuestion'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Text(AppLang.instance.t('deactivateWarn'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hayır, imha et', style: TextStyle(color: KnkColors.danger))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Evet, sakla', style: TextStyle(color: KnkColors.accent))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('noDestroy'), style: TextStyle(color: PhotonColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('yesKeep'), style: TextStyle(color: PhotonColors.accent))),
         ],
       ),
     );
-    if (keep == null) return; // diyalog kapatıldı: uygulamada kal
     if (keep == false) {
-      await Future.wait(active.map((c) => KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId), _authToken)));
+      for (final c in active) await PhotonApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId), actor: widget.identity.fipId);
     }
-    await SystemNavigator.pop();
+    SystemNavigator.pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return Scaffold(body: Center(child: CircularProgressIndicator(color: PhotonColors.accent)));
     final incoming = _contacts.where((c) => c.status == 'pending_in').toList();
     final outgoing = _contacts.where((c) => c.status == 'pending_out').toList();
     final active = _contacts.where((c) => c.status == 'on').toList();
 
-    return PopScope(
-      // Tarayıcıda "uygulamadan çıkma" yoktur; çıkış sorusu sadece mobil/masaüstünde sorulur.
-      canPop: kIsWeb,
-      onPopInvokedWithResult: (didPop, _) async { if (!didPop && !kIsWeb) await _handleExit(active); },
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async { if (!didPop) await _handleExit(active); },
       child: Scaffold(
         appBar: AppBar(
-          leadingWidth: Space.s6,
-          leading: const Padding(padding: EdgeInsets.only(left: Space.s2), child: Center(child: BrandMark(size: 32))),
-          title: const Text('Photon Chat'),
+          title: const Text('Photon Chat', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), // brand name — not translated
           actions: [
-            IconButton(tooltip: 'Ayarlar', icon: const Icon(Icons.settings_outlined), onPressed: _openSettings),
-            const SizedBox(width: Space.s1),
-          ],
-        ),
-        // Ana eylem listenin üstünde yüzmez; altta kendi şeridinde durur.
-        bottomNavigationBar: Container(
-          decoration: const BoxDecoration(color: KnkColors.bg, border: Border(top: BorderSide(color: KnkColors.line))),
-          child: SafeArea(
-            top: false,
-            child: ContentWidth(
-              shrinkHeight: true,
-              child: Padding(
-                padding: const EdgeInsets.all(Space.s2),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(Space.s5)),
-                  onPressed: _openAddScreen,
-                  icon: const Icon(Icons.person_add_alt_outlined, size: 20),
-                  label: const Text('Kişi ekle'),
-                ),
+            // Pulse AI lost its card on the home screen; this keeps it one tap away.
+            IconButton(
+              icon: Icon(Icons.bolt, color: PhotonColors.accent),
+              tooltip: AppLang.instance.t('pulseAiTitle'),
+              onPressed: _openPulseAI,
+            ),
+            // Own avatar doubles as the settings entry point.
+            Padding(
+              padding: const EdgeInsets.only(right: 12, left: 4),
+              child: GestureDetector(
+                onTap: _openMyProfile,
+                // Our own avatar follows the alias too: switching to one and
+                // still seeing your real initials in the app bar contradicts
+                // "the alias replaces your name everywhere".
+                child: _AvatarWidget(
+                    name: vipDisplayName(_myVip, widget.displayName),
+                    avatar: _myAvatar,
+                    size: 32,
+                    on: true),
               ),
             ),
-          ),
+          ],
         ),
-        body: ContentWidth(
-          child: Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.fromLTRB(Space.s2, Space.s3, Space.s2, Space.s5),
-                children: [
-                  _MyCodeCard(code: widget.identity.code, onCopy: () async {
-                    await Clipboard.setData(ClipboardData(text: widget.identity.code));
-                    _showToast('Kodun kopyalandı: ${widget.identity.code}');
-                  }),
-                  const SizedBox(height: Space.s2),
-                  _PulseAiCard(onTap: _openPulseAI),
-                  if (incoming.isNotEmpty) ...[
-                    const SizedBox(height: Space.s5),
-                    SectionLabel('Davetler · ${incoming.length}'),
-                    ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
+        body: Stack(
+          children: [
+            ListView(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 100 + MediaQuery.of(context).padding.bottom),
+              children: [
+                // Own code, right-aligned under the avatar. Replaces the old
+                // full-height profile card.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Shop sits beside the chip rather than inside it, so a
+                    // subscriber-less account still has a way in.
+                    GestureDetector(
+                      onTap: _openShop,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accent.withOpacity(0.08),
+                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.storefront, size: 14, color: PhotonColors.accent),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: widget.identity.code));
+                        _showToast('${AppLang.instance.t('codeCopiedPrefix')}: ${widget.identity.code}');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: PhotonColors.accent.withOpacity(0.08),
+                          border: Border.all(color: PhotonColors.accent.withOpacity(0.35)),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text('${AppLang.instance.t('kodum')}  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 9, letterSpacing: 1.2)),
+                          Text(widget.identity.code, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace', letterSpacing: 3, fontWeight: FontWeight.w700)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.copy, size: 11, color: PhotonColors.accent.withOpacity(0.6)),
+                          // Tier rides in the same chip, in the colour the
+                          // subscriber picked. Absent entirely when unsubscribed.
+                          if (_myVip.effectiveTier != VipTier.none) ...[
+                            Text('  ·  ', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+                            Text(
+                              _myVip.effectiveTier.label,
+                              style: TextStyle(
+                                color: vipNameColor(_myVip) ?? PhotonColors.accent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ),
                   ],
-                  const SizedBox(height: Space.s5),
-                  SectionLabel('Kişiler · ${active.length}'),
-                  if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty) _EmptyState(onAdd: _openAddScreen),
-                  ...active.map((c) => _ContactRow(
-                    contact: c,
-                    onTap: () => _openChat(c),
-                    onBlock: () => _blockContact(c),
-                    trust: keyTrust(_verifiedKeys, c.fipId, c.publicKey),
-                  )),
-                  ...outgoing.map((c) => _PendingOutRow(contact: c)),
-                  const SizedBox(height: Space.s5),
-                  SectionLabel(
-                    'Gruplar · ${_groups.length}',
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      TextButton.icon(onPressed: _openCreateGroup, icon: const Icon(Icons.add, size: 18), label: const Text('Oluştur')),
-                      TextButton.icon(onPressed: _openJoinGroup, icon: const Icon(Icons.login, size: 18), label: const Text('Katıl')),
-                    ]),
+                ),
+                const SizedBox(height: 10),
+
+                StoriesRow(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, contacts: _contacts),
+                const SizedBox(height: 14),
+
+                // Invites still get their own block — they need a decision, so
+                // they must not blend into the list below.
+                if (incoming.isNotEmpty) ...[
+                  _SectionTitle(AppLang.instance.t('invites'), count: incoming.length),
+                  ...incoming.map((c) => _RequestRow(contact: c, onAccept: () => _accept(c), onDecline: () => _decline(c))),
+                  const SizedBox(height: 14),
+                ],
+
+                // One unified list: contacts and groups, no section headers.
+                if (active.isEmpty && outgoing.isEmpty && incoming.isEmpty && _groups.isEmpty)
+                  _EmptyState(onAdd: _openAddScreen),
+                ...active.map((c) => _ContactRow(
+                  contact: c,
+                  vip: VipCache.instance.peek(c.fipId),
+                  isOnline: _online[c.fipId] ?? false,
+                  onTap: () => _openChat(c),
+                  onBlock: () => _blockContact(c),
+                  onAvatarTap: () => _openContactProfile(c),
+                )),
+                ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
+                ...outgoing.map((c) => _PendingOutRow(contact: c)),
+              ],
+            ),
+
+            // Alt bar: iki düğme — extra margin so Android gesture bar / 3-button nav doesn't overlap
+            Positioned(
+              left: 16, right: 16,
+              bottom: 36 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewPadding.bottom,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: photonPrimaryButtonStyle(),
+                      onPressed: _openAddScreen,
+                      icon: const Icon(Icons.person_add, size: 16),
+                      label: Text(AppLang.instance.t('addContact')),
+                    ),
                   ),
-                  if (_groups.isEmpty)
-                    const _Hint(icon: Icons.groups_outlined, text: 'Henüz bir grubun yok. Bir grup oluştur ya da sana verilen grup adresiyle katıl.'),
-                  ..._groups.map((g) => _GroupRow(group: g, pendingCount: _groupPendingCounts[g.groupId] ?? 0, onTap: () => _openGroupChat(g))),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: PhotonColors.accent,
+                        side: BorderSide(color: PhotonColors.accent.withOpacity(0.6)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      onPressed: () => showModalBottomSheet(
+                        context: context,
+                        backgroundColor: PhotonColors.panel,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                        builder: (_) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: Icon(Icons.group_add, color: PhotonColors.accent),
+                                title: Text(AppLang.instance.t('createGroup'), style: TextStyle(color: PhotonColors.text)),
+                                onTap: () { Navigator.pop(context); _openCreateGroup(); },
+                              ),
+                              ListTile(
+                                leading: Icon(Icons.login, color: PhotonColors.accent),
+                                title: Text(AppLang.instance.t('joinGroup'), style: TextStyle(color: PhotonColors.text)),
+                                onTap: () { Navigator.pop(context); _openJoinGroup(); },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.group, size: 16),
+                      label: Text(AppLang.instance.t('groups')),
+                    ),
+                  ),
                 ],
               ),
-              if (_toast != null)
-                Positioned(
-                  left: Space.s2, right: Space.s2, bottom: Space.s2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
-                    decoration: BoxDecoration(color: KnkColors.panelAlt, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card), boxShadow: knkShadow()),
-                    child: Text(_toast!, textAlign: TextAlign.center, style: KnkText.small.copyWith(color: KnkColors.text)),
-                  ),
+            ),
+
+            if (_toast != null)
+              Positioned(
+                left: 16, right: 16, bottom: 86,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+                  child: Text(_toast!, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: PhotonColors.text)),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Kendi eşleşme kodun: ekranın en önemli bilgisi, sitedeki kod satırıyla aynı tasarım.
-class _MyCodeCard extends StatelessWidget {
-  final String code;
-  final VoidCallback onCopy;
-  const _MyCodeCard({required this.code, required this.onCopy});
-  @override
-  Widget build(BuildContext context) => HoverCard(
-    onTap: onCopy,
-    color: KnkColors.accentWash,
-    padding: const EdgeInsets.all(Space.s3),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('SENİN KODUN', style: KnkText.label),
-        SizedBox(height: Space.s1),
-        Text('Arkadaşın seni bu 5 haneyle ekler. Kopyalamak için dokun.', style: KnkText.small),
-      ])),
-      const SizedBox(width: Space.s2),
-      Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(code, style: KnkText.code.copyWith(fontSize: 34, letterSpacing: 6)))),
-      const SizedBox(width: Space.s1),
-      const Padding(padding: EdgeInsets.only(bottom: Space.s1), child: Icon(Icons.content_copy_outlined, size: 18, color: KnkColors.accent)),
-    ]),
-  );
-}
-
-class _PulseAiCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PulseAiCard({required this.onTap});
-  @override
-  Widget build(BuildContext context) => HoverCard(
-    onTap: onTap,
-    child: const Row(
-      children: [
-        _IconTile(icon: Icons.bolt_outlined),
-        SizedBox(width: Space.s2),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Pulse AI', style: KnkText.strong),
-          Text('Yapay zeka asistanın. Bir kelimenin anlamını ya da aklındaki soruyu sor.', style: KnkText.small),
-        ])),
-        Icon(Icons.chevron_right, color: KnkColors.textDim),
-      ],
-    ),
-  );
-}
-
-class _IconTile extends StatelessWidget {
-  final IconData icon;
-  const _IconTile({required this.icon});
-  @override
-  Widget build(BuildContext context) => Container(
-    width: KnkSize.tile, height: KnkSize.tile, alignment: Alignment.center,
-    decoration: BoxDecoration(color: KnkColors.accentWash, borderRadius: BorderRadius.circular(KnkRadius.card), border: Border.all(color: KnkColors.line)),
-    child: Icon(icon, color: KnkColors.accent, size: 20),
-  );
-}
-
-class _Hint extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _Hint({required this.icon, required this.text});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(Space.s2),
-    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, color: KnkColors.textDim, size: 20),
-      const SizedBox(width: Space.s2),
-      Expanded(child: Text(text, style: KnkText.small)),
-    ]),
-  );
-}
+// ─── Yardımcı Widget'lar ────────────────────────────────────────────────────
 
 class _GroupRow extends StatelessWidget {
   final Group group;
@@ -512,32 +550,63 @@ class _GroupRow extends StatelessWidget {
   final VoidCallback onTap;
   const _GroupRow({required this.group, required this.pendingCount, required this.onTap});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: Space.s1),
-    child: HoverCard(
-      onTap: onTap,
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(10),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+      // Same shape as a contact row — icon trailing — so the merged list reads
+      // as one column instead of two visually different kinds of row.
       child: Row(children: [
-        const _IconTile(icon: Icons.groups_outlined),
-        const SizedBox(width: Space.s2),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(group.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
-          Text('${group.isOwner ? 'Kurucu' : 'Üye'} · ${group.groupCode}', style: KnkText.small.merge(KnkText.tabular)),
+          Text(group.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text('${AppLang.instance.t(group.isOwner ? 'roleOwner' : 'roleMember')} · ${AppLang.instance.t('codeLabel')}: ${group.groupCode}',
+              style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+          if (group.description.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(group.description, style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
         ])),
-        if (pendingCount > 0)
-          Tooltip(
-            message: '$pendingCount katılma isteği',
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: Space.s1),
-              constraints: const BoxConstraints(minWidth: Space.s3),
-              height: Space.s3,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: KnkColors.accent2, borderRadius: BorderRadius.circular(KnkRadius.pill)),
-              child: Text('$pendingCount', style: const TextStyle(color: KnkColors.onAccent, fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
+        if (pendingCount > 0) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(color: PhotonColors.accent2, borderRadius: BorderRadius.circular(12)),
+            child: Text('$pendingCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
-        const SizedBox(width: Space.s1),
-        const Icon(Icons.chevron_right, color: KnkColors.textDim),
+          const SizedBox(width: 8),
+        ],
+        Container(width: 46, height: 46, alignment: Alignment.center,
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.group, color: PhotonColors.accent, size: 22)),
       ]),
+    ),
+  );
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  final int? count;
+  const _SectionTitle(this.text, {this.count});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10, top: 4),
+    child: Row(
+      children: [
+        Container(width: 3, height: 14, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 8),
+        Text(text.toUpperCase(), style: TextStyle(color: PhotonColors.textDim, fontSize: 11, letterSpacing: 1.5, fontWeight: FontWeight.w600)),
+        if (count != null) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(color: PhotonColors.line, borderRadius: BorderRadius.circular(10)),
+            child: Text('$count', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ],
     ),
   );
 }
@@ -547,16 +616,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onAdd});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(Space.s3),
-    decoration: BoxDecoration(border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Icon(Icons.person_add_alt_outlined, color: KnkColors.accent2, size: 28),
-      const SizedBox(height: Space.s2),
-      const Text('Rehberin henüz boş.', style: KnkText.h3),
-      const SizedBox(height: Space.s1),
-      const Text('Arkadaşından 5 haneli kodunu iste ve buraya yaz. O kabul edince sohbet açılır.', style: KnkText.small),
-      const SizedBox(height: Space.s2),
-      OutlinedButton(onPressed: onAdd, child: const Text('Kod ile ekle')),
+    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
+    decoration: BoxDecoration(border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(12)),
+    child: Column(children: [
+      Text('＋', style: TextStyle(color: PhotonColors.accent2, fontSize: 28)),
+      const SizedBox(height: 8),
+      Text(AppLang.instance.t('emptyContacts'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: PhotonColors.text)),
+      const SizedBox(height: 6),
+      Text(AppLang.instance.t('emptyContactsHint'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6)),
+      const SizedBox(height: 16),
+      ElevatedButton(style: photonPrimaryButtonStyle(), onPressed: onAdd, child: Text(AppLang.instance.t('addContact'))),
     ]),
   );
 }
@@ -566,111 +635,145 @@ class _RequestRow extends StatelessWidget {
   final VoidCallback onAccept, onDecline;
   const _RequestRow({required this.contact, required this.onAccept, required this.onDecline});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: Space.s1),
-    child: HoverCard(
-      borderColor: KnkColors.accent2.withOpacity(0.5),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: Space.s2,
-        runSpacing: Space.s2,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            _Avatar(name: contact.name, on: false), const SizedBox(width: Space.s2),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 240),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
-                Text('kod ${contact.code} · seni eklemek istiyor', style: KnkText.small.merge(KnkText.tabular)),
-              ]),
-            ),
-          ]),
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            OutlinedButton(onPressed: onDecline, child: const Text('Reddet')),
-            const SizedBox(width: Space.s1),
-            ElevatedButton(onPressed: onAccept, child: const Text('Kabul et')),
-          ]),
-        ],
-      ),
-    ),
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: PhotonColors.panelAlt, border: Border.all(color: PhotonColors.accent2.withOpacity(0.3)), borderRadius: BorderRadius.circular(10)),
+    child: Row(children: [
+      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
+        const SizedBox(height: 2),
+        Text('${AppLang.instance.t('codeLabel')}: ${contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+      ])),
+      Column(children: [
+        SizedBox(height: 30, child: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: PhotonColors.accent, foregroundColor: const Color(0xFF06251A), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          onPressed: onAccept, child: Text(AppLang.instance.t('accept')),
+        )),
+        const SizedBox(height: 4),
+        SizedBox(height: 26, child: OutlinedButton(
+          style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.textDim, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+          onPressed: onDecline, child: Text(AppLang.instance.t('delete')),
+        )),
+      ]),
+    ]),
   );
 }
 
 class _ContactRow extends StatelessWidget {
   final Contact contact;
+  /// Null while the bridge lookup is still pending or unreachable — the row
+  /// then renders exactly as it did before paid tiers existed.
+  final VipStatus? vip;
+  final bool isOnline;
   final VoidCallback onTap;
   final VoidCallback onBlock;
-  final KeyTrust trust;
-  const _ContactRow({required this.contact, required this.onTap, required this.onBlock, this.trust = KeyTrust.none});
 
-  void _showMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.block, color: KnkColors.danger),
-              title: Text('${contact.name} kullanıcısını engelle', style: const TextStyle(color: KnkColors.danger)),
-              onTap: () {
-                Navigator.pop(sheetCtx);
-                onBlock();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Vazgeç'),
-              onTap: () => Navigator.pop(sheetCtx),
-            ),
-            const SizedBox(height: Space.s1),
-          ],
-        ),
-      ),
-    );
-  }
-
+  /// Tapping the avatar opens the profile; tapping anywhere else opens the
+  /// chat, which is what the row did before profiles existed.
+  final VoidCallback onAvatarTap;
+  const _ContactRow({required this.contact, required this.vip, required this.isOnline, required this.onTap, required this.onBlock, required this.onAvatarTap});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: Space.s1),
-    child: HoverCard(
-      onTap: onTap,
-      onLongPress: () => _showMenu(context),
-      onSecondaryTap: () => _showMenu(context),
-      padding: const EdgeInsets.fromLTRB(Space.s2, Space.s2, Space.s1, Space.s2),
-      child: Row(children: [
-        _Avatar(name: contact.name, on: true), const SizedBox(width: Space.s2),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
-          Row(children: [
-            switch (trust) {
-              KeyTrust.verified => const Icon(Icons.verified_user_outlined, color: KnkColors.accent, size: 14),
-              KeyTrust.changed => const Icon(Icons.gpp_bad_outlined, color: KnkColors.danger, size: 14),
-              _ => const Icon(Icons.lock_outline, color: KnkColors.textDim, size: 14),
-            },
-            const SizedBox(width: Space.s1),
-            Flexible(child: Text(
-              switch (trust) {
-                KeyTrust.verified => 'şifreli · doğrulandı',
-                KeyTrust.changed => 'anahtar değişti, yeniden doğrula',
-                _ => 'şifreli · doğrulanmadı',
-              },
-              overflow: TextOverflow.ellipsis,
-              style: KnkText.small.copyWith(color: switch (trust) {
-                KeyTrust.verified => KnkColors.accent,
-                KeyTrust.changed => KnkColors.danger,
-                _ => KnkColors.textDim,
-              }),
-            )),
-          ]),
-        ])),
-        IconButton(
-          tooltip: 'Seçenekler',
-          icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 20),
-          onPressed: () => _showMenu(context),
+  Widget build(BuildContext context) => GestureDetector(
+    onLongPress: () {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: PhotonColors.panel,
+        builder: (_) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (contact.bio.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: PhotonColors.bg,
+                      border: Border.all(color: PhotonColors.line),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(AppLang.instance.t('bioSection'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+                      const SizedBox(height: 4),
+                      Text(contact.bio, style: TextStyle(color: PhotonColors.text, fontSize: 13, height: 1.5)),
+                    ]),
+                  ),
+                ),
+              ListTile(
+                leading: Icon(Icons.block, color: PhotonColors.danger),
+                title: Text('${contact.name} — ${AppLang.instance.t('blockUser')}', style: TextStyle(color: PhotonColors.danger)),
+                onTap: () { Navigator.pop(context); onBlock(); },
+              ),
+              ListTile(
+                leading: Icon(Icons.cancel_outlined, color: PhotonColors.textDim),
+                title: Text(AppLang.instance.t('giveUp'), style: TextStyle(color: PhotonColors.textDim)),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         ),
-      ]),
+      );
+    },
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+        // Avatar sits on the trailing edge so the names line up flush left and
+        // the row reads as a single label, per the agreed layout.
+        child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(
+                child: Text(
+                  vipDisplayName(vip, contact.name),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: vipNameColor(vip) ?? PhotonColors.text,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if ((vip ?? VipStatus.none).effectiveTier.premiumTag) ...[
+                const SizedBox(width: 6),
+                VipBadge(status: vip),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Text(
+              isOnline ? AppLang.instance.t('online') : (contact.statusMsg.isNotEmpty ? contact.statusMsg : AppLang.instance.t('offline')),
+              style: TextStyle(color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim, fontSize: 11),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          ])),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Stack(children: [
+            _AvatarWidget(name: vipDisplayName(vip, contact.name), avatar: contact.avatar, size: 46, on: true),
+            Positioned(
+              right: 0, bottom: 0,
+              child: Container(
+                width: 12, height: 12,
+                decoration: BoxDecoration(
+                  color: isOnline ? const Color(0xFF4CAF50) : PhotonColors.textDim,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: PhotonColors.bg, width: 2),
+                ),
+              ),
+            ),
+          ]),
+          ),
+        ]),
+      ),
     ),
   );
 }
@@ -679,41 +782,58 @@ class _PendingOutRow extends StatelessWidget {
   final Contact contact;
   const _PendingOutRow({required this.contact});
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: Space.s1),
-    child: HoverCard(
-      child: Row(children: [
-        _Avatar(name: contact.name, on: false), const SizedBox(width: Space.s2),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(contact.name, overflow: TextOverflow.ellipsis, style: KnkText.strong),
-          Row(children: [
-            const Icon(Icons.schedule, color: KnkColors.accent2, size: 14),
-            const SizedBox(width: Space.s1),
-            Text('davet gönderildi, onay bekleniyor', style: KnkText.small.copyWith(color: KnkColors.accent2)),
-          ]),
-        ])),
-      ]),
-    ),
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.line), borderRadius: BorderRadius.circular(10)),
+    child: Row(children: [
+      _AvatarWidget(name: contact.name, avatar: contact.avatar, size: 46, on: false),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(contact.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: PhotonColors.text)),
+        const SizedBox(height: 2),
+        Row(children: [
+          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
+          const SizedBox(width: 6),
+          Text(AppLang.instance.t('invitePendingApproval'), style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+        ]),
+      ])),
+    ]),
   );
 }
 
-class _Avatar extends StatelessWidget {
+// ─── Avatar Widget ──────────────────────────────────────────────────────────
+
+class _AvatarWidget extends StatelessWidget {
   final String name;
   final bool on;
-  const _Avatar({required this.name, required this.on});
+  final String avatar;
+  final double size;
+  const _AvatarWidget({required this.name, required this.on, this.avatar = '', this.size = 46});
   @override
   Widget build(BuildContext context) {
-    // characters: emoji / birleşik harfler ortadan bölünmesin.
-    final trimmed = name.trim();
-    final initials = trimmed.isEmpty ? '?' : trimmed.characters.take(2).toString().toUpperCase();
+    if (avatar.isNotEmpty) {
+      try {
+        final bytes = base64Decode(avatar);
+        return Container(
+          width: size, height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: on ? Border.all(color: PhotonColors.accent.withOpacity(0.5), width: 2) : null,
+            image: DecorationImage(image: MemoryImage(bytes), fit: BoxFit.cover, alignment: Alignment.topCenter),
+          ),
+        );
+      } catch (_) {}
+    }
+    final initials = name.trim().isEmpty ? '?' : name.trim().substring(0, name.trim().length >= 2 ? 2 : 1).toUpperCase();
     return Container(
-      width: KnkSize.tile, height: KnkSize.tile, alignment: Alignment.center,
+      width: size, height: size, alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: on ? KnkColors.accentWash : KnkColors.panelAlt,
-        borderRadius: BorderRadius.circular(KnkRadius.card),
-        border: Border.all(color: on ? KnkColors.accent.withOpacity(0.5) : KnkColors.line),
+        color: PhotonColors.line,
+        borderRadius: BorderRadius.circular(size / 4),
+        border: on ? Border.all(color: PhotonColors.accent.withOpacity(0.5)) : null,
       ),
-      child: Text(initials, style: TextStyle(fontFamily: KnkFonts.display, color: on ? KnkColors.accent : KnkColors.textDim, fontSize: 15)),
+      child: Text(initials, style: TextStyle(color: on ? PhotonColors.accent : PhotonColors.textDim, fontWeight: FontWeight.w700, fontSize: size * 0.32)),
     );
   }
 }

@@ -1,25 +1,14 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'knk_api.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'theme.dart';
-
-/// Kullanıcının girdiği adresi normalize eder: boşlukları ve sondaki '/' işaretlerini
-/// atar, şema yoksa https ekler. Geçersizse null döner.
-String? normalizeServerUrl(String raw) {
-  var url = raw.trim();
-  if (url.isEmpty) return null;
-  if (!url.contains('://')) url = 'https://$url';
-  while (url.endsWith('/')) {
-    url = url.substring(0, url.length - 1);
-  }
-  final uri = Uri.tryParse(url);
-  if (uri == null || !(uri.scheme == 'https' || uri.scheme == 'http') || uri.host.isEmpty) return null;
-  return url;
-}
+import 'device_manager.dart';
+import 'i18n.dart';
 
 class ServerSetupScreen extends StatefulWidget {
-  final Future<void> Function(String url) onDone;
-  const ServerSetupScreen({super.key, required this.onDone});
+  final void Function(String url) onDone;
+  final void Function(String url, String ownerFipId)? onDeviceLink;
+  const ServerSetupScreen({super.key, required this.onDone, this.onDeviceLink});
   @override
   State<ServerSetupScreen> createState() => _ServerSetupScreenState();
 }
@@ -29,100 +18,126 @@ class _ServerSetupScreenState extends State<ServerSetupScreen> {
   bool _loading = false;
   String? _error;
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _test() async {
-    if (_ctrl.text.trim().isEmpty) { setState(() => _error = 'URL boş olamaz'); return; }
-    final url = normalizeServerUrl(_ctrl.text);
-    if (url == null) { setState(() => _error = 'Geçerli bir adres gir (https://...)'); return; }
+    final raw = _ctrl.text.trim();
+    if (raw.isEmpty) { setState(() => _error = AppLang.instance.t('urlEmpty')); return; }
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      setState(() => _error = AppLang.instance.t('urlMustStartHttps'));
+      return;
+    }
+    final url = raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+    final parsed = Uri.tryParse(url);
+    if (parsed == null || parsed.host.isEmpty) {
+      setState(() => _error = AppLang.instance.t('invalidUrlFormat'));
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
-      var ok = false;
-      var finalUrl = url;
-      try {
-        ok = await KnkApi.isPhotonServer(url);
-      } on TimeoutException {
-        rethrow;
-      } catch (_) {
-        // Şema yazılmadıysa (ör. "192.168.1.5:3000") HTTPS başarısız olunca HTTP'yi dene.
-        if (_ctrl.text.contains('://')) rethrow;
-        finalUrl = url.replaceFirst('https://', 'http://');
-        ok = await KnkApi.isPhotonServer(finalUrl);
+      final r = await http.get(Uri.parse('$url/lookup/00000')).timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      if (r.statusCode == 200 || r.statusCode == 404) {
+        final banned = await DeviceManager.isServerBanned(url, '');
+        if (!mounted) return;
+        if (banned) {
+          setState(() => _error = AppLang.instance.t('serverBanned'));
+          return;
+        }
+
+        final presenceCheck = await _checkExistingPresence(url);
+        if (!mounted) return;
+        if (presenceCheck != null && widget.onDeviceLink != null) {
+          widget.onDeviceLink!(url, presenceCheck);
+        } else {
+          widget.onDone(url);
+        }
+      } else {
+        setState(() => _error = '${AppLang.instance.t('serverNoResponse')} (${r.statusCode})');
       }
-      if (ok) {
-        await widget.onDone(finalUrl);
-        return;
-      }
-      if (mounted) setState(() => _error = 'Bu adres bir Photon Chat sunucusu değil.');
-    } on TimeoutException {
-      if (mounted) setState(() => _error = 'Sunucu yanıt vermedi. Ücretsiz sunucular uykudan uyanırken 1 dakika sürebilir, tekrar dene.');
-    } catch (_) {
-      if (mounted) setState(() => _error = 'Sunucuya bağlanılamadı. Adresi ve internet bağlantını kontrol et.');
+    } catch (e) {
+      if (mounted) setState(() => _error = '${AppLang.instance.t('connectionError')}: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<String?> _checkExistingPresence(String url) async {
+    try {
+      final r = await http.get(Uri.parse('$url/presence/owner')).timeout(const Duration(seconds: 5));
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final ownerFipId = data['fipId'] as String?;
+        if (ownerFipId != null && ownerFipId.isNotEmpty) return ownerFipId;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: PhotonColors.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s5),
-          child: ContentWidth(
-            max: 560,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SectionLabel('Adım 1 / 2 · Sunucu'),
-                const SizedBox(height: Space.s1),
-                const Text('Mesajların nerede beklesin?', style: KnkText.h1),
-                const SizedBox(height: Space.s3),
-                const Text(
-                  'Photon Chat merkezi bir sunucu kullanmaz. render.com üzerinde ücretsiz açtığın servisin adresini gir.',
-                  style: KnkText.bodyDim,
+          padding: EdgeInsets.only(
+            left: 28,
+            right: 28,
+            top: 28,
+            bottom: 28 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 40),
+              Text(AppLang.instance.t('serverSetupTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 24, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              Text(
+                AppLang.instance.t('photonChatOwnServer'),
+                style: TextStyle(color: PhotonColors.textDim, fontSize: 14, height: 1.7),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(8), border: Border.all(color: PhotonColors.line)),
+                child: Text(
+                  AppLang.instance.t('renderSteps'),
+                  style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.8, fontFamily: 'monospace'),
                 ),
-                const SizedBox(height: Space.s4),
-                TextField(
-                  controller: _ctrl,
-                  decoration: knkInputDecoration('https://photon-chat-xxxx.onrender.com', label: 'Sunucu adresi', error: _error),
-                  keyboardType: TextInputType.url,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  onChanged: (_) { if (_error != null) setState(() => _error = null); },
-                  onSubmitted: (_) { if (!_loading) _test(); },
+              ),
+              const SizedBox(height: 28),
+              TextField(
+                controller: _ctrl,
+                style: TextStyle(color: PhotonColors.text),
+                decoration: InputDecoration(
+                  labelText: AppLang.instance.t('renderUrl'),
+                  hintText: AppLang.instance.t('renderUrlHint'),
+                  hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 13),
+                  labelStyle: TextStyle(color: PhotonColors.textDim),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
+                  errorText: _error,
+                  errorStyle: TextStyle(color: PhotonColors.danger),
                 ),
-                const SizedBox(height: Space.s2),
-                ElevatedButton(
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: photonPrimaryButtonStyle(),
                   onPressed: _loading ? null : _test,
                   child: _loading
-                      ? const SizedBox(height: Space.s2, width: Space.s2, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.onAccent))
-                      : const Text('Bağlan'),
+                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : Text(AppLang.instance.t('connectAndContinue')),
                 ),
-                const SizedBox(height: Space.s5),
-                const SectionLabel('Sunucun yok mu?'),
-                const SizedBox(height: Space.s1),
-                for (final (i, step) in const [
-                  ('render.com’da servis aç', 'Ücretsiz hesapla New → Web Service, bu depoyu seç, kök klasör: server.'),
-                  ('Adresi kopyala', 'Birkaç dakika sonra https://…onrender.com adresin hazır olur.'),
-                  ('Buraya yapıştır', 'Ücretsiz sunucu uykudaysa ilk bağlantı bir dakika kadar sürebilir.'),
-                ].indexed) ...[
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    SizedBox(width: Space.s4, child: Text('${i + 1}', style: KnkText.h3.copyWith(color: KnkColors.accent2))),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(step.$1, style: KnkText.strong),
-                      const SizedBox(height: Space.s1),
-                      Text(step.$2, style: KnkText.small),
-                    ])),
-                  ]),
-                  const SizedBox(height: Space.s2),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

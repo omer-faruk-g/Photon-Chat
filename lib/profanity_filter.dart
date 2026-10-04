@@ -1,73 +1,97 @@
 // Displays only — filters profanity at render time, stored data is never modified.
-//
-// Eşleştirme kelime bazlıdır: "tamam", "zaman", "class", "malzeme" gibi masum
-// kelimelerin içindeki harf dizileri sansürlenmez.
+import 'package:shared_preferences/shared_preferences.dart';
+import 'translate_service.dart';
 
-/// Yalnızca kelimenin tamamı eşleşirse sansürlenir (kısa / çok anlamlı kökler).
-const _exactWords = {
-  'am', 'amk', 'amq', 'aq', 'amc', 'amcık', 'amcik', 'amına', 'amina', 'amını', 'amini',
-  'sik', 'sikik', 'sikim', 'sikis', 'sikiş', 'sikey', 'sikti', 'sikici',
-  'yarak', 'yarrak',
-  'göt', 'pic', 'piç', 'picc', 'bok', 'oç',
-  'orsp', 'orosb', 'orops',
-  'seks', 'porn', 'pornn', 'porno',
-  'salak', 'aptal', 'gerize', 'gerzek', 'moron', 'ahmak', 'budala',
-  'haysiyetsiz', 'namussuz',
-  'gavur', 'kızılbaş', 'kızılbas', 'zenci',
-  'itoğlu', 'itoglu',
-  'fck', 'fuk', 'ass', 'dick', 'cock',
+// Language-specific profanity lists. When user picks a UI language,
+// only that language's list applies to the CURRENT session — so an
+// English speaker typing "I am" doesn't get "am" (Turkish) censored.
+// Turkish is always included when active because content is predominantly TR.
+const Map<String, List<String>> _wordsByLang = {
+  'tr': [
+    'orospu', 'orsp', 'orosb', 'orops',
+    'sik', 's1k', 'sikey', 'sikti', 'siktir', 'sikis', 'sikim', 'sikici',
+    'yarak', 'yarrak', 'yar4k',
+    // NOTE: 'am' removed because too many false positives (English "I am",
+    // Turkish "amaç", "amelî" etc.). We keep the derivatives.
+    'amk', 'amcik', 'amık', 'amına', 'amina',
+    'got', 'göt', 'g0t', 'gotveren', 'götveren',
+    'pic', 'piç', 'picc',
+    'bok', 'b0k',
+    'orospuçocuğu', 'oç',
+    'hassiktir', 'hassedeyim', 'ibne', 'ibneler',
+    'kahpe', 'kahpeler',
+    'kaltak',
+    'sürtük', 'surtuk',
+    'pezevenk', 'pezeveng',
+    'gavat',
+    'puşt', 'pusht',
+    'yavşak',
+    'itoğlu',
+    'salak', 'aptal', 'gerize', 'gerzek', 'moron', 'ahmak', 'budala',
+    'haysiyetsiz', 'namussuz',
+    'gavur', 'kızılbaş', 'kızılbas', 'zenci', 'z3nci',
+    'ananı', 'anani', 'anasını', 'anasini', 'babanı', 'babani',
+  ],
+  'en': [
+    'fuck', 'fück', 'fck', 'fuk',
+    'shit', 'sh1t',
+    'bitch', 'b1tch',
+    'bastard',
+    'cunt',
+    'dick', 'd1ck',
+    'pussy', 'pu55y',
+    'cock', 'c0ck',
+    'nigga', 'nigger',
+    'whore',
+    'asshole', 'motherfucker', 'faggot',
+  ],
+  'de': ['scheisse', 'scheiße', 'arschloch', 'fotze', 'schwanz', 'hurensohn'],
+  'fr': ['merde', 'putain', 'connard', 'salope', 'enculé', 'pute'],
+  'es': ['mierda', 'joder', 'puta', 'coño', 'cabrón', 'gilipollas'],
+  'it': ['cazzo', 'merda', 'stronzo', 'puttana', 'vaffanculo', 'figa'],
+  'pt': ['merda', 'porra', 'caralho', 'puta', 'foda', 'cu'],
+  'ru': ['блядь', 'сука', 'хуй', 'пизда', 'ебать'],
+  'ar': ['كس', 'زب', 'شرموطة', 'قحبة'],
 };
 
-/// Kelime bu köklerle başlıyorsa sansürlenir (Türkçe ekler dahil: "siktirgit", "orospunun").
-const _prefixWords = [
-  'orospu', 'orosbu', 'orspu',
-  'siktir', 'sikerim', 'sikeyim', 'sikiyim', 'sikicem', 'sikeceğim', 'siktiğim',
-  'amcığ', 'amcik', 'amına', 'yarrağ', 'yarağ',
-  'götveren', 'gotveren', 'götoş',
-  'hassiktir', 'hassedeyim',
-  'ibne', 'kahpe', 'kaltak', 'sürtük', 'surtuk',
-  'pezevenk', 'pezeveng', 'gavat', 'puşt', 'pusht', 'yavşak', 'yavsak',
-  'gerizekalı', 'gerizekali',
-  'orospuçocuğu', 'orospucocugu',
-  'fuck', 'fück', 'motherfuck', 'shit', 'bitch', 'bastard', 'cunt', 'pussy',
-  'nigga', 'nigger', 'whore',
-];
+String _cachedLang = 'tr';
+RegExp _cachedPattern = _build('tr');
 
-final _wordPattern = RegExp(r'[\p{L}\p{N}]+', unicode: true);
-final _phrasePattern = RegExp(r'\bit\s+oğlu\b', caseSensitive: false, unicode: true);
-
-const _leet = {'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a'};
-
-/// Türkçe kurallara göre küçük harfe çevirir (I → ı, İ → i).
-String _lowerTr(String s) => s.replaceAll('I', 'ı').replaceAll('İ', 'i').toLowerCase();
-
-bool _isBad(String norm) {
-  if (_exactWords.contains(norm)) return true;
-  for (final p in _prefixWords) {
-    if (norm.startsWith(p)) return true;
-  }
-  return false;
+RegExp _build(String lang) {
+  // Combine Turkish + user's UI language (Turkish is the app's base content lang).
+  final wordSet = <String>{...?_wordsByLang['tr']};
+  if (lang != 'tr') wordSet.addAll(_wordsByLang[lang] ?? const []);
+  if (wordSet.isEmpty) return RegExp(r'a^'); // matches nothing
+  return RegExp(
+    '(?<![\\p{L}\\p{N}])(?:${wordSet.map(RegExp.escape).join('|')})(?![\\p{L}\\p{N}])',
+    caseSensitive: false,
+    unicode: true,
+  );
 }
 
-bool _isProfane(String word) {
-  final lower = _lowerTr(word);
-  if (_isBad(lower)) return true;
-  // Büyük harfle yazılmış İngilizce kelimeler (SHIT) için ASCII küçültme de dene.
-  final asciiLower = word.toLowerCase();
-  if (asciiLower != lower && _isBad(asciiLower)) return true;
-  // Leetspeak (s1k, sh1t, a55)
-  if (lower.contains(RegExp(r'[0-9]'))) {
-    final deLeet = lower.split('').map((c) => _leet[c] ?? c).join();
-    if (deLeet != lower && _isBad(deLeet)) return true;
+Future<void> reloadProfanityForCurrentLang() async {
+  final prefs = await SharedPreferences.getInstance();
+  final lang = prefs.getString('knk_lang_v1') ?? 'tr';
+  if (lang != _cachedLang) {
+    _cachedLang = lang;
+    _cachedPattern = _build(lang);
   }
-  return false;
 }
 
-String filterProfanity(String text) {
-  if (text.isEmpty) return text;
-  final filtered = text.replaceAllMapped(_wordPattern, (m) {
-    final w = m[0]!;
-    return _isProfane(w) ? '*' * w.length : w;
-  });
-  return filtered.replaceAllMapped(_phrasePattern, (m) => '*' * m[0]!.length);
+String filterProfanity(String text) =>
+    text.replaceAllMapped(_cachedPattern, (m) => '******');
+
+/// Translates [text] to Turkish first, then censors any matched profanity
+/// spans in the ORIGINAL text by position mapping (approximate: censors whole
+/// original if translated version contains profanity).
+Future<String> filterProfanityAsync(String text) async {
+  await reloadProfanityForCurrentLang();
+  if (filterProfanity(text) != text) return filterProfanity(text);
+  try {
+    final tr = await TranslateService.translate(text, targetLang: 'tr');
+    if (_cachedPattern.hasMatch(tr)) {
+      return text.replaceAll(RegExp(r'\S+'), '******');
+    }
+  } catch (_) {}
+  return text;
 }

@@ -1,15 +1,37 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:cryptography/cryptography.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../fip.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../local_store.dart';
+import '../font_size.dart';
 import '../e2e.dart';
 import '../theme.dart';
-import '../widgets.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
-import 'verify_key_screen.dart';
+import '../chat_wallpaper.dart';
+import '../i18n.dart';
+import '../offline_queue.dart';
+import '../translate_service.dart';
+import '../nsfw_scanner.dart';
+import 'gif_creator_screen.dart';
+import 'package:cryptography/cryptography.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import '../quick_replies.dart';
+import '../vip.dart';
+import '../vip_text.dart';
+import 'profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -22,484 +44,1710 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-enum _Delivery { sent, delivered }
-
 class _ChatScreenState extends State<ChatScreen> {
   final _draftCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   List<_DisplayMessage> _messages = [];
   late final String _chatKey;
-  bool _disposed = false;
-  bool _loaded = false;
-  bool _contactDeactivated = false;
-  bool _serverUnreachable = false;
+  String _myDisplayName = '';
+  bool _alive = true;
+  bool _contactActive = true;
   String? _inputError;
   bool _contactTyping = false;
   bool _isBlocked = false;
-  bool _sending = false;
   SecretKey? _sharedKey;
-  KeyTrust _trust = KeyTrust.none;
+  String? _editingMsgId;
+  Map<String, dynamic> _readStatus = {};
+  Map<String, dynamic>? _replyToMsg;
+  int _prevMsgCount = 0;
+  final Map<String, String> _translations = {};
+  final Map<String, String> _filtered = {};
+  // Messages already sent through the async cross-language profanity check, so
+  // it runs at most once each rather than on every rebuild.
+  final Set<String> _profanityChecked = {};
+  // Tiers of the two participants. Whose tier styles a bubble depends on who
+  // sent it, so both are kept.
+  VipStatus _myVip = VipStatus.none;
 
-  Timer? _pollTimer;
-  Timer? _statusTimer;
-  bool _polling = false;
-  DateTime _lastTypingSent = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _lastKeyAttempt = DateTime.now();
+  /// Our own tier with the colour dropped. The colour is painted on the bubble
+  /// background instead, so applying it to the text as well would put the same
+  /// colour on itself.
+  VipStatus get _myVipBoldOnly => VipStatus(
+        tier: _myVip.tier,
+        fakeName: _myVip.fakeName,
+        fakeActive: _myVip.fakeActive,
+        expiresAt: _myVip.expiresAt,
+      );
+  VipStatus _contactVip = VipStatus.none;
+  final Set<String> _translating = {};
 
-  /// Ham (şifreli) metin -> çözülmüş metin. Her 2 saniyede tüm geçmişi yeniden çözmemek için.
-  final Map<String, String?> _decryptCache = {};
-  /// Bu oturumda gönderilen mesajların teslim durumu (ts -> durum).
-  final Map<int, _Delivery> _delivery = {};
-  /// Karşı tarafa henüz ulaştırılamamış mesajlar (ts -> gönderilecek metin). Her turda yeniden denenir.
-  final Map<int, String> _undelivered = {};
+  Timer? _typingDebounce;
+  Timer? _typingPollTimer;
+  Timer? _readPollTimer;
+
+  // Locally sent messages keyed by msgId — merged into poll results so own messages always show
+  final Map<String, _DisplayMessage> _sentCache = {};
+
+  // Feature: disappearing messages
+  int? _disappearSeconds;
+
+  // Feature: pinned message
+  Map<String, dynamic>? _pinnedMessage;
+
+  // Feature: online status
+  bool _contactOnline = false;
+
+  // Feature: image sharing
+  final _imagePicker = ImagePicker();
+  final Set<String> _revealedImages = {};
+
+  // Feature: STT
+  final _speech = SpeechToText();
+  bool _isListening = false;
+  bool _sttEnabled = false;
+  bool _sttAvailable = false;
+
+  // Feature: Voice messages (TTS)
+  final _flutterTts = FlutterTts();
+  bool _isRecordingVoice = false;
+  String _voiceGender = 'male';
+
+  // Feature: Quick replies
+  List<String> _quickReplies = [];
+  bool _showQuickReplies = false;
+  /// Each message is written to our server and to the contact's so both sides
+  /// can read it from their own. When both accounts live on the same server
+  /// those are one and the same, and posting twice stored two copies — the
+  /// chat then showed every message doubled.
+  bool get _sameServer => widget.contact.serverUrl == widget.myServerUrl;
+
+  /// Distinct servers a message must reach, in delivery order (ours first).
+  List<String> get _deliveryTargets =>
+      _sameServer ? [widget.myServerUrl] : [widget.myServerUrl, widget.contact.serverUrl];
+
+  double get _msgFontSize => FontSizeNotifier.instance.msgFontSize;
+  void _onFontChanged() { if (mounted) setState(() {}); }
 
   @override
   void initState() {
     super.initState();
     _chatKey = chatKeyFor(widget.identity.fipId, widget.contact.fipId);
+    LocalStore.loadDisplayName().then((n) { if (mounted) setState(() => _myDisplayName = n ?? ''); });
+    _initE2E();
     _checkBlocked();
-    _initE2E().whenComplete(_poll);
+    _poll();
     _pollContactStatus();
+    _startTypingPoll();
+    _startReadPoll();
+    _markRead();
+    LocalStore.loadDisappearDuration(_chatKey).then((v) { if (mounted) setState(() => _disappearSeconds = v); });
+    LocalStore.loadPinnedMessage(_chatKey).then((v) { if (mounted) setState(() => _pinnedMessage = v); });
+    LocalStore.loadSttEnabled().then((v) { if (mounted) setState(() => _sttEnabled = v); });
+    _initStt();
+    LocalStore.loadVoiceGender().then((v) { if (mounted) setState(() => _voiceGender = v); });
+    QuickReplies.load().then((v) { if (mounted) setState(() => _quickReplies = v); });
+    FontSizeNotifier.instance.addListener(_onFontChanged);
+    _refreshVips();
+    _initTts();
   }
 
-  @override
-  void dispose() {
-    _disposed = true;
-    _pollTimer?.cancel();
-    _statusTimer?.cancel();
-    _draftCtrl.dispose();
-    _scrollCtrl.dispose();
-    super.dispose();
+  Future<void> _refreshVips() async {
+    await VipCache.instance.refresh(bridgeUrl, [widget.identity.fipId, widget.contact.fipId]);
+    if (!mounted) return;
+    setState(() {
+      _myVip = VipCache.instance.peek(widget.identity.fipId) ?? VipStatus.none;
+      _contactVip = VipCache.instance.peek(widget.contact.fipId) ?? VipStatus.none;
+    });
+  }
+
+  Future<void> _initStt() async {
+    final available = await _speech.initialize(onStatus: (s) {
+      if (s == 'done' || s == 'notListening') {
+        if (mounted) setState(() => _isListening = false);
+      }
+    });
+    if (mounted) setState(() => _sttAvailable = available);
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage('tr-TR');
+    await _flutterTts.setSpeechRate(0.5);
+  }
+
+  Future<void> _exportChat() async {
+    if (_messages.isEmpty) return;
+    final buffer = StringBuffer();
+    for (final msg in _messages) {
+      final dt = DateTime.fromMillisecondsSinceEpoch(msg.ts);
+      final time = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
+      final sender = msg.from == widget.identity.fipId ? _myDisplayName : widget.contact.name;
+      buffer.writeln('[$time] $sender: ${msg.text}');
+    }
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/chat_export_${DateTime.now().millisecondsSinceEpoch}.txt');
+    await file.writeAsString(buffer.toString());
+    await Share.shareXFiles([XFile(file.path)]);
+  }
+
+  Future<void> _shareLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationServiceOff'))));
+      return;
+    }
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionDenied'))));
+        return;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('locationPermissionPermanent'))));
+      return;
+    }
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final locationText = '[📍KONUM:${pos.latitude},${pos.longitude}]';
+      _draftCtrl.text = locationText;
+      await _send();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('locationFailed')}: $e')));
+    }
+  }
+
+  Future<void> _startVoiceMessage() async {
+    if (_isRecordingVoice) return;
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+    }
+    setState(() => _isRecordingVoice = true);
+    try {
+      if (!_sttAvailable) {
+        await _speech.initialize();
+      }
+      String transcript = '';
+      await _speech.listen(
+        onResult: (result) {
+          transcript = result.recognizedWords;
+        },
+        localeId: 'tr_TR',
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 3),
+      );
+      await Future.delayed(const Duration(seconds: 4));
+      await _speech.stop();
+      if (transcript.isNotEmpty) {
+        final voiceMsg = '[🎤SES:$transcript]';
+        _draftCtrl.text = voiceMsg;
+        await _send();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('voiceRecordStartFailed')}: $e')));
+    } finally {
+      if (mounted) setState(() => _isRecordingVoice = false);
+    }
+  }
+
+  Future<void> _playVoiceMessage(String transcript) async {
+    final gender = _voiceGender;
+    if (gender == 'female') {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-A', 'locale': 'tr-TR'});
+    } else {
+      await _flutterTts.setVoice({'name': 'tr-TR-Standard-B', 'locale': 'tr-TR'});
+    }
+    await _flutterTts.speak(transcript);
+  }
+
+  Future<void> _pickAndSendImage() async {
+    final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: imageQualityFor(_myVip.effectiveTier));
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    // Edge and quality both follow the tier's render perk.
+    final edge = imageEdgeFor(_myVip.effectiveTier);
+    final compressed = await FlutterImageCompress.compressWithList(bytes, minWidth: edge, minHeight: edge, quality: imageQualityFor(_myVip.effectiveTier));
+    if (compressed.length > maxImageBytesFor(_myVip.effectiveTier)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('imageTooLarge'))));
+      return;
+    }
+
+    // Otomatik NSFW taraması
+    final autoNsfw = await NsfwScanner.hasImageViolation(compressed);
+
+    final b64 = base64Encode(compressed);
+    bool markNsfw = autoNsfw;
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, ss) => AlertDialog(
+        backgroundColor: PhotonColors.panel,
+        title: Text(AppLang.instance.t('sendImage'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(compressed, height: 180, fit: BoxFit.cover),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Checkbox(value: markNsfw, onChanged: (v) => ss(() => markNsfw = v ?? false), activeColor: PhotonColors.danger),
+            const SizedBox(width: 4),
+            Expanded(child: Text(AppLang.instance.t('markSensitive'), style: TextStyle(color: PhotonColors.text, fontSize: 12))),
+          ]),
+          if (markNsfw)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(AppLang.instance.t('sensitiveWarning'), style: TextStyle(color: PhotonColors.danger, fontSize: 11, height: 1.5)),
+            ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(AppLang.instance.t('cancelShort'), style: TextStyle(color: PhotonColors.textDim))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(AppLang.instance.t('sendShort'), style: TextStyle(color: PhotonColors.accent))),
+        ],
+      )),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final displayText = markNsfw ? AppLang.instance.t('sensitiveImageTag') : AppLang.instance.t('photoTag');
+    final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: markNsfw);
+    }
+
+    if (markNsfw) {
+      final warnTs = ts + 1;
+      final warnText = AppLang.instance.t('nsfwSystemWarning');
+      // Mirrored to both servers so sender and recipient each see it in their
+      // own poll — once each, not twice when they share a server.
+      for (final url in _deliveryTargets) {
+        await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: warnText, ts: warnTs, senderName: _myDisplayName);
+      }
+    }
+  }
+
+  Future<void> _pickAndSendFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: true);
+    if (result == null || result.files.single.bytes == null || !mounted) return;
+    final fileBytes = result.files.single.bytes!;
+    final fileSize = result.files.single.size;
+    if (fileSize > maxFileBytesFor(_myVip.effectiveTier)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('fileTooLarge'))));
+      return;
+    }
+    final base64data = base64Encode(fileBytes);
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final fileName = result.files.single.name;
+    // Encrypt the visible file name (displayText) when we have a shared key.
+    // The file bytes themselves stay as base64 (out of scope).
+    String sentFileName = fileName;
+    if (_sharedKey != null) {
+      try {
+        sentFileName = await e2eEncrypt('[Dosya: $fileName]', _sharedKey!);
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
+        return;
+      }
+    }
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendFileMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, fileName: sentFileName, fileData: base64data, fileSize: fileSize, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName);
+    }
+  }
+
+  Future<void> _openGifCreator() async {
+    final result = await Navigator.push<GifResult>(context, MaterialPageRoute(builder: (_) => const GifCreatorScreen()));
+    if (result == null || !mounted) return;
+    final gifBytes = result.gifBytes;
+    final caption = result.caption;
+
+    final b64 = base64Encode(gifBytes);
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final displayText = caption.isNotEmpty ? caption : '[GIF]';
+    final encText = _sharedKey != null ? await e2eEncrypt(displayText, _sharedKey!) : displayText;
+    for (final url in _deliveryTargets) {
+      await PhotonApi.sendMessage(receiverServerUrl: url, chatKey: _chatKey, from: widget.identity.fipId, text: encText, ts: ts, toFipId: widget.contact.fipId, senderName: _myDisplayName, imageData: b64, nsfw: false);
+    }
+  }
+
+  void _startListening() async {
+    if (!_sttAvailable) return;
+    if (_isRecordingVoice) return;
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+    setState(() => _isListening = true);
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        var text = result.recognizedWords;
+        final lower = text.toLowerCase().trim();
+        if (lower.endsWith('gönder')) {
+          text = text.substring(0, text.toLowerCase().lastIndexOf('gönder')).trim();
+          _draftCtrl.text = text;
+          _speech.stop();
+          setState(() => _isListening = false);
+          if (text.isNotEmpty) _send();
+        } else {
+          setState(() => _draftCtrl.text = text);
+        }
+      },
+      localeId: 'tr_TR',
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 5),
+    );
   }
 
   Future<void> _initE2E() async {
-    final stored = widget.contact.publicKey;
-    if (stored != null && stored.isNotEmpty) {
-      // Anahtar sabitleme: ilk öğrenilen anahtar kullanılır ve sunucudaki bir değişiklikle
-      // sessizce değiştirilmez (ortadaki adam saldırısına karşı). Bir fipId'nin anahtarı
-      // meşru olarak değişmez; hesap silinip yeniden açılınca fipId de değişir.
-      await _useKey(stored);
-      return;
-    }
     try {
-      final info = await KnkApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
+      final info = await PhotonApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
       final pubKey = info?['publicKey'] as String?;
-      if (info?['fipId'] == widget.contact.fipId && pubKey != null && pubKey.isNotEmpty) {
-        widget.contact.publicKey = pubKey;
-        await _useKey(pubKey);
+      if (pubKey != null && pubKey.isNotEmpty) {
+        final key = await deriveSharedKey(pubKey);
+        if (mounted) setState(() => _sharedKey = key);
       }
     } catch (_) {}
-  }
-
-  Future<void> _useKey(String pubKey) async {
-    try {
-      final key = await deriveSharedKey(pubKey);
-      if (_disposed) return;
-      _decryptCache.clear();
-      setState(() => _sharedKey = key);
-      await _loadTrust();
-    } catch (_) {}
-  }
-
-  Future<void> _loadTrust() async {
-    final verified = await LocalStore.loadVerifiedKeys();
-    if (_disposed) return;
-    setState(() => _trust = keyTrust(verified, widget.contact.fipId, widget.contact.publicKey));
-  }
-
-  Future<void> _openVerify() async {
-    final pub = widget.contact.publicKey;
-    if (pub == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Kişinin şifreleme anahtarı henüz alınmadı. Biraz sonra tekrar dene.'), duration: Duration(seconds: 3)));
-      return;
-    }
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyKeyScreen(
-      myFipId: widget.identity.fipId, theirFipId: widget.contact.fipId, theirName: widget.contact.name, theirPublicKey: pub,
-    )));
-    await _loadTrust();
   }
 
   Future<void> _checkBlocked() async {
     final blocked = await LocalStore.loadBlockList();
-    if (!_disposed) setState(() => _isBlocked = blocked.contains(widget.contact.fipId));
+    if (mounted) setState(() => _isBlocked = blocked.contains(widget.contact.fipId));
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+    } catch (_) {}
+  }
+
+  void _startReadPoll() {
+    _readPollTimer?.cancel();
+    _readPollTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
+      if (!_alive) { t.cancel(); return; }
+      try {
+        final status = await PhotonApi.getReadStatus(widget.contact.serverUrl, _chatKey);
+        if (_alive && mounted) setState(() => _readStatus = status);
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void dispose() {
+    _alive = false;
+    _typingDebounce?.cancel();
+    _typingPollTimer?.cancel();
+    _readPollTimer?.cancel();
+    _draftCtrl.dispose();
+    _scrollCtrl.dispose();
+    // Stop any in-flight STT/TTS to avoid callbacks firing on a disposed State.
+    try { _speech.stop(); } catch (_) {}
+    try { _speech.cancel(); } catch (_) {}
+    try { _flutterTts.stop(); } catch (_) {}
+    FontSizeNotifier.instance.removeListener(_onFontChanged);
+    super.dispose();
   }
 
   Future<void> _poll() async {
-    if (_disposed || _polling) return;
-    _polling = true;
-    try {
-      final results = await Future.wait([
-        KnkApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl),
-        KnkApi.getTyping(widget.myServerUrl, _chatKey),
-      ]);
-      if (_disposed) return;
-      final raw = results[0];
-      final typingList = results[1] ?? const [];
-      final typing = typingList.any((t) => t['fipId'] == widget.contact.fipId);
-      if (raw == null) {
-        if (!_serverUnreachable || _contactTyping) setState(() { _serverUnreachable = true; _contactTyping = false; });
-      } else {
-        await _applyMessages(raw, typing);
+    while (_alive) {
+      try {
+      await OfflineQueue.instance.flush();
+      if (mounted) setState(() {});
+      final raw = await PhotonApi.getMessages(_chatKey, receiverServerUrl: widget.myServerUrl);
+      final reactions = await PhotonApi.getChatReactions(widget.myServerUrl, _chatKey);
+      final msgs = <_DisplayMessage>[];
+      for (final m in raw) {
+        String text = m['text'] as String? ?? '';
+        final deleted = m['deleted'] == true;
+        final edited = m['edited'] == true;
+        if (!deleted && _sharedKey != null) {
+          try { text = await e2eDecrypt(text, _sharedKey!); } catch (_) {}
+        }
+        final msgIdVal = m['msgId'] as String? ?? '';
+        final msgReactions = reactions[msgIdVal] as Map<String, dynamic>? ?? {};
+        final parsedReactions = msgReactions.map((k, v) => MapEntry(k, List<String>.from(v as List)));
+        final replyTo = m['replyTo'] as Map<String, dynamic>?;
+        final ts = (m['ts'] as num?)?.toInt() ?? 0;
+        // Skip disappeared messages
+        if (!deleted && _disappearSeconds != null && ts + (_disappearSeconds! * 1000) < DateTime.now().millisecondsSinceEpoch) {
+          continue;
+        }
+        msgs.add(_DisplayMessage(
+          msgId: msgIdVal,
+          from: (m['from'] as String?) ?? '',
+          text: text,
+          ts: ts,
+          delivered: true,
+          deleted: deleted,
+          edited: edited,
+          reactions: parsedReactions,
+          replyTo: replyTo,
+          imageData: m['imageData'] as String?,
+          isNsfw: m['nsfw'] == true,
+          fileData: m['fileData'] as String?,
+          fileName: m['fileName'] as String?,
+          fileSize: (m['fileSize'] as num?)?.toInt(),
+        ));
       }
-      await _retryUndelivered();
-      // Karşı tarafın anahtarı henüz yoksa ara ara tekrar dene (ör. uygulamayı güncelledi).
-      if (_sharedKey == null && DateTime.now().difference(_lastKeyAttempt) > const Duration(seconds: 30)) {
-        _lastKeyAttempt = DateTime.now();
-        unawaited(_initE2E());
+      if (_alive && mounted) {
+        // Merge: remove from sentCache any messages the server now returns
+        final serverIds = msgs.map((m) => m.msgId).toSet();
+        _sentCache.removeWhere((id, _) => serverIds.contains(id));
+        // Append any locally sent messages not yet confirmed by server
+        final merged = [...msgs];
+        for (final sent in _sentCache.values) {
+          if (!merged.any((m) => m.ts == sent.ts && m.from == sent.from)) {
+            merged.add(sent);
+          }
+        }
+        merged.sort((a, b) => a.ts.compareTo(b.ts));
+        final newCount = merged.length;
+        if (newCount > _prevMsgCount && _prevMsgCount > 0) {
+          HapticFeedback.mediumImpact();
+        }
+        final hadNew = newCount > _prevMsgCount;
+        _prevMsgCount = newCount;
+        setState(() => _messages = merged);
+        if (hadNew) _scrollToBottom();
       }
-    } catch (_) {
-    } finally {
-      _polling = false;
-      if (!_disposed) _pollTimer = Timer(const Duration(seconds: 2), _poll);
-    }
-  }
-
-  Future<void> _applyMessages(List<Map<String, dynamic>> raw, bool typing) async {
-    final msgs = <_DisplayMessage>[];
-    for (final m in raw) {
-      final from = m['from'];
-      final ts = m['ts'];
-      final text = m['text'];
-      if (from is! String || ts is! num || text is! String) continue;
-      String? plain;
-      if (_decryptCache.containsKey(text)) {
-        plain = _decryptCache[text];
-      } else {
-        plain = await decryptChatMessage(text, _sharedKey);
-        // Anahtar henüz yokken çözülemeyen mesajı önbelleğe alma; anahtar gelince tekrar denenir.
-        if (plain != null || _sharedKey != null) _decryptCache[text] = plain;
+      await PhotonApi.markRead(widget.myServerUrl, _chatKey, widget.identity.fipId);
+      } catch (_) {
+        // Swallow errors so poll loop keeps running; next tick tries again.
       }
-      msgs.add(_DisplayMessage(from: from, text: plain, ts: ts.toInt(), encrypted: isE2EMessage(text)));
-    }
-    if (_disposed) return;
-    final changed = !_sameMessages(msgs, _messages);
-    if (!changed && typing == _contactTyping && !_serverUnreachable && _loaded) return;
-
-    final wasNearBottom = !_scrollCtrl.hasClients ||
-        _scrollCtrl.position.maxScrollExtent - _scrollCtrl.offset < 120;
-    final firstLoad = !_loaded;
-    setState(() {
-      _messages = msgs;
-      _contactTyping = typing;
-      _serverUnreachable = false;
-      _loaded = true;
-    });
-    // Kullanıcı eski mesajları okuyorsa onu aşağı çekme.
-    if (changed && (wasNearBottom || firstLoad)) _scrollToBottom(animate: !firstLoad);
-  }
-
-  bool _sameMessages(List<_DisplayMessage> a, List<_DisplayMessage> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i].ts != b[i].ts || a[i].from != b[i].from || a[i].text != b[i].text) return false;
-    }
-    return true;
-  }
-
-  Future<void> _retryUndelivered() async {
-    if (_undelivered.isEmpty || _contactDeactivated) return;
-    for (final entry in _undelivered.entries.toList()) {
-      final ok = await KnkApi.sendMessage(
-        receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: entry.value, ts: entry.key,
-      );
-      if (_disposed) return;
-      if (!ok) break; // sunucu hâlâ ulaşılamaz: sonraki turda tekrar dene
-      _undelivered.remove(entry.key);
-      setState(() => _delivery[entry.key] = _Delivery.delivered);
+      await Future.delayed(const Duration(seconds: 2));
     }
   }
+
+  // Consecutive failed presence probes. One miss is almost always a sleeping
+  // server, so we only flip the contact to "inactive" after several in a row.
+  int _presenceMisses = 0;
+  static const _presenceMissLimit = 3;
 
   Future<void> _pollContactStatus() async {
-    if (_disposed) return;
-    final status = await KnkApi.getStatus(widget.contact.serverUrl, widget.contact.fipId);
-    if (_disposed) return;
-    final deactivated = status == ContactStatus.deactivated;
-    if (deactivated != _contactDeactivated) setState(() => _contactDeactivated = deactivated);
-    _statusTimer = Timer(const Duration(seconds: 10), _pollContactStatus);
+    while (_alive) {
+      try {
+        final active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+        if (active) {
+          _presenceMisses = 0;
+        } else {
+          _presenceMisses++;
+        }
+        final treatAsActive = active || _presenceMisses < _presenceMissLimit;
+        if (_alive && mounted) {
+          if (treatAsActive != _contactActive) setState(() => _contactActive = treatAsActive);
+          if (active != _contactOnline) setState(() => _contactOnline = active);
+        }
+      } catch (_) {
+        // Network error is not evidence the contact is gone.
+      }
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
+
+  void _startTypingPoll() {
+    _typingPollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final typingList = await PhotonApi.getTyping(widget.myServerUrl, _chatKey);
+        final contactTyping = typingList.any((t) => t['fipId'] == widget.contact.fipId);
+        if (mounted && contactTyping != _contactTyping) setState(() => _contactTyping = contactTyping);
+      } catch (_) {}
+    });
   }
 
   void _onTextChanged(String value) {
     if (_inputError != null) setState(() => _inputError = null);
-    if (value.trim().isEmpty || _contactDeactivated) return;
-    // "Yazıyor" bilgisini karşı tarafın sunucusuna en fazla 2.5 sn'de bir gönder.
-    final now = DateTime.now();
-    if (now.difference(_lastTypingSent) > const Duration(milliseconds: 2500)) {
-      _lastTypingSent = now;
-      KnkApi.sendTyping(widget.contact.serverUrl, _chatKey, widget.identity.fipId);
-    }
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(milliseconds: 400), () {
+      // Typing lives on the RECEIVER's server so the peer can poll their own server for it.
+      if (value.isNotEmpty) PhotonApi.sendTyping(widget.contact.serverUrl, _chatKey, widget.identity.fipId);
+    });
   }
 
-  void _scrollToBottom({bool animate = true}) {
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollCtrl.hasClients) return;
-      final target = _scrollCtrl.position.maxScrollExtent;
-      if (animate) {
-        _scrollCtrl.animateTo(target, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
-      } else {
-        _scrollCtrl.jumpTo(target);
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
     });
   }
 
   Future<void> _send() async {
-    if (_isBlocked || _sending) return;
+    if (_isBlocked) return;
     final raw = _draftCtrl.text;
-    final error = validateMessage(raw);
-    if (error != null) {
-      setState(() => _inputError = error);
-      return;
-    }
-    if (_contactDeactivated) {
-      _showDeactivatedDialog();
-      return;
-    }
-    final text = sanitizeMessage(raw);
-    setState(() { _inputError = null; _sending = true; });
 
-    try {
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      String payload = text;
-      final key = _sharedKey;
-      if (key != null) {
-        payload = await encryptChatMessage(text, key);
-        _decryptCache[payload] = text;
+    // Düzenleme modu
+    if (_editingMsgId != null) {
+      final editError = validateMessage(raw);
+      if (editError != null) { setState(() => _inputError = editError); return; }
+      final editText = sanitizeMessage(raw);
+      String editEncrypted = editText;
+      if (_sharedKey != null) {
+        try {
+          editEncrypted = await e2eEncrypt(editText, _sharedKey!);
+        } catch (_) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
+          return;
+        }
       }
+      final msgId = _editingMsgId!;
+      if (!mounted) return;
+      setState(() { _editingMsgId = null; _draftCtrl.clear(); _inputError = null; _replyToMsg = null; });
+      try {
+        await PhotonApi.editMessage(widget.myServerUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
+        await PhotonApi.editMessage(widget.contact.serverUrl, _chatKey, msgId, editEncrypted, actor: widget.identity.fipId);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('editFailed')}: $e')));
+      }
+      return;
+    }
 
-      // Önce kendi sunucumuza yaz (✓) — sohbet geçmişi buradan okunur.
-      final savedOwn = await KnkApi.sendMessage(
-        receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: payload, ts: ts,
-      );
-      if (_disposed) return;
-      if (!savedOwn) {
-        setState(() => _inputError = 'Mesaj gönderilemedi. Sunucuna ulaşılamıyor, tekrar dene.');
+    final error = validateMessage(raw);
+    if (error != null) { setState(() => _inputError = error); return; }
+    final text = sanitizeMessage(raw);
+    setState(() => _inputError = null);
+
+    if (!_contactActive) {
+      // A single miss usually means their server is cold-starting (Render free
+      // tier sleeps after 15 min), not that they deleted their account. Probe
+      // twice before accusing them of being gone.
+      var active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      if (!active) {
+        await PhotonApi.pingServer(widget.contact.serverUrl);
+        await Future.delayed(const Duration(seconds: 2));
+        active = await PhotonApi.isActive(widget.contact.serverUrl, widget.contact.fipId);
+      }
+      if (!active) {
+        if (!mounted) return;
+        setState(() => _contactActive = false);
+        _showDeactivatedDialog();
         return;
       }
+      if (!mounted) return;
+      setState(() => _contactActive = true);
+    }
 
-      // Karşı taraftaki "yazıyor…" göstergesini hemen kapat.
-      _lastTypingSent = DateTime.fromMillisecondsSinceEpoch(0);
-      unawaited(KnkApi.sendTyping(widget.contact.serverUrl, _chatKey, widget.identity.fipId, stop: true));
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    String encryptedText = text;
+    if (_sharedKey != null) {
+      try {
+        encryptedText = await e2eEncrypt(text, _sharedKey!);
+      } catch (_) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
+        return;
+      }
+    }
 
-      setState(() {
-        _messages = [..._messages, _DisplayMessage(from: widget.identity.fipId, text: text, ts: ts, encrypted: key != null)];
-        _delivery[ts] = _Delivery.sent;
-        _draftCtrl.clear();
-      });
+    final replyData = _replyToMsg != null
+        ? {'msgId': _replyToMsg!['msgId'], 'from': _replyToMsg!['from'], 'text': _replyToMsg!['text']}
+        : null;
+    if (!mounted) return;
+    setState(() { _replyToMsg = null; });
+
+    try {
+      final senderName = _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId;
+      // On a shared server this single write is also the recipient's copy, so
+      // it has to carry the addressing fields the second write would have.
+      final (ok, myMsgId) = await PhotonApi.sendMessage(
+          receiverServerUrl: widget.myServerUrl, chatKey: _chatKey,
+          from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+          toFipId: _sameServer ? widget.contact.fipId : null,
+          senderName: _sameServer ? senderName : null);
+      if (!ok) throw const SocketException('Server unreachable');
+
+      final newMsg = _DisplayMessage(
+          msgId: myMsgId ?? '', from: widget.identity.fipId, text: text,
+          ts: ts, delivered: false, deleted: false, edited: false, replyTo: replyData);
+      _sentCache[myMsgId ?? '_$ts'] = newMsg;
+      // The send above is a network round-trip; the user may have left the
+      // chat while it was in flight.
+      if (!mounted) return;
+      setState(() { _messages.add(newMsg); _draftCtrl.clear(); });
       _scrollToBottom();
 
-      // Sonra karşı tarafın sunucusuna yaz (✓✓). Aynı sunucuyu kullanıyorlarsa zaten teslim edildi.
-      final sameServer = widget.contact.serverUrl == widget.myServerUrl;
-      final delivered = sameServer || await KnkApi.sendMessage(
-        receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
-        from: widget.identity.fipId, text: payload, ts: ts,
-      );
-      if (_disposed) return;
-      if (delivered) {
-        setState(() => _delivery[ts] = _Delivery.delivered);
+      final bool deliveredToContact;
+      if (_sameServer) {
+        deliveredToContact = ok;
       } else {
-        _undelivered[ts] = payload;
+        final (delivered, _) = await PhotonApi.sendMessage(
+            receiverServerUrl: widget.contact.serverUrl, chatKey: _chatKey,
+            from: widget.identity.fipId, text: encryptedText, ts: ts, replyTo: replyData,
+            toFipId: widget.contact.fipId, senderName: senderName);
+        deliveredToContact = delivered;
       }
-    } finally {
-      if (!_disposed) setState(() => _sending = false);
+
+      if (mounted) {
+        setState(() {
+          final idx = _messages.indexWhere((m) => m.ts == ts && m.from == widget.identity.fipId);
+          if (idx != -1) {
+            _messages[idx] = _DisplayMessage(
+              msgId: _messages[idx].msgId, from: _messages[idx].from, text: _messages[idx].text,
+              ts: _messages[idx].ts, delivered: deliveredToContact, deleted: false, edited: false,
+              replyTo: _messages[idx].replyTo,
+            );
+          }
+        });
+      }
+      // Disappearing messages: schedule deletion after send
+      if (_disappearSeconds != null && myMsgId != null) {
+        final msgId = myMsgId;
+        Future.delayed(Duration(seconds: _disappearSeconds!), () async {
+          if (!mounted) return;
+          try {
+            await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, msgId, actor: widget.identity.fipId);
+            if (!mounted) return;
+            await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, msgId, actor: widget.identity.fipId);
+            if (mounted) setState(() => _messages.removeWhere((m) => m.msgId == msgId));
+          } catch (_) { /* ignore disappearing delete failures */ }
+        });
+      }
+    } on SocketException {
+      await _enqueueOffline(encryptedText, ts, replyData, text);
+    } on TimeoutException {
+      await _enqueueOffline(encryptedText, ts, replyData, text);
     }
+  }
+
+  Future<void> _enqueueOffline(String encryptedText, int ts, Map<String, dynamic>? replyData, String plainText) async {
+    // On a shared server the recipient copy below is the only entry needed —
+    // queueing both would drain into two (or three) copies of one message.
+    if (!_sameServer) {
+      await OfflineQueue.instance.enqueue(QueuedMessage(
+        chatKey: _chatKey, receiverServerUrl: widget.myServerUrl,
+        from: widget.identity.fipId, text: encryptedText, ts: ts,
+        replyToMsgId: replyData?['msgId'] as String?,
+        replyToFrom: replyData?['from'] as String?,
+        replyToText: replyData?['text'] as String?,
+      ));
+    }
+    await OfflineQueue.instance.enqueue(QueuedMessage(
+      chatKey: _chatKey, receiverServerUrl: widget.contact.serverUrl,
+      contactServerUrl: widget.contact.serverUrl,
+      from: widget.identity.fipId, text: encryptedText, ts: ts,
+      replyToMsgId: replyData?['msgId'] as String?,
+      replyToFrom: replyData?['from'] as String?,
+      replyToText: replyData?['text'] as String?,
+      toFipId: widget.contact.fipId,
+      senderName: _myDisplayName.isNotEmpty ? _myDisplayName : widget.identity.fipId,
+    ));
+    if (mounted) setState(() { _draftCtrl.clear(); });
+  }
+
+  Widget _buildMessageList() {
+    final queued = OfflineQueue.instance.getForChat(_chatKey);
+    // Deduplicate: only show queued messages whose ts is not already in _messages
+    final existingTs = _messages.map((m) => m.ts).toSet();
+    final uniqueQueued = queued.where((q) => !existingTs.contains(q.ts)).toList();
+    final totalCount = _messages.length + uniqueQueued.length;
+    return ListView.builder(
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.all(14),
+      itemCount: totalCount,
+      itemBuilder: (context, i) {
+        // Queued messages appear at the bottom
+        if (i >= _messages.length) {
+          final q = uniqueQueued[i - _messages.length];
+          return _buildQueuedBubble(q);
+        }
+        final m = _messages[i];
+        final mine = m.from == widget.identity.fipId;
+        String displayText;
+        // v10.0.2: cache key includes ts+from so messages with empty msgId
+        // don't share a slot and clobber each other on new profanity match.
+        final cacheKey = '${m.msgId}_${m.ts}_${m.from}';
+        if (m.deleted) {
+          displayText = '\u{1F5D1} ${AppLang.instance.t('messageDeleted')}';
+        } else if (_filtered.containsKey(cacheKey)) {
+          displayText = _filtered[cacheKey]!;
+        } else {
+          displayText = filterProfanity(m.text);
+          // Cache the clean result too. Previously only censored messages were
+          // stored, so every clean message re-entered this branch on each
+          // rebuild — and the poll loop rebuilds every 2s — firing a Google
+          // Translate round-trip per message, forever.
+          _filtered[cacheKey] = displayText;
+          if (displayText == m.text && _profanityChecked.add(cacheKey)) {
+            filterProfanityAsync(m.text).then((v) {
+              if (v != m.text && mounted) setState(() => _filtered[cacheKey] = v);
+            });
+          }
+        }
+        // Disappearing message suffix
+        if (_disappearSeconds != null && !m.deleted) {
+          displayText = '$displayText ⏳';
+        }
+        final isLastMine = mine && i == _messages.lastIndexWhere((x) => x.from == widget.identity.fipId);
+        return GestureDetector(
+          onLongPress: () => _onLongPressMessage(m),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (!mine) ...[
+                  _buildAvatar(widget.contact.name, widget.contact.avatar, size: 28),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(child: Column(
+              crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
+                  decoration: BoxDecoration(
+                    // Your own bubble takes your tier colour as its BACKGROUND.
+                    // Painting the text instead left a pink message on the green
+                    // bubble, which was unreadable; the palette is bright enough
+                    // that the existing dark bubble text stays legible on it.
+                    color: m.deleted
+                        ? PhotonColors.panelAlt
+                        : (mine
+                            ? (vipTextColor(_myVip) ?? PhotonColors.accent)
+                            : PhotonColors.panel),
+                    border: (mine && !m.deleted) ? null : Border.all(color: PhotonColors.line),
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
+                      bottomLeft: Radius.circular(mine ? 12 : 2), bottomRight: Radius.circular(mine ? 2 : 12),
+                    ),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    if (m.replyTo != null)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        decoration: BoxDecoration(
+                          color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border(left: BorderSide(color: PhotonColors.accent, width: 3)),
+                        ),
+                        child: Text(m.replyTo!['text'] as String? ?? '',
+                          style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.textDim, fontSize: 11),
+                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ),
+                    if (m.imageData != null && !m.deleted)
+                      _buildImageBubble(m, mine)
+                    else if (m.fileData != null && !m.deleted)
+                      _buildFileBubble(m, mine)
+                    else if (!m.deleted && m.text.startsWith('[Dosya: '))
+                      _buildFileTextBubble(m, mine)
+                    else if (!m.deleted && m.text.startsWith('[📍KONUM:'))
+                      _buildLocationBubble(m.text, mine)
+                    else if (!m.deleted && m.text.startsWith('[🎤SES:'))
+                      _buildVoiceBubble(m.text, mine)
+                    else
+                    // Filtering and translation have already been applied to
+                    // displayText; tier styling goes on last so /k cannot be
+                    // used to slip past the profanity filter.
+                    vipMessageText(
+                      displayText,
+                      // Our own bubble is already painted in the tier colour, so
+                      // pass no status for it beyond what bold needs.
+                      m.deleted ? null : (mine ? _myVipBoldOnly : _contactVip),
+                      style: TextStyle(
+                        color: m.deleted ? PhotonColors.textDim : (mine ? const Color(0xFF06251A) : PhotonColors.text),
+                        fontSize: _msgFontSize, height: 1.45,
+                        fontStyle: m.deleted ? FontStyle.italic : FontStyle.normal,
+                      )),
+                    if (_translating.contains(m.msgId))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: PhotonColors.textDim)),
+                      ),
+                    if (_translations.containsKey(m.msgId))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(AppLang.instance.t('translation'), style: TextStyle(color: PhotonColors.textDim, fontSize: 9, fontStyle: FontStyle.italic)),
+                          const SizedBox(height: 2),
+                          Text(_translations[m.msgId]!,
+                            style: TextStyle(
+                              color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.8),
+                              fontSize: 13, height: 1.4, fontStyle: FontStyle.italic,
+                            )),
+                        ]),
+                      ),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (m.edited && !m.deleted)
+                        Text('${AppLang.instance.t('editedLabel')} \u00B7 ', style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.5), fontSize: 9)),
+                      Text(_formatTime(m.ts), style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 9.5)),
+                      if (mine && !m.deleted) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          isLastMine && _contactRead ? '\u2713\u2713' : (m.delivered ? '\u2713\u2713' : '\u2713'),
+                          style: TextStyle(
+                            color: isLastMine && _contactRead ? Colors.lightBlueAccent : const Color(0xFF06251A).withOpacity(0.7),
+                            fontSize: 9.5,
+                            fontWeight: isLastMine && _contactRead ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ]),
+                  ]),
+                ),
+                if (m.reactions.isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 2, bottom: 4),
+                    child: Wrap(spacing: 4, runSpacing: 4,
+                      children: m.reactions.entries.map((e) => GestureDetector(
+                        onTap: () async {
+                          final emoji = e.key;
+                          setState(() {
+                            final list = m.reactions.putIfAbsent(emoji, () => <String>[]);
+                            if (!list.contains(widget.identity.fipId)) list.add(widget.identity.fipId);
+                          });
+                          try {
+                            await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                            await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                          } catch (err) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('reactionFailed')}: $err')));
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: PhotonColors.panelAlt, borderRadius: BorderRadius.circular(12), border: Border.all(color: PhotonColors.line)),
+                          child: Text('${e.key} ${e.value.length}', style: const TextStyle(fontSize: 11)),
+                        ),
+                      )).toList(),
+                    ),
+                  ),
+              ],
+            )),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQueuedBubble(QueuedMessage q) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: BoxDecoration(
+          color: PhotonColors.accent.withOpacity(0.5),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12), topRight: const Radius.circular(12),
+            bottomLeft: const Radius.circular(12), bottomRight: const Radius.circular(2),
+          ),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(q.text, style: TextStyle(color: const Color(0xFF06251A), fontSize: 13.5, height: 1.45)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(_formatTime(q.ts), style: TextStyle(color: const Color(0xFF06251A).withOpacity(0.6), fontSize: 9.5)),
+            const SizedBox(width: 4),
+            Icon(Icons.access_time, color: const Color(0xFF06251A).withOpacity(0.7), size: 11),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  void _onLongPressMessage(_DisplayMessage m) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: PhotonColors.panel,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Emoji reaction row
+        Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: ['👍','❤️','😂','😮','😢','😡'].map((emoji) => GestureDetector(
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  setState(() {
+                    final list = m.reactions.putIfAbsent(emoji, () => <String>[]);
+                    if (!list.contains(widget.identity.fipId)) list.add(widget.identity.fipId);
+                  });
+                } catch (_) { /* reactions map may be const default */ }
+                try {
+                  await PhotonApi.reactMessage(widget.myServerUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                  await PhotonApi.reactMessage(widget.contact.serverUrl, _chatKey, m.msgId, widget.identity.fipId, emoji);
+                } catch (err) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('reactionFailed')}: $err')));
+                }
+              },
+              child: Text(emoji, style: const TextStyle(fontSize: 30)),
+            )).toList(),
+          ),
+        ),
+        Divider(color: PhotonColors.line, height: 1),
+        ListTile(
+          leading: Icon(Icons.reply, color: PhotonColors.accent),
+          title: Text(AppLang.instance.t('reply'), style: TextStyle(color: PhotonColors.text)),
+          onTap: () {
+            Navigator.pop(context);
+            setState(() => _replyToMsg = {'msgId': m.msgId, 'from': m.from, 'text': m.text});
+          },
+        ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.forward, color: PhotonColors.accent),
+            title: Text(AppLang.instance.t('forward'), style: TextStyle(color: PhotonColors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              _forwardMessage(m);
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.copy, color: PhotonColors.accent),
+            title: Text(AppLang.instance.t('copyMessage'), style: TextStyle(color: PhotonColors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              Clipboard.setData(ClipboardData(text: m.text));
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.translate, color: PhotonColors.accent),
+            title: Text(AppLang.instance.t('translateVerb'), style: TextStyle(color: PhotonColors.text)),
+            onTap: () {
+              Navigator.pop(context);
+              _translateMessage(m.msgId, m.text);
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.push_pin, color: PhotonColors.accent),
+            title: Text(
+              _pinnedMessage?['msgId'] == m.msgId ? AppLang.instance.t('unpin') : AppLang.instance.t('pin'),
+              style: TextStyle(color: PhotonColors.text),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              if (_pinnedMessage?['msgId'] == m.msgId) {
+                await LocalStore.savePinnedMessage(_chatKey, null);
+                if (mounted) setState(() => _pinnedMessage = null);
+              } else {
+                final pinData = {'msgId': m.msgId, 'text': m.text, 'from': m.from};
+                await LocalStore.savePinnedMessage(_chatKey, pinData);
+                if (mounted) setState(() => _pinnedMessage = pinData);
+              }
+            },
+          ),
+        if (!m.deleted)
+          ListTile(
+            leading: Icon(Icons.star, color: Colors.amber),
+            title: FutureBuilder<List<Map<String, dynamic>>>(
+              future: LocalStore.loadStarredMessages(),
+              builder: (ctx, snap) {
+                final isStarred = (snap.data ?? []).any((s) => s['msgId'] == m.msgId);
+                return Text(isStarred ? AppLang.instance.t('unstar') : AppLang.instance.t('star'), style: TextStyle(color: PhotonColors.text));
+              },
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              final starred = await LocalStore.loadStarredMessages();
+              final isStarred = starred.any((s) => s['msgId'] == m.msgId);
+              if (isStarred) {
+                await LocalStore.unstarMessage(m.msgId);
+              } else {
+                await LocalStore.starMessage({'msgId': m.msgId, 'from': m.from, 'text': m.text, 'ts': m.ts});
+              }
+            },
+          ),
+        if (m.from == widget.identity.fipId && !m.deleted) ...[
+          ListTile(
+            leading: Icon(Icons.edit, color: PhotonColors.accent),
+            title: Text(AppLang.instance.t('edit'), style: TextStyle(color: PhotonColors.text)),
+            onTap: () { Navigator.pop(context); setState(() { _editingMsgId = m.msgId; _draftCtrl.text = m.text; }); },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: PhotonColors.danger),
+            title: Text(AppLang.instance.t('delete'), style: TextStyle(color: PhotonColors.danger)),
+            onTap: () async {
+              Navigator.pop(context);
+              try {
+                await PhotonApi.deleteMessage(widget.myServerUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
+                await PhotonApi.deleteMessage(widget.contact.serverUrl, _chatKey, m.msgId, actor: widget.identity.fipId);
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('deleteFailed')}: $e')));
+              }
+            },
+          ),
+        ],
+      ])),
+    );
+  }
+
+  void _forwardMessage(_DisplayMessage m) {
+    LocalStore.loadContacts().then((list) {
+      final active = list.where((c) => c.status == 'on').toList();
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: PhotonColors.panel,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (_) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(AppLang.instance.t('forwardToWhom'), style: TextStyle(color: PhotonColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+            Divider(color: PhotonColors.line, height: 1),
+            if (active.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(AppLang.instance.t('noActiveContacts'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13)),
+              ),
+            ...active.map((c) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: PhotonColors.accent.withOpacity(0.15),
+                child: Text(c.name.isNotEmpty ? c.name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontWeight: FontWeight.w700)),
+              ),
+              title: Text(c.name, style: TextStyle(color: PhotonColors.text, fontSize: 14)),
+              subtitle: Text('${AppLang.instance.t('codeLabel')}: ${c.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11)),
+              onTap: () async {
+                Navigator.pop(context);
+                final chatKey = chatKeyFor(widget.identity.fipId, c.fipId);
+                final ts = DateTime.now().millisecondsSinceEpoch;
+                final fwdText = '${AppLang.instance.t('forwardedPrefix')}\n${m.text}';
+                String sendText = fwdText;
+                try {
+                  final info = await PhotonApi.lookupByCode(c.serverUrl, c.code);
+                  final pubKey = info?['publicKey'] as String?;
+                  if (pubKey != null && pubKey.isNotEmpty) {
+                    final key = await deriveSharedKey(pubKey);
+                    sendText = await e2eEncrypt(fwdText, key);
+                  }
+                } catch (_) {
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLang.instance.t('encryptionError'))));
+                  return;
+                }
+                await PhotonApi.sendMessage(receiverServerUrl: widget.myServerUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, senderName: _myDisplayName);
+                await PhotonApi.sendMessage(receiverServerUrl: c.serverUrl, chatKey: chatKey, from: widget.identity.fipId, text: sendText, ts: ts, toFipId: c.fipId, senderName: _myDisplayName);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${c.name} ${AppLang.instance.t('forwardedToPerson')}'), duration: const Duration(seconds: 2)));
+              },
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    });
+  }
+
+  Future<void> _translateMessage(String msgId, String text) async {
+    if (_translations.containsKey(msgId)) {
+      setState(() => _translations.remove(msgId));
+      return;
+    }
+    setState(() => _translating.add(msgId));
+    final translated = await TranslateService.translate(text);
+    if (mounted) {
+      setState(() {
+        _translating.remove(msgId);
+        if (translated != text) _translations[msgId] = translated;
+      });
+    }
+  }
+
+  bool get _contactRead => _readStatus.containsKey(widget.contact.fipId);
+
+  void _showDisappearDialog() {
+    final options = <String, int?>{
+      AppLang.instance.t('off'): null,
+      AppLang.instance.t('disappear10s'): 10,
+      AppLang.instance.t('disappear30s'): 30,
+      AppLang.instance.t('disappear1m'): 60,
+      AppLang.instance.t('disappear5m'): 300,
+      AppLang.instance.t('disappear1h'): 3600,
+    };
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: PhotonColors.panel,
+        title: Text(AppLang.instance.t('disappearingMessages'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.entries.map((e) => RadioListTile<int?>(
+            title: Text(e.key, style: TextStyle(color: PhotonColors.text, fontSize: 13)),
+            value: e.value,
+            groupValue: _disappearSeconds,
+            activeColor: PhotonColors.accent,
+            onChanged: (v) async {
+              Navigator.pop(ctx);
+              await LocalStore.saveDisappearDuration(_chatKey, v);
+              if (mounted) setState(() => _disappearSeconds = v);
+            },
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
+  String _formatLastSeen(int ts) {
+    if (ts == 0) return AppLang.instance.t('lastSeenUnknown');
+    final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts));
+    if (diff.inMinutes < 1) return AppLang.instance.t('justNow');
+    if (diff.inMinutes < 60) return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inMinutes} ${AppLang.instance.t('minutesAgo')}';
+    if (diff.inHours < 24) return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inHours} ${AppLang.instance.t('hoursAgo')}';
+    return '${AppLang.instance.t('lastSeenPrefix')} ${diff.inDays} ${AppLang.instance.t('daysAgo')}';
   }
 
   void _showDeactivatedDialog() {
     showDialog(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: KnkColors.panel,
-        title: const Text('Kişi artık aktif değil', style: TextStyle(color: KnkColors.text, fontSize: 15)),
-        content: const Text('Bu kişi hesabını bu cihazdan kaldırdı. Mesajın iletilemeyecek.', style: TextStyle(color: KnkColors.textDim, fontSize: 13, height: 1.6)),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Tamam', style: TextStyle(color: KnkColors.accent)))],
+      builder: (context) => AlertDialog(
+        backgroundColor: PhotonColors.panel,
+        title: Text(AppLang.instance.t('contactInactiveTitle'), style: TextStyle(color: PhotonColors.text, fontSize: 15)),
+        content: Text(AppLang.instance.t('contactRemovedDevice'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLang.instance.t('ok'), style: TextStyle(color: PhotonColors.accent)))],
       ),
     );
   }
 
   String _formatTime(int ts) {
     final d = DateTime.fromMillisecondsSinceEpoch(ts);
-    final now = DateTime.now();
-    final hm = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    if (d.year == now.year && d.month == now.month && d.day == now.day) return hm;
-    return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} $hm';
+    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _banner(IconData icon, String text, {Color tone = KnkColors.danger}) => NoticeBar(icon: icon, text: text, tone: tone);
+  Widget _buildImageBubble(_DisplayMessage m, bool mine) {
+    final revealed = _revealedImages.contains(m.msgId);
+    if (m.isNsfw && !revealed) {
+      return GestureDetector(
+        onTap: () => setState(() => _revealedImages.add(m.msgId)),
+        child: Container(
+          width: 200, height: 200,
+          decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(8)),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Text('⛔', style: TextStyle(fontSize: 32)),
+            const SizedBox(height: 8),
+            Text(AppLang.instance.t('sensitiveContentTap'), textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 11)),
+          ]),
+        ),
+      );
+    }
+    try {
+      final bytes = base64Decode(m.imageData!);
+      if (!revealed && !mine) {
+        return GestureDetector(
+          onTap: () => setState(() => _revealedImages.add(m.msgId)),
+          child: Stack(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.2, 0.2, 0.2, 0, 0,
+                  0.2, 0.2, 0.2, 0, 0,
+                  0.2, 0.2, 0.2, 0, 0,
+                  0,   0,   0,   1, 0,
+                ]),
+                child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
+              ),
+            ),
+            Positioned.fill(child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.touch_app, color: Colors.white70, size: 28),
+                const SizedBox(height: 4),
+                Text(AppLang.instance.t('tapToView'), style: TextStyle(color: Colors.white70, fontSize: 11)),
+              ]),
+            )),
+          ]),
+        );
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(bytes, width: 200, height: 200, fit: BoxFit.cover),
+      );
+    } catch (_) {
+      return Text(AppLang.instance.t('imageLoadFailedInline'), style: TextStyle(color: PhotonColors.textDim, fontSize: 12));
+    }
+  }
 
-  IconData get _trustIcon => switch (_trust) {
-    KeyTrust.verified => Icons.verified_user_outlined,
-    KeyTrust.changed => Icons.gpp_bad_outlined,
-    _ => Icons.gpp_maybe_outlined,
-  };
+  Widget _buildLocationBubble(String text, bool mine) {
+    final match = RegExp(r'\[📍KONUM:([-\d.]+),([-\d.]+)\]').firstMatch(text);
+    if (match == null) return Text(text, style: TextStyle(color: PhotonColors.text, fontSize: 13.5));
+    final lat = match.group(1)!;
+    final lng = match.group(2)!;
+    final url = 'https://www.openstreetmap.org/?mlat=$lat&mlon=$lng&zoom=15';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.location_on, color: PhotonColors.accent, size: 18),
+          const SizedBox(width: 6),
+          Text(AppLang.instance.t('sharedLocation'), style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.map, color: PhotonColors.accent, size: 14),
+              const SizedBox(width: 6),
+              Text(AppLang.instance.t('openInMap'), style: TextStyle(color: PhotonColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
 
-  Color get _trustColor => switch (_trust) {
-    KeyTrust.verified => KnkColors.accent,
-    KeyTrust.changed => KnkColors.danger,
-    _ => KnkColors.textDim,
-  };
+  Widget _buildVoiceBubble(String text, bool mine) {
+    final match = RegExp(r'\[🎤SES:(.*)\]', dotAll: true).firstMatch(text);
+    final transcript = match?.group(1) ?? '';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => _playVoiceMessage(transcript),
+          child: Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), shape: BoxShape.circle),
+            child: Icon(Icons.play_arrow, color: PhotonColors.accent, size: 20),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(AppLang.instance.t('voiceMessage'), style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13)),
+          if (transcript.isNotEmpty)
+            Text(transcript, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.7), fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+        ])),
+        Icon(Icons.mic, color: PhotonColors.accent.withOpacity(0.6), size: 16),
+      ]),
+    );
+  }
+
+  Future<void> _saveAndShareFile(_DisplayMessage m) async {
+    if (m.fileData == null) return;
+    try {
+      final bytes = base64Decode(m.fileData!);
+      final dir = await getTemporaryDirectory();
+      final safeName = (m.fileName ?? 'dosya').replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final file = File('${dir.path}/$safeName');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles([XFile(file.path)]);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppLang.instance.t('fileOpenFailed')}: $e')));
+    }
+  }
+
+  Widget _buildFileBubble(_DisplayMessage m, bool mine) {
+    final name = m.fileName ?? 'dosya';
+    final size = m.fileSize ?? 0;
+    String sizeStr;
+    if (size < 1024) sizeStr = '$size B';
+    else if (size < 1024 * 1024) sizeStr = '${(size / 1024).toStringAsFixed(1)} KB';
+    else sizeStr = '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return GestureDetector(
+      onTap: () => _saveAndShareFile(m),
+      child: Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+        ])),
+        Icon(Icons.download, color: PhotonColors.accent, size: 20),
+      ]),
+    ),
+    );
+  }
+
+  Widget _buildFileTextBubble(_DisplayMessage m, bool mine) {
+    // Parse "[Dosya: filename (size)]" pattern
+    final raw = m.text;
+    String name = 'dosya';
+    String sizeStr = '';
+    final match = RegExp(r'^\[Dosya: (.+?)(?:\s*\((.+?)\))?\]$').firstMatch(raw);
+    if (match != null) {
+      name = match.group(1) ?? 'dosya';
+      sizeStr = match.group(2) ?? '';
+    }
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: mine ? const Color(0xFF06251A).withOpacity(0.3) : PhotonColors.panelAlt,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: PhotonColors.accent.withOpacity(0.4)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: PhotonColors.accent.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          child: Icon(Icons.insert_drive_file, color: PhotonColors.accent, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name, style: TextStyle(color: mine ? const Color(0xFF06251A) : PhotonColors.text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+          if (sizeStr.isNotEmpty)
+            Text(sizeStr, style: TextStyle(color: (mine ? const Color(0xFF06251A) : PhotonColors.text).withOpacity(0.6), fontSize: 11)),
+        ])),
+      ]),
+    );
+  }
+
+  void _openContactProfile() {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProfileScreen(
+        fipId: widget.contact.fipId,
+        name: widget.contact.name,
+        code: widget.contact.code,
+        avatar: widget.contact.avatar,
+        bio: widget.contact.bio,
+        statusMsg: widget.contact.statusMsg,
+        isOnline: _contactOnline,
+        // Already in the chat, so there is nothing for a message button to do.
+      ),
+    ));
+  }
+
+  Widget _buildAvatar(String name, String avatar, {double size = 36}) {
+    if (avatar.isNotEmpty) {
+      try {
+        final bytes = base64Decode(avatar);
+        return CircleAvatar(radius: size / 2, backgroundImage: MemoryImage(bytes));
+      } catch (_) {}
+    }
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: PhotonColors.accent.withOpacity(0.2),
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: PhotonColors.accent, fontSize: size * 0.4, fontWeight: FontWeight.bold)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final inputDisabled = _isBlocked || _contactDeactivated;
     return Scaffold(
       appBar: AppBar(
-        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(widget.contact.name, overflow: TextOverflow.ellipsis),
-          Text('kod ${widget.contact.code}', style: KnkText.meta.merge(KnkText.tabular)),
+        title: Row(children: [
+          GestureDetector(
+            onTap: _openContactProfile,
+            child: _buildAvatar(vipDisplayName(_contactVip, widget.contact.name), widget.contact.avatar, size: 32),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(
+                child: Text(
+                  vipDisplayName(_contactVip, widget.contact.name),
+                  style: TextStyle(fontSize: 15, color: vipNameColor(_contactVip)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_contactVip.effectiveTier.premiumTag) ...[
+                const SizedBox(width: 5),
+                VipBadge(status: _contactVip),
+              ],
+            ]),
+            Text(
+              _contactOnline ? AppLang.instance.t('online') : _formatLastSeen(widget.contact.lastSeen),
+              style: TextStyle(
+                color: _contactOnline ? Colors.green : PhotonColors.textDim,
+                fontSize: 10,
+              ),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          ])),
         ]),
         actions: [
           IconButton(
-            tooltip: 'Güvenlik numarası',
-            onPressed: _openVerify,
-            icon: Icon(_trustIcon, color: _trustColor),
+            icon: Icon(Icons.file_download_outlined, color: PhotonColors.textDim),
+            onPressed: _exportChat,
+            tooltip: AppLang.instance.t('exportChat'),
           ),
-          const SizedBox(width: Space.s1),
+          IconButton(
+            icon: Icon(Icons.hourglass_empty, color: _disappearSeconds != null ? PhotonColors.accent : PhotonColors.textDim),
+            onPressed: _showDisappearDialog,
+            tooltip: AppLang.instance.t('disappearingMessages'),
+          ),
         ],
       ),
-      body: Column(
+      body: Stack(children: [
+        ChatWallpaper.buildBackground(),
+        Column(
         children: [
-          if (_sharedKey != null)
-            Material(
-              color: KnkColors.accentWash,
-              child: InkWell(
-                onTap: _openVerify,
-                child: ContentWidth(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Space.s2, vertical: Space.s1),
-                    child: Row(children: [
-                      const Icon(Icons.lock_outline, color: KnkColors.accent, size: 16),
-                      const SizedBox(width: Space.s1),
-                      const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 13)),
-                      const Spacer(),
-                      Icon(_trustIcon, color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, size: 16),
-                      const SizedBox(width: Space.s1),
-                      Text(
-                        _trust == KeyTrust.verified ? 'doğrulandı' : 'güvenlik numarasını doğrula',
-                        style: TextStyle(
-                          color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, fontSize: 13,
-                          decoration: _trust == KeyTrust.verified ? null : TextDecoration.underline,
-                          decorationColor: KnkColors.accent2,
-                        ),
-                      ),
-                    ]),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: PhotonColors.line))),
+            child: Row(children: [
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: PhotonColors.accent, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text('FIP · ${widget.contact.code}', style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1)),
+              if (_sharedKey != null) ...[SizedBox(width: 8), Icon(Icons.lock, color: PhotonColors.accent, size: 11)],
+              if (_disappearSeconds != null) ...[SizedBox(width: 8), Icon(Icons.hourglass_empty, color: PhotonColors.accent, size: 11)],
+            ]),
+          ),
+          // Pinned message banner
+          if (_pinnedMessage != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: PhotonColors.accent.withOpacity(0.08),
+              child: Row(children: [
+                Icon(Icons.push_pin, color: PhotonColors.accent, size: 14),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  _pinnedMessage!['text'] as String? ?? '',
+                  style: TextStyle(color: PhotonColors.text, fontSize: 12),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                )),
+                GestureDetector(
+                  onTap: () async {
+                    await LocalStore.savePinnedMessage(_chatKey, null);
+                    if (mounted) setState(() => _pinnedMessage = null);
+                  },
+                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
+                ),
+              ]),
+            ),
+          if (_isBlocked)
+            _banner(Icons.block, AppLang.instance.t('blockedByYou'), PhotonColors.danger)
+          else if (!_contactActive)
+            _banner(Icons.info_outline, '${widget.contact.name} ${AppLang.instance.t('removedAccountSuffix')}', PhotonColors.danger),
+          if (_contactTyping && !_isBlocked)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Text('${widget.contact.name} ${AppLang.instance.t('typing')}', style: TextStyle(color: PhotonColors.textDim, fontSize: 11, fontStyle: FontStyle.italic)),
+            ),
+          if (_editingMsgId != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: PhotonColors.accent.withOpacity(0.1),
+              child: Row(children: [
+                Icon(Icons.edit, color: PhotonColors.accent, size: 14),
+                const SizedBox(width: 8),
+                Text(AppLang.instance.t('editMode'), style: TextStyle(color: PhotonColors.accent, fontSize: 12)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => setState(() { _editingMsgId = null; _draftCtrl.clear(); }),
+                  child: Icon(Icons.close, color: PhotonColors.textDim, size: 16),
+                ),
+              ]),
+            ),
+          Expanded(
+            child: _isBlocked
+                ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Text(AppLang.instance.t('unblockToSee'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6))))
+                : (_messages.isEmpty && OfflineQueue.instance.getForChat(_chatKey).isEmpty)
+                    ? Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Text(AppLang.instance.t('chatCleanStart'), textAlign: TextAlign.center, style: TextStyle(color: PhotonColors.textDim, fontSize: 12, height: 1.6))))
+                    : _buildMessageList(),
+          ),
+          if (_inputError != null)
+            Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: PhotonColors.danger.withOpacity(0.1), child: Text(_inputError!, style: TextStyle(color: PhotonColors.danger, fontSize: 12))),
+          // Quick replies bar
+          if (_showQuickReplies && _quickReplies.isNotEmpty)
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _quickReplies.map((r) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: ActionChip(
+                    label: Text(r, style: TextStyle(color: PhotonColors.text, fontSize: 12)),
+                    backgroundColor: PhotonColors.panelAlt,
+                    side: BorderSide(color: PhotonColors.line),
+                    onPressed: () {
+                      _draftCtrl.text = r;
+                      _draftCtrl.selection = TextSelection.fromPosition(TextPosition(offset: r.length));
+                      setState(() => _showQuickReplies = false);
+                    },
+                  ),
+                )).toList(),
+              ),
+            ),
+          // Reply banner
+          if (_replyToMsg != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: PhotonColors.accent.withOpacity(0.1),
+              child: Row(children: [
+                Container(width: 3, height: 36, decoration: BoxDecoration(color: PhotonColors.accent, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(_replyToMsg!['from'] == widget.identity.fipId ? AppLang.instance.t('you') : widget.contact.name,
+                    style: TextStyle(color: PhotonColors.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(_replyToMsg!['text'] as String? ?? '', style: TextStyle(color: PhotonColors.textDim, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ])),
+                GestureDetector(onTap: () => setState(() => _replyToMsg = null), child: Icon(Icons.close, color: PhotonColors.textDim, size: 16)),
+              ]),
+            ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: PhotonColors.panel, border: Border(top: BorderSide(color: PhotonColors.line))),
+            child: Row(children: [
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.photo_outlined, color: PhotonColors.textDim),
+                  tooltip: AppLang.instance.t('sendPhoto'),
+                  onPressed: _pickAndSendImage,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.attach_file, color: PhotonColors.textDim),
+                  tooltip: AppLang.instance.t('sendFile'),
+                  onPressed: _pickAndSendFile,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.gif_box_outlined, color: PhotonColors.textDim),
+                  tooltip: AppLang.instance.t('createGif'),
+                  onPressed: _openGifCreator,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.location_on, color: PhotonColors.textDim),
+                  tooltip: AppLang.instance.t('shareLocation'),
+                  onPressed: _shareLocation,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              if (!_isBlocked)
+                GestureDetector(
+                  onLongPressStart: (_) => _startVoiceMessage(),
+                  onLongPressEnd: (_) async {
+                    if (_isRecordingVoice) {
+                      await _speech.stop();
+                    }
+                  },
+                  child: Container(
+                    width: 36, height: 36,
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.panelAlt,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _isRecordingVoice ? PhotonColors.danger : PhotonColors.line),
+                    ),
+                    child: Icon(
+                      _isRecordingVoice ? Icons.stop : Icons.mic_none,
+                      color: _isRecordingVoice ? Colors.white : PhotonColors.textDim,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              if (!_isBlocked)
+                IconButton(
+                  icon: Icon(Icons.flash_on, color: _showQuickReplies ? PhotonColors.accent : PhotonColors.textDim),
+                  tooltip: AppLang.instance.t('quickReplies'),
+                  onPressed: () => setState(() => _showQuickReplies = !_showQuickReplies),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              Expanded(
+                child: TextField(
+                  controller: _draftCtrl,
+                  style: TextStyle(color: PhotonColors.text, fontSize: 14),
+                  enabled: !_isBlocked,
+                  decoration: InputDecoration(
+                    hintText: _isBlocked ? AppLang.instance.t('blockedHint') : (_editingMsgId != null ? AppLang.instance.t('editingMessageHint') : (_isListening ? AppLang.instance.t('listening') : (_contactActive ? AppLang.instance.t('writeMessagePlaceholder') : AppLang.instance.t('contactInactiveHint')))),
+                    hintStyle: TextStyle(color: _isListening ? PhotonColors.accent : PhotonColors.textDim),
+                    filled: true, fillColor: PhotonColors.bg,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide(color: PhotonColors.line)),
+                  ),
+                  onChanged: _onTextChanged,
+                  onSubmitted: (_) => _send(),
+                ),
+              ),
+              const SizedBox(width: 6),
+              if (_sttEnabled && _sttAvailable)
+                InkWell(
+                  onTap: _startListening,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 38, height: 38, alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _isListening ? PhotonColors.danger : PhotonColors.panelAlt,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _isListening ? PhotonColors.danger : PhotonColors.line),
+                    ),
+                    child: Icon(
+                      _isListening ? Icons.stop : Icons.mic,
+                      color: _isListening ? Colors.white : PhotonColors.textDim,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: _isBlocked ? null : _send,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 40, height: 40, alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: (_isBlocked || !_contactActive) ? PhotonColors.line : PhotonColors.accent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _editingMsgId != null ? Icons.check : Icons.arrow_upward,
+                    color: (_isBlocked || !_contactActive) ? PhotonColors.textDim : const Color(0xFF06251A),
                   ),
                 ),
               ),
-            ),
-          if (_isBlocked)
-            _banner(Icons.block, 'Bu kişiyi engelledin.')
-          else if (_contactDeactivated)
-            _banner(Icons.person_off_outlined, '${widget.contact.name} hesabını kaldırdı. Mesajların artık ona ulaşmaz.')
-          else if (_trust == KeyTrust.changed)
-            _banner(Icons.gpp_bad_outlined, '${widget.contact.name} için doğruladığın anahtar değişti. Güvenlik numarasını yeniden karşılaştır.', )
-          else if (_serverUnreachable)
-            _banner(Icons.cloud_off_outlined, 'Sunucuna ulaşılamıyor. Yeniden bağlanılıyor…', tone: KnkColors.accent2),
-          Expanded(
-            child: _isBlocked
-                ? const CenterNote(icon: Icons.block, title: 'Bu kişiyi engelledin.', body: 'Mesajlarını görmek için engeli kaldırman gerekir.')
-                : !_loaded && _messages.isEmpty
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                    : _messages.isEmpty
-                        ? const CenterNote(icon: Icons.forum_outlined, title: 'Bu sohbet temiz.', body: 'İlk mesajı sen gönder.')
-                        : ListView.builder(
-                            controller: _scrollCtrl,
-                            padding: const EdgeInsets.symmetric(vertical: Space.s2),
-                            itemCount: _messages.length,
-                            itemBuilder: (context, i) => ContentWidth(child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: Space.s2),
-                              child: _buildBubble(_messages[i]),
-                            )),
-                          ),
-          ),
-          if (_contactTyping && !_isBlocked)
-            ContentWidth(child: Padding(
-              padding: const EdgeInsets.fromLTRB(Space.s2, 0, Space.s2, Space.s1),
-              child: Align(alignment: Alignment.centerLeft, child: Text('${widget.contact.name} yazıyor…', style: KnkText.small.copyWith(fontStyle: FontStyle.italic))),
-            )),
-          if (_inputError != null) _banner(Icons.error_outline, _inputError!),
-          MessageComposer(
-            controller: _draftCtrl,
-            enabled: !inputDisabled,
-            sending: _sending,
-            hint: _isBlocked ? 'Bu kişiyi engelledin' : (_contactDeactivated ? 'Kişi artık aktif değil' : 'Mesaj yaz'),
-            onChanged: _onTextChanged,
-            onSend: _send,
+            ]),
           ),
         ],
       ),
+      ]),
     );
   }
 
-  Widget _buildBubble(_DisplayMessage m) {
-    final mine = m.from == widget.identity.fipId;
-    final undecryptable = m.text == null;
-    // Şifreli bir sohbette karşı taraftan gelen düz metin mesaj doğrulanamaz
-    // (eski sürümden gönderilmiş ya da başkası tarafından eklenmiş olabilir).
-    final unverified = !mine && !m.encrypted && _sharedKey != null;
-    final fg = mine ? KnkColors.onAccent : KnkColors.text;
-    final status = _delivery[m.ts];
-    final maxW = (MediaQuery.sizeOf(context).width * 0.78).clamp(0.0, 520.0);
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: Space.s1),
-        padding: const EdgeInsets.fromLTRB(Space.s2, Space.s1, Space.s2, Space.s1),
-        constraints: BoxConstraints(maxWidth: maxW),
-        decoration: BoxDecoration(
-          color: mine ? KnkColors.accent : KnkColors.panel,
-          border: mine ? null : Border.all(color: KnkColors.line),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(KnkRadius.bubble), topRight: const Radius.circular(KnkRadius.bubble),
-            bottomLeft: Radius.circular(mine ? KnkRadius.bubble : 2), bottomRight: Radius.circular(mine ? 2 : KnkRadius.bubble),
-          ),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          if (undecryptable)
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.lock_outline, size: 16, color: fg.withOpacity(0.7)),
-              const SizedBox(width: Space.s1),
-              Flexible(child: Text('Bu şifreli mesaj çözülemedi.', style: TextStyle(color: fg.withOpacity(0.7), fontSize: 15, fontStyle: FontStyle.italic))),
-            ])
-          else
-            Text(filterProfanity(m.text!), style: TextStyle(color: fg, fontSize: 15, height: 1.45)),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (unverified) ...[
-                const Tooltip(
-                  message: 'Bu mesaj şifresiz geldi; gerçekten bu kişiden geldiği doğrulanamıyor.',
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.warning_amber_outlined, size: 14, color: KnkColors.accent2),
-                    SizedBox(width: Space.s1),
-                    Text('şifresiz', style: TextStyle(color: KnkColors.accent2, fontSize: 11)),
-                  ]),
-                ),
-                const SizedBox(width: Space.s1),
-              ],
-              Text(_formatTime(m.ts), style: TextStyle(color: fg.withOpacity(0.7), fontSize: 11).merge(KnkText.tabular)),
-              if (mine) ...[
-                const SizedBox(width: Space.s1),
-                // Geçmişten gelen (bu oturumda gönderilmemiş) mesajlar teslim edilmiş sayılır.
-                Tooltip(
-                  message: status == _Delivery.sent ? 'Sunucuna yazıldı, karşı tarafa iletiliyor' : 'Karşı tarafa iletildi',
-                  child: Icon(status == _Delivery.sent ? Icons.done : Icons.done_all, size: 14, color: fg.withOpacity(0.8)),
-                ),
-              ],
-            ],
-          ),
-        ]),
-      ),
-    );
-  }
+  Widget _banner(IconData icon, String text, Color color) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    color: color.withOpacity(0.12),
+    child: Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 8), Expanded(child: Text(text, style: TextStyle(color: color, fontSize: 11.5, height: 1.4)))]),
+  );
 }
 
 class _DisplayMessage {
+  final String msgId;
   final String from;
-  /// Çözülemeyen şifreli mesajlar için null.
-  final String? text;
+  final String text;
   final int ts;
-  final bool encrypted;
-  _DisplayMessage({required this.from, required this.text, required this.ts, required this.encrypted});
+  final bool delivered;
+  final bool deleted;
+  final bool edited;
+  final Map<String, List<String>> reactions;
+  final Map<String, dynamic>? replyTo;
+  final String? imageData;
+  final bool isNsfw;
+  final String? fileData;
+  final String? fileName;
+  final int? fileSize;
+  _DisplayMessage({required this.msgId, required this.from, required this.text, required this.ts, required this.delivered, required this.deleted, required this.edited, this.reactions = const {}, this.replyTo, this.imageData, this.isNsfw = false, this.fileData, this.fileName, this.fileSize});
 }

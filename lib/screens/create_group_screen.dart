@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../fip.dart';
 import '../local_store.dart';
-import '../knk_api.dart';
+import '../photon_api.dart';
 import '../theme.dart';
-import '../e2e.dart';
+import '../i18n.dart';
 
 class CreateGroupScreen extends StatefulWidget {
   final FipBlock identity;
@@ -17,6 +17,7 @@ class CreateGroupScreen extends StatefulWidget {
 
 class _CreateGroupScreenState extends State<CreateGroupScreen> {
   final _nameCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
   Group? _created;
@@ -24,85 +25,105 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _create() async {
-    if (_loading) return;
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) { setState(() => _error = 'Grup adı boş olamaz'); return; }
+    if (name.isEmpty) { setState(() => _error = AppLang.instance.t('groupNameEmpty')); return; }
     setState(() { _loading = true; _error = null; });
     try {
-      final myPub = await getMyPublicKeyBase64();
-      final data = await KnkApi.createGroup(
+      final (data, err) = await PhotonApi.createGroup(
         widget.myServerUrl,
         ownerFipId: widget.identity.fipId,
         ownerName: widget.displayName,
         name: name,
         ownerServerUrl: widget.myServerUrl,
-        ownerPublicKey: myPub,
+        description: _descCtrl.text.trim(),
       );
       if (!mounted) return;
-      if (data == null) { setState(() { _error = 'Grup oluşturulamadı. Sunucu bağlantını kontrol et.'; _loading = false; }); return; }
-      if (data['token'] == null) { setState(() { _error = 'Sunucun eski bir sürüm. Grup için sunucunu güncelle.'; _loading = false; }); return; }
-      final (keyId, key) = generateGroupKeyEntry();
+      if (data == null) {
+        setState(() {
+          _error = err != null ? '${AppLang.instance.t('groupCreateFailed')}: $err' : AppLang.instance.t('groupCreateFailed');
+          _loading = false;
+        });
+        return;
+      }
+      // Register group code on bridge so members can join by code alone (no server URL to type).
+      await PhotonApi.registerOnBridge(data['groupCode'] as String, widget.myServerUrl, actor: widget.identity.fipId);
+      if (!mounted) return;
       final group = Group(
         groupId: data['groupId'] as String,
         groupCode: data['groupCode'] as String,
         name: name,
+        description: _descCtrl.text.trim(),
         ownerFipId: widget.identity.fipId,
         ownerServerUrl: widget.myServerUrl,
         isOwner: true,
-        token: data['token'] as String?,
-        ownerPublicKey: myPub,
-        // İlk uçtan uca grup anahtarı: yalnızca bu cihazda üretilir ve saklanır.
-        keyring: {keyId: key},
-        currentKeyId: keyId,
-        members: [GroupMember(fipId: widget.identity.fipId, name: widget.displayName, serverUrl: widget.myServerUrl, publicKey: myPub)],
+        members: [],
       );
       setState(() { _created = group; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _error = 'Grup oluşturulamadı.'; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = '${AppLang.instance.t('error')}: $e'; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Grup oluşturulduktan sonra geri tuşuyla çıkılsa bile grup listeye eklenir.
-    return PopScope(
-      canPop: _created == null,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _created != null) Navigator.pop(context, _created);
-      },
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Grup oluştur')),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(Space.s3, Space.s5, Space.s3, Space.s5),
-          child: ContentWidth(max: 560, child: _created == null ? _buildForm() : _buildSuccess()),
-        ),
+    return Scaffold(
+      appBar: AppBar(title: Text(AppLang.instance.t('createGroup'))),
+      backgroundColor: PhotonColors.bg,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: _created == null ? _buildForm() : _buildSuccess(),
       ),
     );
   }
 
   Widget _buildForm() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text('Gruba bir ad ver.', style: KnkText.h1),
-      const SizedBox(height: Space.s3),
-      const Text('Grup senin sunucunda yaşar ve şifreleme anahtarı bu cihazda üretilir. Kimin katılacağına sen karar verirsin.', style: KnkText.bodyDim),
-      const SizedBox(height: Space.s4),
+      Text(AppLang.instance.t('createGroupHint'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+      const SizedBox(height: 24),
       TextField(
         controller: _nameCtrl,
-        maxLength: 40,
-        onSubmitted: (_) => _create(),
-        decoration: knkInputDecoration('örn. Hafta sonu ekibi', label: 'Grup adı', error: _error),
+        style: TextStyle(color: PhotonColors.text),
+        decoration: InputDecoration(
+          labelText: AppLang.instance.t('groupName'),
+          labelStyle: TextStyle(color: PhotonColors.textDim),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
+          errorText: _error,
+          errorStyle: TextStyle(color: PhotonColors.danger),
+        ),
       ),
-      const SizedBox(height: Space.s1),
-      ElevatedButton(
-        onPressed: _loading ? null : _create,
-        child: _loading
-            ? const SizedBox(height: Space.s2, width: Space.s2, child: CircularProgressIndicator(strokeWidth: 2, color: KnkColors.onAccent))
-            : const Text('Grubu oluştur'),
+      const SizedBox(height: 14),
+      TextField(
+        controller: _descCtrl,
+        maxLength: 120,
+        maxLines: 2,
+        style: TextStyle(color: PhotonColors.text, fontSize: 13),
+        decoration: InputDecoration(
+          labelText: AppLang.instance.t('groupDescriptionOptional'),
+          labelStyle: TextStyle(color: PhotonColors.textDim),
+          hintText: AppLang.instance.t('groupDescriptionHint'),
+          hintStyle: TextStyle(color: PhotonColors.textDim, fontSize: 12),
+          counterStyle: TextStyle(color: PhotonColors.textDim, fontSize: 10),
+          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.line), borderRadius: BorderRadius.circular(8)),
+          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: PhotonColors.accent), borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          style: photonPrimaryButtonStyle(),
+          onPressed: _loading ? null : _create,
+          child: _loading
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+              : Text(AppLang.instance.t('create')),
+        ),
       ),
     ],
   );
@@ -110,36 +131,39 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   Widget _buildSuccess() {
     final g = _created!;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.check_circle_outline, color: KnkColors.accent, size: 32),
-        const SizedBox(height: Space.s2),
-        Text('${g.name} hazır.', style: KnkText.h1),
-        const SizedBox(height: Space.s3),
-        const Text('Bu adresi katılmasını istediğin kişilere gönder. Katılma istekleri grubun içinde, sağ üstte görünür.', style: KnkText.bodyDim),
-        const SizedBox(height: Space.s4),
+        Text(AppLang.instance.t('groupCreatedShareBelow'), style: TextStyle(color: PhotonColors.textDim, fontSize: 13, height: 1.6)),
+        const SizedBox(height: 24),
         Container(
-          padding: const EdgeInsets.all(Space.s3),
-          decoration: BoxDecoration(color: KnkColors.accentWash, border: Border.all(color: KnkColors.line), borderRadius: BorderRadius.circular(KnkRadius.card)),
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: PhotonColors.panel, border: Border.all(color: PhotonColors.accent.withOpacity(0.4)), borderRadius: BorderRadius.circular(10)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('GRUP ADRESİ', style: KnkText.label),
-            const SizedBox(height: Space.s1),
-            Text(g.groupCode, style: KnkText.code.copyWith(fontSize: 34, letterSpacing: 6)),
-            const SizedBox(height: Space.s1),
-            SelectableText('@${g.ownerServerUrl}', style: KnkText.small),
+            Text(AppLang.instance.t('groupAddress'), style: TextStyle(color: PhotonColors.textDim, fontSize: 10, letterSpacing: 1.5)),
+            const SizedBox(height: 8),
+            Text(g.address, style: TextStyle(color: PhotonColors.accent, fontSize: 13, fontFamily: 'monospace')),
           ]),
         ),
-        const SizedBox(height: Space.s2),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.content_copy_outlined, size: 18),
-          label: const Text('Adresi kopyala'),
-          onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: g.address));
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Grup adresi kopyalandı.'), duration: Duration(seconds: 2)));
-          },
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: PhotonColors.text, side: BorderSide(color: PhotonColors.line), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            icon: const Icon(Icons.copy, size: 16),
+            label: Text(AppLang.instance.t('copyAddress')),
+            onPressed: () => Clipboard.setData(ClipboardData(text: g.address)),
+          ),
         ),
-        const SizedBox(height: Space.s1),
-        ElevatedButton(onPressed: () => Navigator.pop(context, g), child: const Text('Bitti')),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: photonPrimaryButtonStyle(),
+            onPressed: () => Navigator.pop(context, g),
+            child: Text(AppLang.instance.t('ok')),
+          ),
+        ),
       ],
     );
   }
