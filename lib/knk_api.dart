@@ -91,13 +91,17 @@ class KnkApi {
 
   // --- Presence ---
 
-  static Future<bool> registerPresence(String myServerUrl, String fipId, String code, String name, {String? publicKey}) async {
+  static Map<String, String> _userAuth(String authToken) => {..._json, 'x-user-token': authToken};
+
+  /// [authToken]: cihazda saklanan gizli kimlik token'ı; başkasının kaydımızı değiştirmesini engeller.
+  static Future<bool> registerPresence(String myServerUrl, String fipId, String code, String name,
+      {String? publicKey, required String authToken}) async {
     var ok = false;
     try {
-      final r = await _post(myServerUrl, '/presence', {
+      final r = await _client.post(_u(myServerUrl, '/presence'), headers: _userAuth(authToken), body: jsonEncode({
         'fipId': fipId, 'code': code, 'name': name, 'serverUrl': myServerUrl,
         if (publicKey != null) 'publicKey': publicKey,
-      });
+      })).timeout(_timeout);
       ok = r.statusCode == 200;
     } catch (_) {}
     await registerOnBridge(code, myServerUrl);
@@ -203,12 +207,19 @@ class KnkApi {
     return false;
   }
 
-  static Future<void> deleteChat(String serverUrl, String chatKey) async {
-    try { await _delete(serverUrl, '/chat/${_seg(chatKey)}'); } catch (_) {}
+  static Future<void> deleteChat(String serverUrl, String chatKey, String authToken) async {
+    try {
+      await _client.delete(_u(serverUrl, '/chat/${_seg(chatKey)}'), headers: _userAuth(authToken)).timeout(_timeout);
+    } catch (_) {}
   }
 
-  static Future<void> deactivate(String myServerUrl, String fipId) async {
-    try { await _post(myServerUrl, '/deactivate', {'fipId': fipId}); } catch (_) {}
+  static Future<bool> deactivate(String myServerUrl, String fipId, String authToken) async {
+    try {
+      final r = await _client.post(_u(myServerUrl, '/deactivate'), headers: _userAuth(authToken),
+          body: jsonEncode({'fipId': fipId})).timeout(_timeout);
+      return r.statusCode == 200;
+    } catch (_) {}
+    return false;
   }
 
   // --- Typing indicator ---

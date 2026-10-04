@@ -51,11 +51,27 @@ function createApp() {
   });
 
   // --- Presence ---
+  // Kullanıcı yetkilendirmesi: istemci ilk kayıtta gizli bir x-user-token gönderir
+  // (yalnızca cihazda saklanır). Sunucu sadece özetini tutar. Sonraki kayıt
+  // güncellemeleri, hesap silme ve sohbet silme bu token'ı ister; böylece fipId'yi
+  // bilen biri başkasının adını / public key'ini değiştiremez veya hesabını silemez.
+  const hashToken = (t) => crypto.createHash('sha256').update(t).digest('hex');
+  const userTokenOf = (req) => req.get('x-user-token') || '';
+  const userAuthOk = (fipId, req) => {
+    const u = users.get(fipId);
+    const t = userTokenOf(req);
+    return !!(u && u.tokenHash && t && hashToken(t) === u.tokenHash);
+  };
+
   app.post('/presence', (req, res) => {
     const { fipId, code, name, publicKey, serverUrl } = req.body || {};
     if (!isStr(fipId, 128) || !optStr(code, 16) || !optStr(name, 64) || !optStr(publicKey, 256) || !optStr(serverUrl, 512))
       return res.sendStatus(400);
-    users.set(fipId, { code, name, publicKey, serverUrl, ts: Date.now() });
+    const token = userTokenOf(req);
+    const existing = users.get(fipId);
+    if (existing && existing.tokenHash && !userAuthOk(fipId, req)) return res.sendStatus(403);
+    const tokenHash = token ? hashToken(token) : existing && existing.tokenHash;
+    users.set(fipId, { code, name, publicKey, serverUrl, tokenHash, ts: Date.now() });
     deactivated.delete(fipId);
     res.sendStatus(200);
   });
@@ -160,8 +176,11 @@ function createApp() {
     res.sendStatus(200);
   });
 
+  // Sohbet geçmişini yalnızca sohbetin taraflarından biri silebilir.
   app.delete('/chat/:chatKey', (req, res) => {
-    chats.delete(req.params.chatKey);
+    const key = req.params.chatKey;
+    if (!key.split('__').some(fipId => userAuthOk(fipId, req))) return res.sendStatus(403);
+    chats.delete(key);
     res.sendStatus(200);
   });
 
@@ -197,7 +216,9 @@ function createApp() {
     const { fipId } = req.body || {};
     if (!isStr(fipId, 128)) return res.sendStatus(400);
     const u = users.get(fipId);
-    if (u && u.code && registry.get(u.code) === u.serverUrl) registry.delete(u.code);
+    if (!u) return res.sendStatus(404); // önce /presence ile kayıt olunmalı
+    if (!userAuthOk(fipId, req)) return res.sendStatus(403);
+    if (u.code && registry.get(u.code) === u.serverUrl) registry.delete(u.code);
     users.delete(fipId);
     deactivated.add(fipId);
     requests.delete(fipId);

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'e2e.dart';
 import 'fip.dart';
@@ -89,6 +90,18 @@ class LocalStore {
   static const _kGroupsKey = 'knk_groups_v1';
   static const _kGuideSeenKey = 'knk_guide_seen_v1';
   static const _kBlockListKey = 'knk_block_list_v1';
+  static const _kAuthTokenKey = 'knk_auth_token_v1';
+
+  /// Sunucuya kimliğimizi kanıtlayan gizli token (yalnızca bu cihazda). Yoksa üretilir.
+  static Future<String> loadOrCreateAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_kAuthTokenKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+    final rnd = Random.secure();
+    final token = List<int>.generate(32, (_) => rnd.nextInt(256)).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    await prefs.setString(_kAuthTokenKey, token);
+    return token;
+  }
 
   static Future<String?> loadMyServerUrl() async => (await SharedPreferences.getInstance()).getString(_kMyServerUrlKey);
   static Future<void> saveMyServerUrl(String url) async => (await SharedPreferences.getInstance()).setString(_kMyServerUrlKey, url.trim());
@@ -174,6 +187,7 @@ class LocalStore {
     await prefs.remove(_kGroupsKey);
     await prefs.remove(_kGuideSeenKey);
     await prefs.remove(_kBlockListKey);
+    await prefs.remove(_kAuthTokenKey);
     await wipeE2EKeys();
   }
 }

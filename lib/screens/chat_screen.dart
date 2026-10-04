@@ -72,13 +72,16 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _initE2E() async {
     final stored = widget.contact.publicKey;
     if (stored != null && stored.isNotEmpty) {
+      // Anahtar sabitleme: ilk öğrenilen anahtar kullanılır ve sunucudaki bir değişiklikle
+      // sessizce değiştirilmez (ortadaki adam saldırısına karşı). Bir fipId'nin anahtarı
+      // meşru olarak değişmez; hesap silinip yeniden açılınca fipId de değişir.
       await _useKey(stored);
+      return;
     }
-    // Sunucudaki güncel anahtarı al (kayıtlı anahtar yoksa ya da değiştiyse).
     try {
       final info = await KnkApi.lookupByCode(widget.contact.serverUrl, widget.contact.code);
       final pubKey = info?['publicKey'] as String?;
-      if (info?['fipId'] == widget.contact.fipId && pubKey != null && pubKey.isNotEmpty && pubKey != stored) {
+      if (info?['fipId'] == widget.contact.fipId && pubKey != null && pubKey.isNotEmpty) {
         widget.contact.publicKey = pubKey;
         await _useKey(pubKey);
       }
@@ -431,6 +434,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildBubble(_DisplayMessage m) {
     final mine = m.from == widget.identity.fipId;
     final undecryptable = m.text == null;
+    // Şifreli bir sohbette karşı taraftan gelen düz metin mesaj doğrulanamaz
+    // (eski sürümden gönderilmiş ya da başkası tarafından eklenmiş olabilir).
+    final unverified = !mine && !m.encrypted && _sharedKey != null;
     final displayText = undecryptable ? '🔒 Bu şifreli mesaj çözülemedi.' : filterProfanity(m.text!);
     final fg = mine ? const Color(0xFF06251A) : KnkColors.text;
     final status = _delivery[m.ts];
@@ -456,6 +462,13 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (unverified) ...[
+                Tooltip(
+                  message: 'Bu mesaj şifresiz geldi; gerçekten bu kişiden geldiği doğrulanamıyor.',
+                  child: Text('⚠ şifresiz', style: TextStyle(color: KnkColors.accent2.withOpacity(0.9), fontSize: 9.5)),
+                ),
+                const SizedBox(width: 6),
+              ],
               Text(_formatTime(m.ts), style: TextStyle(color: fg.withOpacity(0.6), fontSize: 9.5)),
               if (mine) ...[
                 const SizedBox(width: 4),

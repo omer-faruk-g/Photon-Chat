@@ -41,6 +41,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool _disposed = false;
   DateTime _lastPresence = DateTime.fromMillisecondsSinceEpoch(0);
   String? _publicKey;
+  String _authToken = '';
 
   static const _syncInterval = Duration(seconds: 4);
   static const _groupSyncInterval = Duration(seconds: 8);
@@ -66,6 +67,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (_disposed) return;
     setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
     try { _publicKey = await getMyPublicKeyBase64(); } catch (_) {}
+    _authToken = await LocalStore.loadOrCreateAuthToken();
     await _registerPresence();
     unawaited(_sync());
     unawaited(_groupSync());
@@ -73,7 +75,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _registerPresence() async {
     _lastPresence = DateTime.now();
-    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName, publicKey: _publicKey);
+    await KnkApi.registerPresence(widget.myServerUrl, widget.identity.fipId, widget.identity.code, widget.displayName,
+        publicKey: _publicKey, authToken: _authToken);
   }
 
   void _showToast(String msg) {
@@ -295,7 +298,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _openSettings() async {
     // Hesap silinirken arka plandaki senkron durdurulur.
     final deactivated = await Navigator.push<bool>(context, MaterialPageRoute(
-      builder: (_) => SettingsScreen(identity: widget.identity, myServerUrl: widget.myServerUrl, onBeforeDeactivate: _stopSync),
+      builder: (_) => SettingsScreen(identity: widget.identity, displayName: widget.displayName, myServerUrl: widget.myServerUrl, onBeforeDeactivate: _stopSync),
     ));
     if (deactivated == true && mounted) {
       Navigator.popUntil(context, (route) => route.isFirst);
@@ -325,7 +328,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     );
     if (keep == null) return; // diyalog kapatıldı: uygulamada kal
     if (keep == false) {
-      await Future.wait(active.map((c) => KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId))));
+      await Future.wait(active.map((c) => KnkApi.deleteChat(widget.myServerUrl, chatKeyFor(widget.identity.fipId, c.fipId), _authToken)));
     }
     await SystemNavigator.pop();
   }

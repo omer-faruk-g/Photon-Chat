@@ -9,9 +9,10 @@ import '../theme.dart';
 class SettingsScreen extends StatefulWidget {
   final FipBlock identity;
   final String myServerUrl;
+  final String displayName;
   /// Hesap silinmeden hemen önce çağrılır (ör. arka plan senkronunu durdurmak için).
   final VoidCallback? onBeforeDeactivate;
-  const SettingsScreen({super.key, required this.identity, required this.myServerUrl, this.onBeforeDeactivate});
+  const SettingsScreen({super.key, required this.identity, required this.myServerUrl, this.displayName = '', this.onBeforeDeactivate});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -25,10 +26,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_deleting) return;
     setState(() => _deleting = true);
     widget.onBeforeDeactivate?.call();
-    await Future.wait([
-      KnkApi.deactivate(widget.myServerUrl, widget.identity.fipId),
-      KnkApi.unregisterOnBridge(widget.identity.code, widget.myServerUrl),
-    ]);
+    final token = await LocalStore.loadOrCreateAuthToken();
+    final id = widget.identity;
+    // Sunucu yeniden başlamış olabilir: önce kaydı tazele, sonra token ile hesabı sil.
+    // Böylece arkadaşların bu hesabın silindiğini görür ve kişiyi listelerinden kaldırır.
+    if (!await KnkApi.deactivate(widget.myServerUrl, id.fipId, token)) {
+      await KnkApi.registerPresence(widget.myServerUrl, id.fipId, id.code, widget.displayName, authToken: token);
+      await KnkApi.deactivate(widget.myServerUrl, id.fipId, token);
+    }
+    await KnkApi.unregisterOnBridge(id.code, widget.myServerUrl);
     await LocalStore.wipeIdentity();
     if (!mounted) return;
     Navigator.pop(context, true);

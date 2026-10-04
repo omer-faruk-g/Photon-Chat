@@ -14,9 +14,10 @@ before(async () => {
 after(() => server.close());
 beforeEach(() => resetStore());
 
-async function call(method, path, body, token) {
+async function call(method, path, body, token, userToken) {
   const headers = body ? { 'Content-Type': 'application/json' } : {};
   if (token) headers['x-group-token'] = token;
+  if (userToken) headers['x-user-token'] = userToken;
   const res = await fetch(base + path, {
     method,
     headers,
@@ -86,15 +87,15 @@ test('cannot send a friend request to yourself', async () => {
 });
 
 test('status distinguishes active, deactivated and unknown', async () => {
-  await call('POST', '/presence', { fipId: A, code: '11111' });
-  await call('POST', '/presence', { fipId: B, code: '22222' });
-  await call('POST', '/deactivate', { fipId: B });
+  await call('POST', '/presence', { fipId: A, code: '11111' }, null, 'tA');
+  await call('POST', '/presence', { fipId: B, code: '22222' }, null, 'tB');
+  await call('POST', '/deactivate', { fipId: B }, null, 'tB');
   const r = await call('POST', '/status', { fipIds: [A, B, C] });
   assert.deepEqual(r.json, { active: [A], deactivated: [B] });
   // Eski /active uç noktası hâlâ çalışır
   assert.deepEqual((await call('POST', '/active', { fipIds: [A, B, C] })).json, [A]);
   // Tekrar presence gönderen kullanıcı yeniden aktif olur
-  await call('POST', '/presence', { fipId: B, code: '22222' });
+  await call('POST', '/presence', { fipId: B, code: '22222' }, null, 'tB2');
   assert.deepEqual((await call('POST', '/status', { fipIds: [B] })).json, { active: [B], deactivated: [] });
 });
 
@@ -112,7 +113,11 @@ test('chat messages: store, validate, dedupe, order, delete', async () => {
   const r = await call('GET', `/chat/${key}`);
   assert.deepEqual(r.json.map(m => m.text), ['merhaba', 'selam']);
 
-  await call('DELETE', `/chat/${key}`);
+  // Taraflardan biri olmayan silemez
+  assert.equal((await call('DELETE', `/chat/${key}`)).status, 403);
+  await call('POST', '/presence', { fipId: A, code: '11111' }, null, 'tA');
+  assert.equal((await call('DELETE', `/chat/${key}`, undefined, null, 'yanlis')).status, 403);
+  assert.equal((await call('DELETE', `/chat/${key}`, undefined, null, 'tA')).status, 200);
   assert.deepEqual((await call('GET', `/chat/${key}`)).json, []);
 });
 
@@ -133,11 +138,11 @@ test('typing indicator expires', async () => {
 });
 
 test('deactivate wipes user data, chats and owned groups', async () => {
-  await call('POST', '/presence', { fipId: A, code: '11111', serverUrl: base });
+  await call('POST', '/presence', { fipId: A, code: '11111', serverUrl: base }, null, 'tA');
   await call('POST', '/registry/register', { code: '11111', serverUrl: base });
   await call('POST', `/chat/${key}`, { from: A, text: 'x', ts: 1 });
   const g = (await call('POST', '/groups', { ownerFipId: A, ownerName: 'Ali', name: 'G', ownerServerUrl: base })).json;
-  await call('POST', '/deactivate', { fipId: A });
+  await call('POST', '/deactivate', { fipId: A }, null, 'tA');
   assert.deepEqual((await call('GET', `/chat/${key}`)).json, []);
   assert.equal((await call('GET', '/lookup/11111')).status, 404);
   assert.equal((await call('GET', '/registry/lookup/11111')).status, 404);
@@ -281,4 +286,24 @@ test('pulse AI is rate limited per client', async () => {
   for (let i = 0; i < 31; i++) last = await call('POST', '/ai/chat', { messages: [] });
   assert.equal(last.status, 429);
   if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved; else delete process.env.ANTHROPIC_API_KEY;
+});
+
+test('user security: nobody can hijack presence, swap keys or deactivate others', async () => {
+  await call('POST', '/presence', { fipId: A, code: '11111', name: 'Ali', publicKey: 'PK_ALI' }, null, 'gizli');
+  // Saldırgan Ali'nin adını / public key'ini değiştiremez (E2E MITM engeli)
+  assert.equal((await call('POST', '/presence', { fipId: A, code: '11111', name: 'Sahte', publicKey: 'PK_EVIL' })).status, 403);
+  assert.equal((await call('POST', '/presence', { fipId: A, code: '11111', name: 'Sahte', publicKey: 'PK_EVIL' }, null, 'baska')).status, 403);
+  assert.equal((await call('GET', '/lookup/11111')).json.publicKey, 'PK_ALI');
+  // Saldırgan Ali'yi "hesabını sildi" gösteremez
+  assert.equal((await call('POST', '/deactivate', { fipId: A })).status, 403);
+  assert.equal((await call('POST', '/deactivate', { fipId: A }, null, 'baska')).status, 403);
+  assert.deepEqual((await call('POST', '/status', { fipIds: [A] })).json, { active: [A], deactivated: [] });
+  // Kayıtsız kullanıcı silinemez (sunucu yeniden başladıktan sonra yarış)
+  assert.equal((await call('POST', '/deactivate', { fipId: C }, null, 'x')).status, 404);
+  // Sahibi kendi token'ıyla güncelleyebilir ve silebilir
+  assert.equal((await call('POST', '/presence', { fipId: A, code: '11111', name: 'Ali2', publicKey: 'PK_ALI' }, null, 'gizli')).status, 200);
+  assert.equal((await call('POST', '/deactivate', { fipId: A }, null, 'gizli')).status, 200);
+  // Token özeti hiçbir yanıtta görünmez
+  await call('POST', '/presence', { fipId: B, code: '22222' }, null, 'tb');
+  assert.equal(JSON.stringify((await call('GET', '/lookup/22222')).json).includes('token'), false);
 });

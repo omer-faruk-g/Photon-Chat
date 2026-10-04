@@ -52,8 +52,10 @@ void main() {
     final boraKp = await X25519().newKeyPair();
     final boraPub = base64.encode((await boraKp.extractPublicKey()).bytes);
 
-    expect(await KnkApi.registerPresence(base, ali.fipId, ali.code, 'Ali', publicKey: aliPub), isTrue);
-    expect(await KnkApi.registerPresence(base, bora.fipId, bora.code, 'Bora', publicKey: boraPub), isTrue);
+    expect(await KnkApi.registerPresence(base, ali.fipId, ali.code, 'Ali', publicKey: aliPub, authToken: 'ali-gizli'), isTrue);
+    expect(await KnkApi.registerPresence(base, bora.fipId, bora.code, 'Bora', publicKey: boraPub, authToken: 'bora-gizli'), isTrue);
+    // Saldırgan Bora'nın kaydını (ve public key'ini) ele geçiremez
+    expect(await KnkApi.registerPresence(base, bora.fipId, bora.code, 'Sahte', publicKey: aliPub, authToken: 'saldirgan'), isFalse);
 
     // Ali, Bora'yı kodla bulur ve istek gönderir
     final found = await KnkApi.lookupByCode(base, bora.code);
@@ -90,7 +92,9 @@ void main() {
     expect(await KnkApi.getStatus(base, 'fip_yok'), ContactStatus.unknown);
     expect(await KnkApi.getStatus('http://127.0.0.1:1', bora.fipId), ContactStatus.unknown,
         reason: 'ulaşılamayan sunucu kişiyi silinmiş göstermemeli');
-    await KnkApi.deactivate(base, bora.fipId);
+    expect(await KnkApi.deactivate(base, bora.fipId, 'saldirgan'), isFalse, reason: 'başkası hesabı silemez');
+    expect(await KnkApi.getStatus(base, bora.fipId), ContactStatus.active);
+    expect(await KnkApi.deactivate(base, bora.fipId, 'bora-gizli'), isTrue);
     expect(await KnkApi.getStatus(base, bora.fipId), ContactStatus.deactivated);
     expect(await KnkApi.getMessages(key, receiverServerUrl: base), isEmpty);
   });
