@@ -116,6 +116,31 @@ class LocalStore {
   static const _kGuideSeenKey = 'knk_guide_seen_v1';
   static const _kBlockListKey = 'knk_block_list_v1';
   static const _kAuthTokenKey = 'knk_auth_token_v1';
+  static const _kVerifiedKeysKey = 'knk_verified_keys_v1';
+
+  // --- Anahtar doğrulama: fipId -> doğrulanmış public key ---
+
+  static Future<Map<String, String>> loadVerifiedKeys() async {
+    final raw = (await SharedPreferences.getInstance()).getString(_kVerifiedKeysKey);
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as Map).map((k, v) => MapEntry(k as String, v as String));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> setVerifiedKey(String fipId, String publicKey) async {
+    final m = await loadVerifiedKeys();
+    m[fipId] = publicKey;
+    await (await SharedPreferences.getInstance()).setString(_kVerifiedKeysKey, jsonEncode(m));
+  }
+
+  static Future<void> removeVerifiedKey(String fipId) async {
+    final m = await loadVerifiedKeys();
+    if (m.remove(fipId) == null) return;
+    await (await SharedPreferences.getInstance()).setString(_kVerifiedKeysKey, jsonEncode(m));
+  }
 
   /// Sunucuya kimliğimizi kanıtlayan gizli token (yalnızca bu cihazda). Yoksa üretilir.
   static Future<String> loadOrCreateAuthToken() async {
@@ -222,6 +247,26 @@ class LocalStore {
     await prefs.remove(_kGuideSeenKey);
     await prefs.remove(_kBlockListKey);
     await prefs.remove(_kAuthTokenKey);
+    await prefs.remove(_kVerifiedKeysKey);
     await wipeE2EKeys();
   }
+}
+
+/// Bir kişinin anahtarının doğrulama durumu.
+enum KeyTrust {
+  /// Anahtar henüz bilinmiyor.
+  none,
+  /// Biliniyor ama güvenlik numarası karşılaştırılmadı.
+  unverified,
+  /// Güvenlik numarası karşılaştırıldı ve onaylandı.
+  verified,
+  /// Doğrulanmış anahtar ile şu anki anahtar FARKLI: araya biri girmiş olabilir.
+  changed,
+}
+
+KeyTrust keyTrust(Map<String, String> verifiedKeys, String fipId, String? publicKey) {
+  if (publicKey == null || publicKey.isEmpty) return KeyTrust.none;
+  final v = verifiedKeys[fipId];
+  if (v == null) return KeyTrust.unverified;
+  return v == publicKey ? KeyTrust.verified : KeyTrust.changed;
 }

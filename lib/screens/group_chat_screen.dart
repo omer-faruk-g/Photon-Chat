@@ -8,6 +8,7 @@ import '../e2e.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
+import 'verify_key_screen.dart';
 
 /// Kullanıcının bu gruptaki durumu.
 enum _Membership { loading, member, pending, removed, groupGone, legacy }
@@ -47,6 +48,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool _keysChanged = false;
   /// Bir üyeye anahtar teslimi sürüyor (aynı anda iki kez sarmamak için).
   final Set<String> _wrapping = {};
+  /// Doğrulanmış anahtarlar (fipId -> public key).
+  Map<String, String> _verifiedKeys = {};
 
   Group get _g => widget.group;
   String get _owner => _g.ownerServerUrl;
@@ -63,6 +66,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return;
     }
     if (_g.isOwner) _membership = _Membership.member;
+    _loadVerified();
     _pollInfo();
     _pollMessages();
   }
@@ -277,6 +281,41 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     await _rotateKey();
   }
 
+  // --- Anahtar doğrulama ---
+
+  Future<void> _loadVerified() async {
+    final v = await LocalStore.loadVerifiedKeys();
+    if (!_disposed) setState(() => _verifiedKeys = v);
+  }
+
+  /// Bir üyenin karşılaştırılacak anahtarı. Sahip için, katılırken sabitlenen
+  /// anahtar kullanılır (sunucunun sonradan bildirdiği değil).
+  String? _keyOf(GroupMember m) => (m.fipId == _g.ownerFipId && !_g.isOwner) ? _g.ownerPublicKey : m.publicKey;
+
+  KeyTrust _trustOf(GroupMember m) => keyTrust(_verifiedKeys, m.fipId, _keyOf(m));
+
+  String get _ownerName {
+    for (final m in _g.members) {
+      if (m.fipId == _g.ownerFipId) return m.name;
+    }
+    return 'Grup sahibi';
+  }
+
+  KeyTrust get _ownerTrust => keyTrust(_verifiedKeys, _g.ownerFipId, _g.ownerPublicKey);
+
+  Future<void> _openVerify(String fipId, String name, String? publicKey) async {
+    if (publicKey == null) {
+      _showToast('Bu kişinin şifreleme anahtarı bilinmiyor.');
+      return;
+    }
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyKeyScreen(
+      myFipId: _me, theirFipId: fipId, theirName: name, theirPublicKey: publicKey,
+    )));
+    await _loadVerified();
+    // Doğrulama değiştiyse (ör. yeni anahtar onaylandı) bekleyen teslimleri tamamla.
+    if (_g.isOwner && !_disposed) await _distributeKeys();
+  }
+
   // --- Uçtan uca grup anahtarı ---
 
   /// Sahip: güncel anahtarı olmayan her üyeye anahtarı sarıp teslim eder.
@@ -291,6 +330,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     for (final m in _g.members.toList()) {
       final pub = m.publicKey;
       if (m.fipId == _me || pub == null || pub.isEmpty || m.keyId == keyId || _wrapping.contains(m.fipId)) continue;
+      // Doğruladığımız anahtardan farklı bir anahtara grup anahtarını asla gönderme
+      // (sunucu veya araya giren biri sahte anahtar sunuyor olabilir).
+      if (keyTrust(_verifiedKeys, m.fipId, pub) == KeyTrust.changed) continue;
       _wrapping.add(m.fipId);
       try {
         final wrapped = await wrapGroupKey(groupId: _g.groupId, keyId: keyId, keyBase64: key, memberPublicKeyBase64: pub);
@@ -317,6 +359,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _fetchMyKey() async {
     final ownerPub = _g.ownerPublicKey;
     if (ownerPub == null) return;
+    // Sahibin anahtarı doğrulanandan farklıysa ondan gelen anahtarı kabul etme.
+    if (_ownerTrust == KeyTrust.changed) return;
     final res = await KnkApi.getMyGroupKey(_owner, _g.groupId, _token, _me);
     if (res == null || _disposed) return;
     final (wrapped, keyId) = res;
@@ -474,15 +518,44 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 if (isMuted) const SizedBox(width: 6),
                 if (isMuted) const Icon(Icons.volume_off, color: KnkColors.textDim, size: 13),
               ]),
-              trailing: _g.isOwner && !isOwner
-                  ? IconButton(
-                      icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 18),
-                      onPressed: () {
-                        Navigator.pop(sheetCtx);
-                        _showMemberMenu(m);
+              subtitle: switch (_trustOf(m)) {
+                KeyTrust.verified when m.fipId != _me =>
+                  const Text('doğrulandı ✓', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                KeyTrust.changed when m.fipId != _me =>
+                  const Text('anahtar değişti! anahtar teslim edilmiyor', style: TextStyle(color: KnkColors.danger, fontSize: 10)),
+                _ => null,
+              },
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (m.fipId != _me)
+                  IconButton(
+                    tooltip: 'Güvenlik numarası',
+                    icon: Icon(
+                      switch (_trustOf(m)) {
+                        KeyTrust.verified => Icons.verified_user,
+                        KeyTrust.changed => Icons.gpp_bad,
+                        _ => Icons.gpp_maybe_outlined,
                       },
-                    )
-                  : null,
+                      size: 18,
+                      color: switch (_trustOf(m)) {
+                        KeyTrust.verified => KnkColors.accent,
+                        KeyTrust.changed => KnkColors.danger,
+                        _ => KnkColors.textDim,
+                      },
+                    ),
+                    onPressed: () {
+                      Navigator.pop(sheetCtx);
+                      _openVerify(m.fipId, m.name, _keyOf(m));
+                    },
+                  ),
+                if (_g.isOwner && !isOwner)
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: KnkColors.textDim, size: 18),
+                    onPressed: () {
+                      Navigator.pop(sheetCtx);
+                      _showMemberMenu(m);
+                    },
+                  ),
+              ]),
             );
           }),
           const SizedBox(height: 16),
@@ -519,6 +592,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       case _Membership.member:
         if (_mutedMembers.contains(_me)) {
           text = 'Grup yöneticisi seni susturdu.';
+        } else if (!_g.isOwner && _ownerTrust == KeyTrust.changed) {
+          text = 'Grup sahibinin anahtarı doğruladığın anahtardan farklı! Güvenlik numarasını yeniden karşılaştırana kadar mesaj gönderilemez.';
         } else if (_g.currentKey == null) {
           text = 'Şifreleme anahtarı bekleniyor. Grup sahibi uygulamayı açınca mesajlaşabilirsin.';
         }
@@ -537,7 +612,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me) && _g.currentKey != null;
+    final canSend = _membership == _Membership.member && !_mutedMembers.contains(_me) && _g.currentKey != null &&
+        (_g.isOwner || _ownerTrust != KeyTrust.changed);
     final banner = _statusBanner();
     return Scaffold(
       appBar: AppBar(
@@ -566,10 +642,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KnkColors.line))),
-                  child: const Row(children: [
-                    Icon(Icons.lock, color: KnkColors.accent, size: 11),
-                    SizedBox(width: 4),
-                    Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                  child: Row(children: [
+                    const Icon(Icons.lock, color: KnkColors.accent, size: 11),
+                    const SizedBox(width: 4),
+                    const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                    if (!_g.isOwner) ...[
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => _openVerify(_g.ownerFipId, _ownerName, _g.ownerPublicKey),
+                        child: Text(
+                          switch (_ownerTrust) {
+                            KeyTrust.verified => '· sahip doğrulandı ✓',
+                            KeyTrust.changed => '· sahibin anahtarı değişti!',
+                            _ => '· sahibi doğrula',
+                          },
+                          style: TextStyle(
+                            color: switch (_ownerTrust) {
+                              KeyTrust.verified => KnkColors.accent,
+                              KeyTrust.changed => KnkColors.danger,
+                              _ => KnkColors.accent2,
+                            },
+                            fontSize: 10,
+                            decoration: _ownerTrust == KeyTrust.verified ? null : TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ]),
                 ),
               if (banner != null) banner,

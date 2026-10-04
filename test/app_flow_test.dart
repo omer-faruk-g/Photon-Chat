@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -282,6 +283,61 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('bağlanılamadı'), findsOneWidget);
     _noError(tester);
+    await _disposeApp(tester);
+  });
+
+  testWidgets('safety number can be compared and marked verified from the chat', (tester) async {
+    final fip = FipBlock.generate();
+    final bora = FipBlock.generate();
+    final boraPub = await tester.runAsync(() async {
+      final kp = await X25519().newKeyPair();
+      return base64.encode((await kp.extractPublicKey()).bytes);
+    });
+    SharedPreferences.setMockInitialValues({
+      'knk_guide_seen_v1': true,
+      'knk_my_server_url_v1': server,
+      'knk_identity_v1': jsonEncode(fip.toJson()),
+      'knk_display_name_v1': 'Ali',
+      'knk_contacts_v1': jsonEncode([
+        {'fipId': bora.fipId, 'name': 'Bora', 'code': bora.code, 'serverUrl': server, 'status': 'on', 'publicKey': boraPub},
+      ]),
+    });
+    await tester.pumpWidget(const KnkApp());
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Bora'));
+    await tester.pump();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.gpp_maybe_outlined), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Güvenlik numarası'));
+    // Numara ayrı isolate'te hesaplanır: gerçek zamanda bekle
+    for (var i = 0; i < 50 && find.byKey(const ValueKey('safety-group-11')).evaluate().isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Doğrulanmadı'), findsOneWidget);
+    _noError(tester);
+    final groups = [for (var i = 0; i < 12; i++) tester.widget<Text>(find.byKey(ValueKey('safety-group-$i'))).data!];
+    expect(groups, hasLength(12));
+
+    // Ekrandaki numara, Bora'nın cihazında hesaplanacak numarayla aynı olmalı
+    final myPub = await tester.runAsync(getMyPublicKeyBase64);
+    final onBora = safetyNumber(myFipId: bora.fipId, myPublicKey: boraPub!, theirFipId: fip.fipId, theirPublicKey: myPub!);
+    expect(groups.join(), onBora);
+
+    await tester.tap(find.textContaining('doğrulandı olarak işaretle'));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text('Doğrulandı'), findsOneWidget);
+    expect((await tester.runAsync(LocalStore.loadVerifiedKeys))![bora.fipId], boraPub);
+
+    await tester.pageBack();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.verified_user), findsOneWidget);
+    expect(find.text('· doğrulandı ✓'), findsOneWidget);
     await _disposeApp(tester);
   });
 }

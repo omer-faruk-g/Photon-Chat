@@ -112,4 +112,35 @@ void main() {
       expect(await decryptGroupMessage('düz metin', const {}), 'düz metin');
     });
   });
+
+  group('safety number', () {
+    Future<String> pub() async => base64.encode((await (await X25519().newKeyPair()).extractPublicKey()).bytes);
+
+    test('is identical on both devices and 60 digits long', () async {
+      final a = await pub();
+      final b = await pub();
+      final onA = safetyNumber(myFipId: 'fip_a', myPublicKey: a, theirFipId: 'fip_b', theirPublicKey: b)!;
+      final onB = safetyNumber(myFipId: 'fip_b', myPublicKey: b, theirFipId: 'fip_a', theirPublicKey: a)!;
+      expect(onA, onB);
+      expect(onA, matches(RegExp(r'^\d{60}$')));
+      expect(safetyNumberGroups(onA), hasLength(12));
+      expect(safetyNumberGroups(onA).every((g) => g.length == 5), isTrue);
+    });
+
+    test('changes when any key is swapped (MITM is visible)', () async {
+      final a = await pub();
+      final b = await pub();
+      final evil = await pub();
+      final real = safetyNumber(myFipId: 'fip_a', myPublicKey: a, theirFipId: 'fip_b', theirPublicKey: b);
+      final mitm = safetyNumber(myFipId: 'fip_a', myPublicKey: a, theirFipId: 'fip_b', theirPublicKey: evil);
+      final mitmOtherSide = safetyNumber(myFipId: 'fip_b', myPublicKey: b, theirFipId: 'fip_a', theirPublicKey: evil);
+      expect(mitm, isNot(real));
+      // Araya giren kişi iki tarafa farklı anahtar verdiğinde ekranlardaki numaralar eşleşmez
+      expect(mitm, isNot(mitmOtherSide));
+    });
+
+    test('invalid key yields null instead of crashing', () {
+      expect(safetyNumber(myFipId: 'a', myPublicKey: 'bozuk!!', theirFipId: 'b', theirPublicKey: 'AAAA'), isNull);
+    });
+  });
 }

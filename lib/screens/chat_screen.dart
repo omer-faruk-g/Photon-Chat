@@ -8,6 +8,7 @@ import '../e2e.dart';
 import '../theme.dart';
 import '../profanity_filter.dart';
 import '../message_guard.dart';
+import 'verify_key_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final FipBlock identity;
@@ -36,6 +37,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isBlocked = false;
   bool _sending = false;
   SecretKey? _sharedKey;
+  KeyTrust _trust = KeyTrust.none;
 
   Timer? _pollTimer;
   Timer? _statusTimer;
@@ -94,7 +96,27 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_disposed) return;
       _decryptCache.clear();
       setState(() => _sharedKey = key);
+      await _loadTrust();
     } catch (_) {}
+  }
+
+  Future<void> _loadTrust() async {
+    final verified = await LocalStore.loadVerifiedKeys();
+    if (_disposed) return;
+    setState(() => _trust = keyTrust(verified, widget.contact.fipId, widget.contact.publicKey));
+  }
+
+  Future<void> _openVerify() async {
+    final pub = widget.contact.publicKey;
+    if (pub == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Kişinin şifreleme anahtarı henüz alınmadı. Biraz sonra tekrar dene.'), duration: Duration(seconds: 3)));
+      return;
+    }
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyKeyScreen(
+      myFipId: widget.identity.fipId, theirFipId: widget.contact.fipId, theirName: widget.contact.name, theirPublicKey: pub,
+    )));
+    await _loadTrust();
   }
 
   Future<void> _checkBlocked() async {
@@ -318,7 +340,27 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final inputDisabled = _isBlocked || _contactDeactivated;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.contact.name)),
+      appBar: AppBar(
+        title: Text(widget.contact.name),
+        actions: [
+          IconButton(
+            tooltip: 'Güvenlik numarası',
+            onPressed: _openVerify,
+            icon: Icon(
+              switch (_trust) {
+                KeyTrust.verified => Icons.verified_user,
+                KeyTrust.changed => Icons.gpp_bad,
+                _ => Icons.gpp_maybe_outlined,
+              },
+              color: switch (_trust) {
+                KeyTrust.verified => KnkColors.accent,
+                KeyTrust.changed => KnkColors.danger,
+                _ => KnkColors.textDim,
+              },
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Container(
@@ -334,6 +376,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 const Icon(Icons.lock, color: KnkColors.accent, size: 11),
                 const SizedBox(width: 3),
                 const Text('uçtan uca şifreli', style: TextStyle(color: KnkColors.accent, fontSize: 10)),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _openVerify,
+                  child: Text(
+                    _trust == KeyTrust.verified ? '· doğrulandı ✓' : '· doğrula',
+                    style: TextStyle(
+                      color: _trust == KeyTrust.verified ? KnkColors.accent : KnkColors.accent2, fontSize: 10,
+                      decoration: _trust == KeyTrust.verified ? null : TextDecoration.underline,
+                    ),
+                  ),
+                ),
               ],
             ]),
           ),
@@ -341,6 +394,8 @@ class _ChatScreenState extends State<ChatScreen> {
             _banner(Icons.block, 'Bu kişiyi engellediniz.')
           else if (_contactDeactivated)
             _banner(Icons.info_outline, '${widget.contact.name} hesabını kaldırdı. Artık aktif değil.')
+          else if (_trust == KeyTrust.changed)
+            _banner(Icons.gpp_bad, '${widget.contact.name} için doğruladığın anahtar değişti. Güvenlik numarasını yeniden karşılaştır.')
           else if (_serverUnreachable)
             _banner(Icons.cloud_off, 'Sunucuna ulaşılamıyor. Yeniden bağlanılıyor…'),
           Expanded(

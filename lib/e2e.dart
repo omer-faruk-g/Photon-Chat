@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -189,3 +190,49 @@ String? groupMessageKeyId(String text) {
   final sep = rest.indexOf(':');
   return sep <= 0 ? null : rest.substring(0, sep);
 }
+
+// ---------------------------------------------------------------------------
+// Güvenlik numarası (anahtar parmak izi doğrulaması)
+//
+// İki kişinin public key'lerinden ve kimliklerinden 60 haneli bir numara
+// türetilir. İki cihazda da aynı numara çıkar; kullanıcılar bunu yüz yüze
+// veya telefonda karşılaştırır. Numara eşleşiyorsa araya kimse girmemiştir.
+// Her taraf için 30 hane: SHA-512, 5200 tur (kaba kuvveti yavaşlatmak için).
+// ---------------------------------------------------------------------------
+
+const _fingerprintVersion = 0;
+const _fingerprintIterations = 5200;
+
+String _sideFingerprint(String fipId, String publicKeyBase64) {
+  final pub = base64.decode(publicKeyBase64);
+  final id = utf8.encode(fipId);
+  var hash = <int>[0, _fingerprintVersion, ...pub, ...id];
+  for (var i = 0; i < _fingerprintIterations; i++) {
+    hash = crypto.sha512.convert([...hash, ...pub]).bytes;
+  }
+  final out = StringBuffer();
+  for (var i = 0; i < 30; i += 5) {
+    final chunk = (hash[i] << 32) | (hash[i + 1] << 24) | (hash[i + 2] << 16) | (hash[i + 3] << 8) | hash[i + 4];
+    out.write((chunk % 100000).toString().padLeft(5, '0'));
+  }
+  return out.toString();
+}
+
+/// İki taraf için aynı olan 60 haneli güvenlik numarası (12 adet 5'li grup).
+/// Anahtarlardan biri geçersizse null döner.
+String? safetyNumber({
+  required String myFipId, required String myPublicKey, required String theirFipId, required String theirPublicKey,
+}) {
+  try {
+    final mine = _sideFingerprint(myFipId, myPublicKey);
+    final theirs = _sideFingerprint(theirFipId, theirPublicKey);
+    // Sıralama, iki cihazda da aynı sonucu verir.
+    return myFipId.compareTo(theirFipId) <= 0 ? mine + theirs : theirs + mine;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 60 haneyi okunabilir 5'li gruplara böler.
+List<String> safetyNumberGroups(String number) =>
+    [for (var i = 0; i < number.length; i += 5) number.substring(i, i + 5)];

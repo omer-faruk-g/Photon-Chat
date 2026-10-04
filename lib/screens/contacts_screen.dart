@@ -42,6 +42,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   DateTime _lastPresence = DateTime.fromMillisecondsSinceEpoch(0);
   String? _publicKey;
   String _authToken = '';
+  Map<String, String> _verifiedKeys = {};
 
   static const _syncInterval = Duration(seconds: 4);
   static const _groupSyncInterval = Duration(seconds: 8);
@@ -64,8 +65,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final savedContacts = await LocalStore.loadContacts();
     final savedGroups = await LocalStore.loadGroups();
     final blockList = await LocalStore.loadBlockList();
+    final verified = await LocalStore.loadVerifiedKeys();
     if (_disposed) return;
-    setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _loading = false; });
+    setState(() { _contacts = savedContacts; _groups = savedGroups; _blockList = blockList; _verifiedKeys = verified; _loading = false; });
     try { _publicKey = await getMyPublicKeyBase64(); } catch (_) {}
     _authToken = await LocalStore.loadOrCreateAuthToken();
     await _registerPresence();
@@ -287,8 +289,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   Future<void> _openChat(Contact c) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(identity: widget.identity, contact: c, myServerUrl: widget.myServerUrl)));
-    // Sohbette kişinin public key'i öğrenilmiş olabilir.
+    // Sohbette kişinin public key'i öğrenilmiş veya doğrulanmış olabilir.
     await _saveContacts();
+    final verified = await LocalStore.loadVerifiedKeys();
+    if (!_disposed) setState(() => _verifiedKeys = verified);
   }
 
   void _openPulseAI() {
@@ -392,6 +396,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   contact: c,
                   onTap: () => _openChat(c),
                   onBlock: () => _blockContact(c),
+                  trust: keyTrust(_verifiedKeys, c.fipId, c.publicKey),
                 )),
                 ...outgoing.map((c) => _PendingOutRow(contact: c)),
                 const SizedBox(height: 24),
@@ -583,7 +588,8 @@ class _ContactRow extends StatelessWidget {
   final Contact contact;
   final VoidCallback onTap;
   final VoidCallback onBlock;
-  const _ContactRow({required this.contact, required this.onTap, required this.onBlock});
+  final KeyTrust trust;
+  const _ContactRow({required this.contact, required this.onTap, required this.onBlock, this.trust = KeyTrust.none});
 
   void _showMenu(BuildContext context) {
     showModalBottomSheet(
@@ -633,6 +639,17 @@ class _ContactRow extends StatelessWidget {
                 Container(width: 7, height: 7, decoration: const BoxDecoration(color: KnkColors.accent, shape: BoxShape.circle)),
                 const SizedBox(width: 6),
                 const Text('bağlı', style: TextStyle(color: KnkColors.textDim, fontSize: 11)),
+                if (trust == KeyTrust.verified) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.verified_user, color: KnkColors.accent, size: 12),
+                  const SizedBox(width: 3),
+                  const Text('doğrulandı', style: TextStyle(color: KnkColors.accent, fontSize: 11)),
+                ] else if (trust == KeyTrust.changed) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.gpp_bad, color: KnkColors.danger, size: 12),
+                  const SizedBox(width: 3),
+                  const Text('anahtar değişti', style: TextStyle(color: KnkColors.danger, fontSize: 11)),
+                ],
               ]),
             ])),
             IconButton(

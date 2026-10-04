@@ -61,4 +61,19 @@ void main() {
     final groups = await LocalStore.loadGroups();
     expect(groups.map((g) => g.token), ['tok', null]);
   });
+
+  test('verified keys persist, drive keyTrust and are wiped with the account', () async {
+    SharedPreferences.setMockInitialValues({});
+    expect(keyTrust(await LocalStore.loadVerifiedKeys(), 'fip_b', null), KeyTrust.none);
+    expect(keyTrust(await LocalStore.loadVerifiedKeys(), 'fip_b', 'PK1'), KeyTrust.unverified);
+    await LocalStore.setVerifiedKey('fip_b', 'PK1');
+    final v = await LocalStore.loadVerifiedKeys();
+    expect(keyTrust(v, 'fip_b', 'PK1'), KeyTrust.verified);
+    expect(keyTrust(v, 'fip_b', 'PK_EVIL'), KeyTrust.changed);
+    await LocalStore.removeVerifiedKey('fip_b');
+    expect(keyTrust(await LocalStore.loadVerifiedKeys(), 'fip_b', 'PK1'), KeyTrust.unverified);
+    await LocalStore.setVerifiedKey('fip_c', 'PK2');
+    await LocalStore.wipeIdentity();
+    expect(await LocalStore.loadVerifiedKeys(), isEmpty);
+  });
 }

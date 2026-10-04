@@ -47,6 +47,7 @@ Hepsi bu kadar. Artık mesajlaşabilirsin.
 |---------|--|
 | Telefon / e-posta gerektirmez | ✅ |
 | Birebir ve grup mesajlarında uçtan uca şifreleme (X25519 + AES-GCM) | ✅ |
+| Güvenlik numarası ile anahtar doğrulama (araya girme saldırısına karşı) | ✅ |
 | Sunucu tarafında kalıcı kayıt yok (RAM-only) | ✅ |
 | Ekran görüntüsü engeli (Android) | ✅ |
 | Grup sohbeti (grup sahibinin sunucusunda) | ✅ |
