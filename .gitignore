@@ -1,4 +1,3 @@
-knk_flutter/
 .claude/
 
 # Node deps for the bridge server and the verification tooling. package-lock.json
