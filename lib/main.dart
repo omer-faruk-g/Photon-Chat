@@ -45,6 +45,7 @@ void main() async {
   await ensureE2EKeypair();
   await ChatWallpaper.loadWallpaper();
   await OfflineQueue.instance.load();
+  await LocalStore.purgeLegacyOwnerMode();
   if ((!kIsWeb && Platform.isAndroid)) {
     await NotificationService.init();
     await Workmanager().initialize(_bgDispatcher);

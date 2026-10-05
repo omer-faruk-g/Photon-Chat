@@ -721,10 +721,26 @@ CHANGELOGS = {
         "Derlemeye kontrol eklendi: Windows ya da Linux dosyalarında eski ad kalırsa sürüm yayınlanmaz.\n\n"
         "> Kişilerin, sohbetlerin ve kimliğin cihazında aynen kalır; bu sürümü üzerine kurman yeterli."
     ),
+    'v10.9.0': (
+        "### 🔒 v10.9.0 — Dükkan kilitlendi, zorunlu güncelleme\n\n"
+        "**Test kodu kapatıldı.** Dükkandaki test kodu ve onun açtığı \"test modu\" uygulamadan tamamen kaldırıldı. "
+        "Katman ve animasyon vermek artık yalnızca sunucuda, yönetici anahtarıyla mümkün; "
+        "eski sürümlerdeki kod da bu yüzden hiçbir şey açmıyor. Ödeme henüz bağlı olmadığı için "
+        "\"Satın Al\" şimdilik \"Hizmet Dışıdır\" diyor.\n\n"
+        "**Zorunlu güncelleme.** Bundan sonra desteklenmeyen sürümler güncellemeyi erteleyemeyecek: "
+        "pencerede \"Sonra\" düğmesi olmayacak.\n\n"
+        "**Masaüstünde doğrudan indirme.** Windows ve Linux'ta \"İndir\" düğmesi GitHub sayfasını değil, kurulum dosyasını açıyor.\n\n"
+        "> Bu güncellemeyi kurman gerekiyor."
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2', 'v10.9.0'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2', 'v10.9.0'}
+
+
+# Bu sürümlerden önceki uygulamalar güncellemeyi erteleyemez (v10.9.0+ istemciler okur).
+# Görünmez HTML yorumu olarak sürüm notuna eklenir: <!-- min-version: X.Y.Z -->
+MIN_VERSIONS = {'v10.9.0': '10.9.0'}
 
 
 def make_body(tag):
@@ -752,6 +768,7 @@ def make_body(tag):
         "**Android / Huawei:** APK dosyasını indir → telefona yükle (Bilinmeyen kaynaklara izin ver)\n\n"
         "**Windows:** Kurulum için `PhotonChat-Windows-Setup.exe` çalıştır, ya da ZIP'i aç → `photon_chat.exe` çalıştır\n\n"
         "**Linux:** `tar -xzf PhotonChat-Linux.tar.gz` → `./photon_chat` çalıştır"
+        + (f"\n\n<!-- min-version: {MIN_VERSIONS[tag]} -->" if tag in MIN_VERSIONS else "")
     )
 
 

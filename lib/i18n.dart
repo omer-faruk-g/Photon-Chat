@@ -667,6 +667,7 @@ class AppLang extends ChangeNotifier {
     'updateAvailable': 'Güncelleme Mevcut',
     'updateNow': 'Güncelle',
     'updateLater': 'Sonra',
+    'updateRequired': 'Bu sürüm artık desteklenmiyor. Photon Chat\'i kullanmaya devam etmek için güncelle.',
     'updateDownload': 'İndir',
     'updateDownloading': '%{p} indiriliyor…',
     'updatePreparing': 'Hazırlanıyor…',
@@ -731,14 +732,6 @@ class AppLang extends ChangeNotifier {
     'fakeNameEmpty': 'Önce bir fake isim yaz.',
     'vipLocked': 'Bu özellik için üst katman gerekir',
     // Geçici test kodu bölümü — ödeme bağlanınca kaldırılacak.
-    'shopRedeemTitle': 'Kod Kullan',
-    'shopRedeemHint': 'Kod',
-    'shopRedeemButton': 'Kullan',
-    'shopRedeemOk': 'Kod kabul edildi — test modu açık.',
-    'shopRedeemBad': 'Geçersiz kod.',
-    'shopOwnerMode': 'TEST MODU AÇIK',
-    'shopOwnerModeDesc': 'Katmanları ödeme olmadan deneyebilirsin.',
-    'shopRevoked': 'Katman kaldırıldı.',
     // --- Profil ekranı ve giriş animasyonları ---
     'profileTitle': 'Profil',
     'sendMessage': 'Mesaj Gönder',
@@ -766,15 +759,10 @@ class AppLang extends ChangeNotifier {
     'animBundle': 'Beşi birden',
     'animBundleDesc': 'Tüm animasyonlar tek pakette.',
     'animBundleOwned': 'Hepsine sahipsin',
-    'animGranted': 'Animasyon verildi.',
-    'animGrantFailed': 'Animasyon verilemedi.',
     'animDiscountNote': 'katman indirimi uygulandı',
     'animFreeNote': 'Photon ve üstü katmanlara bir animasyon bedava gelir.',
     'animTapToSkip': 'Geçmek için dokun',
     'animTapToPop': 'Patlatmak için dokun'
 ,
-    'shopGranted': 'Katman verildi.',
-    'shopGrantFailed': 'Katman verilemedi.',
-    'shopRevoke': 'Katmanı kaldır',
   };
 }

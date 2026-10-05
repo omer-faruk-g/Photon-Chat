@@ -33,17 +33,8 @@ class PhotonApi {
 
   // --- Paid tiers (bridge is the authority; see server/index.js) ---
 
-  /// Grants a subscription. Test-only path while Play Billing is unwired — the
-  /// shop never calls this, its button answers "out of service".
-  static Future<bool> grantTier(String fipId, String tier, {int months = 1}) async {
-    try {
-      final r = await http.post(_u(bridgeUrl, '/tier/grant'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'tier': tier, 'months': months}));
-      return r.statusCode == 200;
-    } catch (_) {}
-    return false;
-  }
+  // Katman ve animasyon verme uygulamada yok: sunucuda yalnızca yönetici
+  // anahtarıyla (ADMIN_TOKEN) yapılabilir.
 
   /// Which animations [fipId] owns and which is selected.
   ///
@@ -57,18 +48,6 @@ class PhotonApi {
       if (r.statusCode == 200) return jsonDecode(r.body) as Map<String, dynamic>;
     } catch (_) {}
     return null;
-  }
-
-  /// TEMPORARY grant path, mirroring [grantTier]. Play receipt verification
-  /// will replace the caller, not this method.
-  static Future<bool> grantAnims(String fipId, List<String> animIds) async {
-    try {
-      final r = await http.post(_u(bridgeUrl, '/anim/grant'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'fipId': fipId, 'anims': animIds}));
-      return r.statusCode == 200;
-    } catch (_) {}
-    return false;
   }
 
   /// Select which owned animation plays. Empty string turns it off.

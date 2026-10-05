@@ -9,5 +9,10 @@ services:
     envVars:
       - key: PORT
         value: 3000
+      # Katman/animasyon vermek için yönetici anahtarı (en az 24 karakter).
+      # Tanımlı değilse /tier/grant ve /anim/grant tamamen kapalıdır.
+      # Render dashboard > Environment > ADMIN_TOKEN
+      - key: ADMIN_TOKEN
+        sync: false
       # Opsiyonel: Pulse AI icin Anthropic API anahtari
       # Render dashboard > Environment > ANTHROPIC_API_KEY olarak ekle

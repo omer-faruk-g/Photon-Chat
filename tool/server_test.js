@@ -31,10 +31,14 @@ function check(name, ok, detail) {
   failures.push(`${name}${detail ? ` — ${detail}` : ''}`);
 }
 
-async function req(method, p, body) {
+// Katman/animasyon verme uçları yalnızca yönetici anahtarıyla çalışır.
+const ADMIN_TOKEN = 'test-admin-token-0123456789abcdef';
+async function req(method, p, body, extraHeaders = {}) {
+  const headers = { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...extraHeaders };
+  if (/^\/(tier|anim)\/grant$/.test(p) && !('x-admin-token' in extraHeaders)) headers['x-admin-token'] = ADMIN_TOKEN;
   const res = await fetch(BASE + p, {
     method,
-    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   let data = null;
@@ -182,6 +186,18 @@ async function run() {
   // ---- paid tiers -----------------------------------------------------------
   r = await GET(`/tier/${A.fipId}`);
   check('tier defaults to none', r.status === 200 && r.data.tier === 'none', JSON.stringify(r.data));
+
+  // Kilit: anahtarsız ya da yanlış anahtarla kimse katman/animasyon alamaz.
+  r = await req('POST', '/tier/grant', { fipId: A.fipId, tier: 'photonPulseVip', months: 24 }, { 'x-admin-token': '' });
+  check('AUTH tier grant without admin token rejected', r.status === 403, `status ${r.status}`);
+  r = await req('POST', '/tier/grant', { fipId: A.fipId, tier: 'photonPulseVip', months: 24 }, { 'x-admin-token': 'OWNER' });
+  check('AUTH tier grant with wrong token rejected', r.status === 403, `status ${r.status}`);
+  r = await req('POST', '/tier/grant', { fipId: A.fipId, tier: 'photonPulseVip' }, { 'x-admin-token': ADMIN_TOKEN.replace(/.$/, 'X') });
+  check('AUTH tier grant with same-length wrong token rejected', r.status === 403, `status ${r.status}`);
+  r = await req('POST', '/anim/grant', { fipId: A.fipId, anims: ['wave'] }, { 'x-admin-token': '' });
+  check('AUTH anim grant without admin token rejected', r.status === 403, `status ${r.status}`);
+  r = await GET(`/tier/${A.fipId}`);
+  check('rejected grants changed nothing', r.data.tier === 'none', JSON.stringify(r.data));
 
   r = await POST('/tier/grant', { fipId: A.fipId, tier: 'bogusTier', months: 1 });
   check('unknown tier rejected', r.status === 400, `status ${r.status}`);
@@ -447,7 +463,7 @@ async function run() {
 
 function boot(snapshotFile) {
   const proc = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), SNAPSHOT_FILE: snapshotFile },
+    env: { ...process.env, PORT: String(PORT), SNAPSHOT_FILE: snapshotFile, ADMIN_TOKEN },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   proc.stdout.on('data', (d) => { proc._log = (proc._log || '') + d; });
@@ -462,6 +478,7 @@ async function restartRun() {
   const ck = chatKeyFor(A.fipId, B.fipId);
   const mid = '1699999999_ab3de'; // real shape: `${ts}_${rand}`
   fs.writeFileSync(SNAPSHOT, JSON.stringify({
+    grantsResetV1: true,
     users: { [A.fipId]: { code: A.code, name: A.name, serverUrl: A.url, lastSeen: Date.now() } },
     chats: { [ck]: [{ from: A.fipId, fromFipId: A.fipId, text: 'kalici', ts: Date.now(), msgId: mid }] },
     chatReactions: { [`${ck}_${mid}`]: { '👍': [B.fipId] } },
@@ -503,6 +520,31 @@ async function restartRun() {
   }
 }
 
+// Bayraksız (eski) bir anlık görüntüdeki katman ve animasyonlar test yolundan
+// verilmişti: sunucu açılırken bir kez sıfırlanmalı, kullanıcılar ise kalmalı.
+async function resetRun() {
+  fs.writeFileSync(SNAPSHOT, JSON.stringify({
+    users: { [A.fipId]: { code: A.code, name: A.name, serverUrl: A.url, lastSeen: Date.now() } },
+    tiers: { [A.fipId]: { tier: 'photonPulseVip', expiresAt: Date.now() + 86_400_000 } },
+    anims: { [A.fipId]: { owned: ['wave'], active: 'wave', freeGranted: false } },
+  }));
+  const proc = boot(SNAPSHOT);
+  try {
+    await waitForServer(proc);
+    let r = await GET(`/tier/${A.fipId}`);
+    check('reset: test-path tier wiped on first boot', r.data.tier === 'none', JSON.stringify(r.data));
+    r = await GET(`/anim/${A.fipId}`);
+    check('reset: test-path animations wiped on first boot', r.data.owned.length === 0, JSON.stringify(r.data));
+    r = await GET(`/lookup/${A.code}`);
+    check('reset: users kept', r.status === 200, `status ${r.status}`);
+  } catch (e) {
+    failures.push(`reset harness error: ${e.message}`);
+  } finally {
+    proc.kill('SIGKILL');
+    await new Promise((res) => setTimeout(res, 300));
+  }
+}
+
 (async () => {
   try { fs.unlinkSync(SNAPSHOT); } catch { /* fine */ }
   const proc = boot(SNAPSHOT);
@@ -521,6 +563,7 @@ async function restartRun() {
   }
 
   await restartRun();
+  await resetRun();
   try { fs.unlinkSync(SNAPSHOT); } catch { /* fine */ }
 
   console.log(`\npassed: ${pass}   failed: ${failures.length}`);
