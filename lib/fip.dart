@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 
-/// KNK'nın kimlik çekirdeği: FIP (Fake IP) bloğu.
+/// Photon Chat'in kimlik çekirdeği: FIP (Fake IP) bloğu.
 ///
 /// - 20 satırlık SHA-256 tabanlı hash bloğu üretir (cihaza özgü, rastgele tuz).
 /// - Bu bloktan deterministik bir 5 haneli "eşleşme kodu" türetir.

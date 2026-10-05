@@ -191,16 +191,29 @@ jobs:
           channel: 'stable'
       - name: Generate Windows platform files via flutter create
         run: |
-          flutter create --org com.example --project-name knk_flutter --platforms windows C:\flutter_template
+          flutter create --org com.example --project-name photon_chat --platforms windows C:\flutter_template
           if (Test-Path windows) { Remove-Item -Recurse -Force windows }
           Copy-Item -Recurse C:\flutter_template\windows windows
-          (Get-Content windows\runner\main.cpp) -replace 'L"knk_flutter"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
+          # Kullanıcının gördüğü her ad "Photon Chat": pencere, Görev Yöneticisi açıklaması, ürün adı.
+          (Get-Content windows\runner\main.cpp) -replace 'L"photon_chat"', 'L"Photon Chat"' | Set-Content windows\runner\main.cpp
+          $rc = 'windows\runner\Runner.rc'
+          (Get-Content $rc) `
+            -replace '"FileDescription", "photon_chat"', '"FileDescription", "Photon Chat"' `
+            -replace '"ProductName", "photon_chat"', '"ProductName", "Photon Chat"' `
+            -replace '"CompanyName", "com.example"', '"CompanyName", "Photon Chat"' `
+            -replace 'com\.example\. All rights reserved\.', 'Photon Chat. All rights reserved.' | Set-Content $rc
+          if (-not (Select-String -Path windows\CMakeLists.txt -Pattern 'set\(BINARY_NAME "photon_chat"\)' -Quiet)) { throw "BINARY_NAME photon_chat degil" }
+          if (Select-String -Path windows\CMakeLists.txt, windows\runner\*.cpp, windows\runner\*.rc -Pattern 'knk' -Quiet) { throw "Windows dosyalarinda knk kaldi" }
         shell: pwsh
       - run: flutter config --enable-windows-desktop
       - run: flutter pub get
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
       - run: flutter build windows --release
+      - name: Exe adını doğrula
+        run: |
+          if (-not (Test-Path build\windows\x64\runner\Release\photon_chat.exe)) { Get-ChildItem build\windows\x64\runner\Release; throw "photon_chat.exe yok" }
+        shell: pwsh
       - name: Create Inno Setup installer
         run: |
           $iss = @"
@@ -262,11 +275,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
       - name: Generate Linux platform files via flutter create
         run: |
-          flutter create --org com.example --project-name knk_flutter --platforms linux /tmp/flutter_template
+          flutter create --org com.example --project-name photon_chat --platforms linux /tmp/flutter_template
           rm -rf linux
           cp -r /tmp/flutter_template/linux linux
-          sed -i 's/set(BINARY_NAME "knk_flutter")/set(BINARY_NAME "photon_chat")/' linux/CMakeLists.txt
-          sed -i 's/set(APPLICATION_ID "com.example.knk_flutter")/set(APPLICATION_ID "com.example.photon_chat")/' linux/CMakeLists.txt
+          # Pencere başlığı "Photon Chat"
+          sed -i 's/"photon_chat");/"Photon Chat");/' linux/runner/my_application.cc
+          grep -q 'gtk_window_set_title(window, "Photon Chat")' linux/runner/my_application.cc
+          grep -q 'set(BINARY_NAME "photon_chat")' linux/CMakeLists.txt
+          if grep -rqi knk linux; then echo "Linux dosyalarinda knk kaldi"; exit 1; fi
       - run: flutter config --enable-linux-desktop
       - run: flutter pub get
       - name: Generate launcher icons

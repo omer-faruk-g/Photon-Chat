@@ -704,10 +704,27 @@ CHANGELOGS = {
         "**Web sürümü**\n"
         "- Kurulum yapmadan tarayıcıda kullan: https://omer-faruk-g.github.io/Photon-Chat/app/"
     ),
+    'v10.8.1': (
+        "### 🪟 v10.8.1 — Windows kurulumu düzeltildi\n\n"
+        "Windows kurulumu bitince \"photon_chat.exe yürütülemedi — sistem belirtilen dosyayı bulamıyor\" hatası veriyordu: "
+        "derleme uygulamayı başka bir adla üretiyordu, kurulum ve kısayollar ise photon_chat.exe'yi arıyordu.\n\n"
+        "- Uygulama artık photon_chat.exe adıyla derleniyor; kurulum, masaüstü ve Başlat kısayolları çalışıyor.\n"
+        "- Derlemeye kontrol eklendi: exe beklenen adla oluşmazsa sürüm yayınlanmaz.\n\n"
+        "> Önceki Windows kurulumunu yaptıysan bu sürümü üzerine kurman yeterli. Android, Linux ve web değişmedi; v10.8.0'ın bütün yenilikleri bu sürümde de var."
+    ),
+    'v10.8.2': (
+        "### 🏷️ v10.8.2 — Her yerde Photon Chat\n\n"
+        "Windows ve Linux sürümlerinde eski proje adı bazı yerlerde hâlâ görünüyordu. Hepsi Photon Chat oldu:\n\n"
+        "- **Windows:** pencere adı, Görev Yöneticisi'ndeki uygulama açıklaması, ürün ve şirket adı.\n"
+        "- **Linux:** pencere başlığı.\n"
+        "- Kurulum, masaüstü ve Başlat kısayolları photon_chat.exe'yi çalıştırıyor.\n\n"
+        "Derlemeye kontrol eklendi: Windows ya da Linux dosyalarında eski ad kalırsa sürüm yayınlanmaz.\n\n"
+        "> Kişilerin, sohbetlerin ve kimliğin cihazında aynen kalır; bu sürümü üzerine kurman yeterli."
+    ),
 }
 
-HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0'}
-INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0'}
+HUAWEI_VERSIONS = {'v2.0.1', 'v2.0.2', 'v2.0.3', 'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2'}
+INSTALLER_VERSIONS = {'v2.0.4', 'v2.0.5', 'v3.0.0', 'v3.0.1', 'v3.0.2', 'v3.0.3', 'v3.0.4', 'v3.0.5', 'v4.0.0', 'v5.0.0', 'v6.0.0', 'v6.2.0', 'v6.3.0', 'v6.4.0', 'v6.5.0', 'v6.6.0', 'v7.0.0', 'v7.1.0', 'v7.2.0', 'v7.2.1', 'v8.0.0', 'v8.1.0', 'v8.2.0', 'v8.3.0', 'v9.0.0', 'v9.0.1', 'v9.0.2', 'v9.1.0', 'v9.2.0', 'v10.0.0', 'v10.0.1', 'v10.0.2', 'v10.0.3', 'v10.1.0', 'v10.1.1', 'v10.1.2', 'v10.2.0', 'v10.3.0', 'v10.4.0', 'v10.5.0', 'v10.6.0', 'v10.7.0', 'v10.8.0', 'v10.8.1', 'v10.8.2'}
 
 
 def make_body(tag):
