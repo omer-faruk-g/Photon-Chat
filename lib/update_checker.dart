@@ -34,7 +34,12 @@ class UpdateChecker {
       if (!context.mounted) return;
 
       final displayTag = data['tag_name'] as String? ?? tagName;
-      final body = (data['body'] as String?) ?? '';
+      final rawBody = (data['body'] as String?) ?? '';
+      // Sürüm notundaki görünmez işaret: <!-- min-version: 10.9.0 -->
+      // Bu sürümün altındaki uygulamalar güncellemeyi erteleyemez.
+      final minMatch = RegExp(r'<!--\s*min-version:\s*([0-9.]+)\s*-->').firstMatch(rawBody);
+      final mandatory = minMatch != null && _isNewer(_parseVersion(minMatch.group(1)!), current);
+      final body = rawBody.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '').trim();
 
       await showDialog(
         context: context,
@@ -45,6 +50,7 @@ class UpdateChecker {
           releaseNotes: body,
           releaseUrl: releaseUrl,
           assets: assets,
+          mandatory: mandatory,
         ),
       );
     } catch (_) {}
@@ -73,12 +79,16 @@ class _UpdateDialog extends StatefulWidget {
   final String releaseUrl;
   final List<Map<String, dynamic>> assets;
 
+  /// Zorunlu güncelleme: "Sonra" yok, geri tuşu pencereyi kapatmaz.
+  final bool mandatory;
+
   const _UpdateDialog({
     required this.currentVersion,
     required this.newVersion,
     required this.releaseNotes,
     required this.releaseUrl,
     required this.assets,
+    this.mandatory = false,
   });
 
   @override
@@ -125,8 +135,22 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     }
   }
 
+  /// Masaüstünde sürüm sayfası yerine doğrudan kurulum dosyası.
+  String? _desktopAssetUrl() {
+    if (kIsWeb) return null;
+    final want = Platform.isWindows
+        ? 'PhotonChat-Windows-Setup.exe'
+        : (Platform.isLinux ? 'PhotonChat-Linux.tar.gz' : null);
+    if (want == null) return null;
+    for (final a in widget.assets) {
+      if (a['name'] == want) return a['browser_download_url'] as String?;
+    }
+    return null;
+  }
+
   Future<void> _openBrowser() async {
-    await launchUrl(Uri.parse(widget.releaseUrl), mode: LaunchMode.externalApplication);
+    final url = _desktopAssetUrl() ?? widget.releaseUrl;
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -134,7 +158,9 @@ class _UpdateDialogState extends State<_UpdateDialog> {
     final isAndroid = (!kIsWeb && Platform.isAndroid);
     final hasApk = _apkUrl() != null;
 
-    return AlertDialog(
+    return PopScope(
+      canPop: !widget.mandatory,
+      child: AlertDialog(
       backgroundColor: PhotonColors.panel,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Row(children: [
@@ -146,6 +172,23 @@ class _UpdateDialogState extends State<_UpdateDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (widget.mandatory) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Space.s2),
+              decoration: BoxDecoration(
+                color: PhotonColors.panelAlt,
+                borderRadius: BorderRadius.circular(PhotonRadius.card),
+                border: Border.all(color: PhotonColors.accent2),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(Icons.warning_amber_outlined, size: 18, color: PhotonColors.accent2),
+                const SizedBox(width: Space.s1),
+                Expanded(child: Text(AppLang.instance.t('updateRequired'), style: PText.small.copyWith(color: PhotonColors.text))),
+              ]),
+            ),
+            const SizedBox(height: Space.s2),
+          ],
           Row(children: [
             Text(widget.currentVersion, style: PText.small),
             Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward_outlined, size: 14, color: PhotonColors.accent)),
@@ -180,10 +223,11 @@ class _UpdateDialogState extends State<_UpdateDialog> {
       actions: _downloading
           ? []
           : [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(AppLang.instance.t('updateLater'), style: PText.small),
-              ),
+              if (!widget.mandatory)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(AppLang.instance.t('updateLater'), style: PText.small),
+                ),
               if (isAndroid && hasApk)
                 ElevatedButton(
                   style: photonPrimaryButtonStyle(),
@@ -197,6 +241,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                   child: Text(AppLang.instance.t('updateDownload')),
                 ),
             ],
+    ),
     );
   }
 }

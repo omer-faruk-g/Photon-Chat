@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
@@ -159,8 +160,14 @@ function loadSnapshot() {
     for (const [k, v] of Object.entries(raw.chats || {})) chats.set(k, v);
     for (const [k, v] of Object.entries(raw.groups || {})) { groups.set(k, v); if (v && v.groupCode) groupCodeIndex.set(v.groupCode, k); }
     for (const [k, v] of Object.entries(raw.registry || {})) registry.set(k, v);
-    for (const [k, v] of Object.entries(raw.tiers || {})) tiers.set(k, v);
-    for (const [k, v] of Object.entries(raw.anims || {})) anims.set(k, v);
+    // Ödeme hiç bağlanmadı: bu işaretten önceki bütün katman/animasyonlar
+    // doğrulamasız test yolundan verildi. Bir kez sıfırlanır.
+    if (raw.grantsResetV1) {
+      for (const [k, v] of Object.entries(raw.tiers || {})) tiers.set(k, v);
+      for (const [k, v] of Object.entries(raw.anims || {})) anims.set(k, v);
+    } else if (Object.keys(raw.tiers || {}).length || Object.keys(raw.anims || {}).length) {
+      console.log('Test yolundan verilmiş katman/animasyonlar sıfırlandı.');
+    }
     for (const [k, v] of Object.entries(raw.chatReads || {})) chatReads.set(k, v);
     for (const [k, v] of Object.entries(raw.chatReactions || {})) chatReactions.set(k, v);
     // The index is persisted directly. It used to be rebuilt by splitting the
@@ -191,6 +198,7 @@ function saveSnapshot() {
       chats: mapToObj(chats),
       groups: mapToObj(groups),
       registry: mapToObj(registry),
+      grantsResetV1: true,
       tiers: mapToObj(tiers),
       anims: mapToObj(anims),
       chatReads: mapToObj(chatReads),
@@ -650,7 +658,20 @@ function publicTier(fipId) {
 // Grants a subscription. Deliberately unauthenticated for now: it is the manual
 // test path while Play Billing is not wired up, and the shop UI never calls it.
 // Receipt verification against the Play Developer API belongs here.
+// Katman ve animasyon vermek yalnızca yöneticiye açık. Bu uçlar eskiden
+// doğrulamasızdı: uygulamadaki test kodu ("OWNER") ya da tek bir curl isteği
+// herkese bedava katman veriyordu — eski sürümler dahil. Kontrol sunucuda
+// olduğu için kilit bütün sürümlerde aynı anda geçerli.
+// ADMIN_TOKEN tanımlı değilse (ya da 24 karakterden kısaysa) uçlar tamamen kapalı.
+function isAdmin(req) {
+  const expected = process.env.ADMIN_TOKEN || '';
+  const given = req.get('x-admin-token') || '';
+  if (expected.length < 24 || given.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
 app.post('/tier/grant', medBody, (req, res) => {
+  if (!isAdmin(req)) return res.sendStatus(403);
   const { fipId, tier, months } = req.body;
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
   // 'none' revokes, so the unsubscribed state can be exercised without waiting
@@ -698,6 +719,7 @@ app.post('/tier/:fipId/prefs', medBody, (req, res) => {
 // Ownership grant. This is the manual/test path today; Play receipt
 // verification will land here exactly as it will for /tier/grant.
 app.post('/anim/grant', medBody, (req, res) => {
+  if (!isAdmin(req)) return res.sendStatus(403);
   const { fipId, anims: list } = req.body;
   if (!isNonEmptyString(fipId, 128)) return res.sendStatus(400);
   if (!Array.isArray(list) || list.length > ANIM_NAMES.length) return res.sendStatus(400);

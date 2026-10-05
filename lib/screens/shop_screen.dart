@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../i18n.dart';
-import '../local_store.dart';
 import '../photon_api.dart';
 import '../theme.dart';
 import '../profile_anim.dart';
@@ -24,64 +23,22 @@ class _ShopScreenState extends State<ShopScreen> {
   AnimOwnership _anims = AnimOwnership.empty;
   bool _loading = true;
 
-  /// TEMPORARY. Lets the owner move between tiers without a payment path while
-  /// Play Billing is unwired. Remove together with the redeem section once real
-  /// purchases land — the grant endpoint it drives is unauthenticated.
-  bool _ownerMode = false;
-  final _codeCtrl = TextEditingController();
-  static const _ownerCode = 'OWNER';
-
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  @override
-  void dispose() {
-    _codeCtrl.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     final raw = await PhotonApi.getTier(widget.fipId);
     final animRaw = await PhotonApi.getAnims(widget.fipId);
-    final owner = await LocalStore.loadOwnerMode();
     if (!mounted) return;
     setState(() {
       _status = raw == null ? VipStatus.none : VipStatus.fromJson(raw);
       _anims =
           animRaw == null ? AnimOwnership.empty : AnimOwnership.fromJson(animRaw);
-      _ownerMode = owner;
       _loading = false;
     });
-  }
-
-  Future<void> _redeem() async {
-    final ok = _codeCtrl.text.trim().toUpperCase() == _ownerCode;
-    if (ok) {
-      await LocalStore.saveOwnerMode(true);
-      if (!mounted) return;
-      setState(() {
-        _ownerMode = true;
-        _codeCtrl.clear();
-      });
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(AppLang.instance.t(ok ? 'shopRedeemOk' : 'shopRedeemBad')),
-    ));
-  }
-
-  Future<void> _revoke() async {
-    final ok = await PhotonApi.grantTier(widget.fipId, 'none');
-    if (ok) VipCache.instance.invalidate(widget.fipId);
-    if (!mounted) return;
-    if (ok) await _load();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(AppLang.instance.t(ok ? 'shopRevoked' : 'shopGrantFailed')),
-    ));
   }
 
   Future<void> _pickColor(Color c) async {
@@ -114,8 +71,6 @@ class _ShopScreenState extends State<ShopScreen> {
               padding: const EdgeInsets.fromLTRB(Space.s2, Space.s3, Space.s2, Space.s5),
               children: [
                 _currentTierCard(active),
-                const SizedBox(height: 16),
-                _redeemSection(),
                 if (active.coloredName) ...[
                   const SizedBox(height: 16),
                   _colorPicker(),
@@ -152,75 +107,6 @@ class _ShopScreenState extends State<ShopScreen> {
             style: PText.h1.copyWith(color: _status.color ?? PhotonColors.text),
           ),
         ]),
-      );
-
-  /// TEMPORARY test-code panel. Delete with [_ownerMode].
-  Widget _redeemSection() => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: PhotonColors.panel,
-          border: Border.all(
-              color: _ownerMode ? PhotonColors.accent2 : PhotonColors.line),
-          borderRadius: BorderRadius.circular(PhotonRadius.card),
-        ),
-        child: _ownerMode
-            ? Row(children: [
-                Icon(Icons.science_outlined, size: 18, color: PhotonColors.accent2),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(AppLang.instance.t('shopOwnerMode'),
-                            style: TextStyle(
-                                color: PhotonColors.accent2,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700)),
-                        Text(AppLang.instance.t('shopOwnerModeDesc'),
-                            style: PText.meta),
-                      ]),
-                ),
-                TextButton(
-                  onPressed: _revoke,
-                  child: Text(AppLang.instance.t('shopRevoke'),
-                      style: TextStyle(
-                          color: PhotonColors.danger, fontSize: 13)),
-                ),
-              ])
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(trUpper(AppLang.instance.t('shopRedeemTitle')),
-                    style: PText.label),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _codeCtrl,
-                      textCapitalization: TextCapitalization.characters,
-                      style: TextStyle(color: PhotonColors.text, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: AppLang.instance.t('shopRedeemHint'),
-                        hintStyle: TextStyle(
-                            color: PhotonColors.textDim, fontSize: 13),
-                        isDense: true,
-                        filled: true,
-                        fillColor: PhotonColors.bg,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: PhotonColors.line),
-                        ),
-                      ),
-                      onSubmitted: (_) => _redeem(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: photonPrimaryButtonStyle(),
-                    onPressed: _redeem,
-                    child: Text(AppLang.instance.t('shopRedeemButton')),
-                  ),
-                ]),
-              ]),
       );
 
   Widget _colorPicker() => Container(
@@ -289,7 +175,6 @@ class _ShopScreenState extends State<ShopScreen> {
                 tier: active,
                 owned: _anims,
                 accent: _status.color ?? PhotonColors.accent,
-                ownerMode: _ownerMode,
               ),
             ),
           );
@@ -367,7 +252,6 @@ class _ShopScreenState extends State<ShopScreen> {
                 tier: tier,
                 fipId: widget.fipId,
                 currentTier: active,
-                ownerMode: _ownerMode,
               ),
             ),
           );

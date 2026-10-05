@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../anims/profile_anim_player.dart';
 import '../i18n.dart';
-import '../photon_api.dart';
 import '../profile_anim.dart';
 import '../theme.dart';
 import '../vip.dart';
@@ -9,8 +8,8 @@ import '../vip.dart';
 /// One animation (or the five-pack) in full, with its price for this user.
 ///
 /// Buying is closed for the same reason tiers are: Play Console product ids and
-/// a service-account key are needed to verify receipts and neither exists. The
-/// owner test code is the one way past it.
+/// a service-account key are needed to verify receipts and neither exists.
+/// Until then only the server (admin token) can grant an animation.
 class ShopAnimScreen extends StatelessWidget {
   /// Null means the bundle — all five in one purchase.
   final ProfileAnim? anim;
@@ -19,8 +18,6 @@ class ShopAnimScreen extends StatelessWidget {
   final AnimOwnership owned;
   final Color accent;
 
-  /// TEMPORARY, mirrors ShopTierScreen. Remove with the redeem panel.
-  final bool ownerMode;
 
   const ShopAnimScreen({
     super.key,
@@ -29,7 +26,6 @@ class ShopAnimScreen extends StatelessWidget {
     required this.tier,
     required this.owned,
     required this.accent,
-    this.ownerMode = false,
   });
 
   bool get _isBundle => anim == null;
@@ -49,24 +45,11 @@ class ShopAnimScreen extends StatelessWidget {
         : '${v.toStringAsFixed(2).replaceAll('.', ',')}₺';
   }
 
+  /// Ödeme henüz bağlı değil. Animasyonu yalnızca sunucu (yönetici) verebilir.
   Future<void> _buy(BuildContext context) async {
-    if (!ownerMode) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppLang.instance.t('shopOutOfService')),
-      ));
-      return;
-    }
-    final ids = _isBundle
-        ? ProfileAnim.purchasable.map((a) => a.id).toList()
-        : [anim!.id];
-    final ok = await PhotonApi.grantAnims(fipId, ids);
-    if (ok) VipCache.instance.invalidate(fipId);
-    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content:
-          Text(AppLang.instance.t(ok ? 'animGranted' : 'animGrantFailed')),
+      content: Text(AppLang.instance.t('shopOutOfService')),
     ));
-    if (ok) Navigator.pop(context);
   }
 
   @override
